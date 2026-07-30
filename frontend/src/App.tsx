@@ -4,7 +4,9 @@
 import { StrictMode, useMemo } from 'react';
 import { createBrowserRouter, RouterProvider, useRouteError, isRouteErrorResponse, Navigate } from 'react-router';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { CssBaseline, ThemeProvider, createTheme, useMediaQuery, Box, Typography } from '@mui/material';
+import { CssBaseline, ThemeProvider, useMediaQuery, Box, Typography } from '@mui/material';
+import { createAppTheme } from './theme';
+import './styles/fonts.css';
 import { MetaProvider } from './components/MetaProvider';
 import { RegistrationPage } from './pages/RegistrationPage';
 import { RegistrationSuccessPage } from './pages/RegistrationSuccessPage';
@@ -97,11 +99,7 @@ const router = createBrowserRouter([
 
 export function App() {
   const prefersDarkMode = useMediaQuery('(prefers-color-scheme: dark)');
-  const theme = useMemo(() => createTheme({
-    palette: {
-      mode: prefersDarkMode ? 'dark' : 'light',
-    },
-  }), [prefersDarkMode]);
+  const theme = useMemo(() => createAppTheme(prefersDarkMode ? 'dark' : 'light'), [prefersDarkMode]);
 
   return (
     <StrictMode>
