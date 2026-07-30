@@ -29,6 +29,7 @@ import com.github.dockerjava.api.model.Bind;
 import com.github.dockerjava.api.model.Capability;
 import com.github.dockerjava.api.model.HostConfig;
 import org.gitgrader.configuration.GradingProperties;
+import org.gitgrader.configuration.StorageProperties;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
@@ -59,8 +60,8 @@ class DockerGradingRunnerConfigTest {
 		this.dockerClient = mock(DockerClient.class);
 		this.properties = new GradingProperties("docker", "/data/grading", 2, Duration.ofSeconds(120),
 				DataSize.ofMegabytes(512), 1.0, 256, false, DataSize.ofMegabytes(1), Duration.ofSeconds(20), false,
-				new GradingProperties.Docker("unix:///var/run/docker.sock", "", "65534:65534", Duration.ofMinutes(5),
-						true, DataSize.ofMegabytes(64), true, true),
+				new GradingProperties.Docker("unix:///var/run/docker.sock", "", "", "65534:65534",
+						Duration.ofMinutes(5), true, DataSize.ofMegabytes(64), true, true),
 				new GradingProperties.Queue(Duration.ofSeconds(2), Duration.ofMinutes(15), 3, Duration.ofSeconds(30)));
 		this.clock = Clock.systemUTC();
 
@@ -79,7 +80,9 @@ class DockerGradingRunnerConfigTest {
 
 	@Test
 	void verifySecurityConfig() {
-		DockerGradingRunner runner = new DockerGradingRunner(this.dockerClient, this.properties, this.clock);
+		DockerGradingRunner runner = new DockerGradingRunner(this.dockerClient, this.properties, this.clock,
+				new StorageProperties("/data/git/repositories", "/data/templates", "/data/tests", "/data/artifacts",
+						"/data/tmp"));
 		runner.createContainerCmd(this.request);
 
 		ArgumentCaptor<HostConfig> hostConfigCaptor = ArgumentCaptor.forClass(HostConfig.class);

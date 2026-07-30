@@ -91,4 +91,19 @@
 		<Class name="~.*ResultToken.*" />
 		<Bug pattern="DMI_RANDOM_USED_ONLY_ONCE" />
 	</Match>
+
+	<!--
+	  The grading sandbox runs as an unprivileged user unrelated to this process, and the
+	  application has no privilege to give the files away with chown, so the workspace is
+	  opened by mode instead. Without it the sandbox cannot read a single file, no test
+	  loads, and the run is recorded as a score of zero rather than as a failure.
+
+	  Read and traverse only, never write. The content is one student's own submission in
+	  a per-run directory on a private volume, discarded when the run ends. Scoped to this
+	  class so a permissive mode set anywhere else still fails the build.
+	-->
+	<Match>
+		<Class name="org.gitgrader.grading.internal.GradingWorkspaceFactory" />
+		<Bug pattern="OVERLY_PERMISSIVE_FILE_PERMISSION" />
+	</Match>
 </FindBugsFilter>

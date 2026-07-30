@@ -32,6 +32,7 @@ import com.github.dockerjava.api.async.ResultCallback;
 import com.github.dockerjava.api.exception.NotFoundException;
 import com.github.dockerjava.api.model.PullResponseItem;
 import org.gitgrader.configuration.GradingProperties;
+import org.gitgrader.configuration.StorageProperties;
 import org.gitgrader.grading.GradingExecutionRequest;
 import org.gitgrader.grading.GradingResult;
 import org.junit.jupiter.api.Assumptions;
@@ -87,7 +88,9 @@ class DockerGradingRunnerIT {
 		// can only read a workspace that is readable by everyone.
 		makeWorldReadable(workspace);
 
-		GradingResult result = new DockerGradingRunner(client, properties, Clock.systemUTC())
+		GradingResult result = new DockerGradingRunner(client, properties, Clock.systemUTC(),
+				new StorageProperties("/data/git/repositories", "/data/templates", "/data/tests", "/data/artifacts",
+						"/data/tmp"))
 			.execute(new GradingExecutionRequest(workspace, EXAMPLE.resolve("hidden-tests").toAbsolutePath(), IMAGE,
 					null, "node --test --test-reporter=tap /opt/hidden-tests/hidden.test.js", Duration.ofMinutes(3),
 					DataSize.ofMegabytes(512).toBytes(), 1.0, 256, false, DataSize.ofMegabytes(1).toBytes(), "corr-it",
@@ -127,8 +130,8 @@ class DockerGradingRunnerIT {
 	private static GradingProperties properties() {
 		return new GradingProperties("docker", "/data/grading", 2, Duration.ofSeconds(120), DataSize.ofMegabytes(512),
 				1.0, 256, false, DataSize.ofMegabytes(1), Duration.ofSeconds(20), false,
-				new GradingProperties.Docker("unix:///var/run/docker.sock", "", "65534:65534", Duration.ofMinutes(5),
-						true, DataSize.ofMegabytes(64), true, true),
+				new GradingProperties.Docker("unix:///var/run/docker.sock", "", "", "65534:65534",
+						Duration.ofMinutes(5), true, DataSize.ofMegabytes(64), true, true),
 				new GradingProperties.Queue(Duration.ofSeconds(2), Duration.ofMinutes(15), 3, Duration.ofSeconds(30)));
 	}
 
