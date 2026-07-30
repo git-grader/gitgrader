@@ -21,6 +21,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Clock;
 import java.time.Instant;
+import java.time.ZoneOffset;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Stream;
@@ -231,8 +232,8 @@ public class GitRepositoryService {
 			ObjectId treeId = index.writeTree(inserter);
 			CommitBuilder commit = new CommitBuilder();
 			commit.setTreeId(treeId);
-			PersonIdent author = new PersonIdent(TEMPLATE_AUTHOR_NAME, TEMPLATE_AUTHOR_EMAIL,
-					java.util.Date.from(Instant.now(this.clock)), java.util.TimeZone.getTimeZone("UTC"));
+			PersonIdent author = new PersonIdent(TEMPLATE_AUTHOR_NAME, TEMPLATE_AUTHOR_EMAIL, Instant.now(this.clock),
+					ZoneOffset.UTC);
 			commit.setAuthor(author);
 			commit.setCommitter(author);
 			commit.setMessage("Initial assignment template\n");

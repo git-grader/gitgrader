@@ -54,7 +54,8 @@ class DefaultAssignmentServiceTest {
 				"actor", CLOCK);
 		when(assignments.findById(assignmentId)).thenReturn(Optional.of(assignment));
 		when(extensions.findByAssignmentIdAndStudentIdAndRevokedAtIsNull(assignmentId, studentId))
-			.thenReturn(Optional.of(extension), Optional.empty());
+			.thenReturn(Optional.of(extension))
+			.thenReturn(Optional.empty());
 
 		assertThat(service.effectiveDueAt(assignmentId, studentId)).isEqualTo(DUE.plusSeconds(3600));
 		assertThat(service.effectiveDueAt(assignmentId, studentId)).isEqualTo(DUE);

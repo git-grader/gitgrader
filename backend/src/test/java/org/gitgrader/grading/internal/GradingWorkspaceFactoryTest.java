@@ -122,10 +122,8 @@ class GradingWorkspaceFactoryTest {
 	private String seedRepository(String repositoryPath, String content) throws Exception {
 		Path bare = this.repositories.resolve(repositoryPath + ".git");
 		Files.createDirectories(bare.getParent());
-		try (Git ignored = Git.init().setBare(true).setDirectory(bare.toFile()).setInitialBranch("main").call()) {
-			// The bare repository only needs to exist; content arrives via the clone
-			// below.
-		}
+		// The bare repository only needs to exist; content arrives via the clone below.
+		Git.init().setBare(true).setDirectory(bare.toFile()).setInitialBranch("main").call().close();
 		return commitInto(bare, repositoryPath, content, false);
 	}
 
