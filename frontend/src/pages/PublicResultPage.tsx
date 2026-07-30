@@ -5,6 +5,7 @@ import { useEffect } from 'react';
 import { useParams } from 'react-router';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '../api';
+import { BrandMark } from '../components/BrandMark';
 import { Box, Typography, Paper, Chip, LinearProgress, Table, TableBody, TableCell, TableHead, TableRow, Alert } from '@mui/material';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import CancelIcon from '@mui/icons-material/Cancel';
@@ -52,6 +53,7 @@ export function PublicResultPage() {
 
   return (
     <Box sx={{ p: 4, maxWidth: 'md', mx: 'auto' }}>
+      <BrandMark />
       <Typography variant="h4" component="h1" gutterBottom>{data.assignmentTitle}</Typography>
       <Typography variant="subtitle1" component="h2" gutterBottom>{data.courseName}</Typography>
       <Paper sx={{ p: 4, mb: 4 }}>
