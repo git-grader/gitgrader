@@ -1,0 +1,143 @@
+services:
+  app:
+    image: ghcr.io/git-grader/gitgrader:${GITGRADER_VERSION:-0.1.0}
+    restart: unless-stopped
+    depends_on:
+      database:
+        condition: service_healthy
+      init-permissions:
+        condition: service_completed_successfully
+    environment:
+      SPRING_PROFILES_ACTIVE: production
+      SPRING_DATASOURCE_URL: ${SPRING_DATASOURCE_URL:-jdbc:postgresql://database:5432/gitgrader}
+      SPRING_DATASOURCE_USERNAME: ${SPRING_DATASOURCE_USERNAME:-gitgrader}
+      SPRING_DATASOURCE_PASSWORD: ${SPRING_DATASOURCE_PASSWORD:?Set SPRING_DATASOURCE_PASSWORD in .env}
+      APP_PUBLIC_URL: ${APP_PUBLIC_URL:-http://localhost:8080}
+      APP_SUPPORT_EMAIL: ${APP_SUPPORT_EMAIL:-support@example.org}
+      APP_ORGANIZATION_NAME: ${APP_ORGANIZATION_NAME:-Example Organization}
+      GIT_SSH_HOST: ${GIT_SSH_HOST:-localhost}
+      GIT_SSH_PORT: ${GIT_SSH_PORT:-2222}
+      GIT_LISTEN_ADDRESS: ${GIT_LISTEN_ADDRESS:-0.0.0.0}
+      GIT_LISTEN_PORT: ${GIT_LISTEN_PORT:-2222}
+      GIT_HOST_KEY_PATH: /data/git/ssh/hostkey.ser
+      GIT_REPOSITORY_DIRECTORY: /data/git/repositories
+      GRADING_WORKING_DIRECTORY: /data/grading
+      GRADING_DOCKER_WORKSPACE_MOUNT_ROOT: ${GRADING_DOCKER_WORKSPACE_MOUNT_ROOT:-}
+      GRADING_MAX_PARALLEL_JOBS: ${GRADING_MAX_PARALLEL_JOBS:-2}
+      GRADING_DEFAULT_TIMEOUT: ${GRADING_DEFAULT_TIMEOUT:-120s}
+      GRADING_DEFAULT_MEMORY_LIMIT: ${GRADING_DEFAULT_MEMORY_LIMIT:-512MB}
+      GRADING_DEFAULT_CPU_LIMIT: ${GRADING_DEFAULT_CPU_LIMIT:-1.0}
+      GRADING_DEFAULT_PID_LIMIT: ${GRADING_DEFAULT_PID_LIMIT:-256}
+      GRADING_NETWORK_ENABLED: ${GRADING_NETWORK_ENABLED:-false}
+      STORAGE_REPOSITORIES_DIRECTORY: /data/git/repositories
+      STORAGE_TEMPLATES_DIRECTORY: /data/templates
+      STORAGE_TESTS_DIRECTORY: /data/tests
+      STORAGE_ARTIFACTS_DIRECTORY: /data/artifacts
+      SECURITY_LDAP_ENABLED: ${SECURITY_LDAP_ENABLED:-false}
+      SECURITY_LOCAL_ACCOUNTS_ENABLED: ${SECURITY_LOCAL_ACCOUNTS_ENABLED:-false}
+      SECURITY_SESSION_SECURE_COOKIE: ${SECURITY_SESSION_SECURE_COOKIE:-true}
+      SERVER_FORWARD_HEADERS_STRATEGY: ${SERVER_FORWARD_HEADERS_STRATEGY:-none}
+    ports:
+      - "${HTTP_PORT:-8080}:8080"
+      - "${SSH_PORT:-2222}:2222"
+    volumes:
+      - git-data:/data/git
+      - grading-data:/data/grading
+      - templates:/data/templates
+      - tests:/data/tests
+      - artifacts:/data/artifacts
+      - ./config:/config:ro
+      # DANGER: Docker socket access grants effective host-root control. A process able
+      # to call this socket can start privileged containers and mount host paths. See
+      # docs/security.md. Prefer the documented socket proxy or runner-service split.
+      - /var/run/docker.sock:/var/run/docker.sock
+      # To use a restricted proxy, enable a proxy service, remove the socket line above,
+      # and set GRADING_DOCKER_HOST=tcp://docker-socket-proxy:2375. A proxy must allow
+      # only the runner's required Docker API methods; it is not a complete security boundary.
+    # No container healthcheck: the image is built by buildpacks onto a minimal run
+    # image that contains no shell and no HTTP client, so any in-container probe simply
+    # fails to exec. A probe that can never succeed is worse than none, because the
+    # container then reports "health: starting" forever and hides a crash loop behind
+    # what looks like a slow boot. Probe readiness from outside instead - the endpoint
+    # is documented in docs/operations.md:
+    #   wget -qO- http://localhost:${HTTP_PORT:-8080}/actuator/health/readiness
+    read_only: true
+    tmpfs:
+      - /tmp
+    # The socket above is owned by the host's docker group, and this container runs
+    # unprivileged, so without membership of that group every grading run fails with a
+    # permission error long after startup looked fine. The gid differs per host, so it
+    # has no safe default and is required here in order to fail at "up" rather than at
+    # the first submission. Find it with: stat -c '%g' /var/run/docker.sock
+    group_add:
+      - "${DOCKER_GID:?Set DOCKER_GID in .env - see stat -c '%g' /var/run/docker.sock}"
+    security_opt:
+      - no-new-privileges:true
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 2G
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: '3'
+
+  # Docker creates an empty named volume owned by root unless the image already contains
+  # the mount path to copy ownership from, and a buildpack image contains no /data tree.
+  # The application runs unprivileged, so without this it cannot write to any of its own
+  # volumes and fails at startup. This one-shot service adjusts ownership and exits; it
+  # is the only container here that needs root, and it holds no ports or secrets.
+  # The uid/gid are the ones baked into the application image; if you rebuild on a
+  # different base, read them back with:
+  #   docker inspect --format '{{.Config.User}}' ghcr.io/git-grader/gitgrader:<tag>
+  init-permissions:
+    image: alpine:3.20@sha256:d9e853e87e55526f6b2917df91a2115c36dd7c696a35be12163d44e6e2a4b6bc
+    user: "0:0"
+    command: ["chown", "-R", "${APP_UID:-1002}:${APP_GID:-1001}",
+              "/data/git", "/data/grading", "/data/templates", "/data/tests", "/data/artifacts"]
+    volumes:
+      - git-data:/data/git
+      - grading-data:/data/grading
+      - templates:/data/templates
+      - tests:/data/tests
+      - artifacts:/data/artifacts
+    restart: "no"
+    security_opt:
+      - no-new-privileges:true
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: '3'
+
+  database:
+    image: postgres:18.2-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: gitgrader
+      POSTGRES_USER: gitgrader
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+    volumes:
+      - database:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U gitgrader -d gitgrader"]
+      interval: 10s
+      timeout: 5s
+      retries: 8
+    security_opt:
+      - no-new-privileges:true
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: '3'
+
+volumes:
+  database:
+  git-data:
+  grading-data:
+  templates:
+  tests:
+  artifacts:

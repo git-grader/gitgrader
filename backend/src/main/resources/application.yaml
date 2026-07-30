@@ -1,0 +1,314 @@
+#
+# Copyright the GitGrader contributors.
+# SPDX-License-Identifier: Apache-2.0
+#
+# GitGrader default configuration.
+#
+# PRECEDENCE (highest wins):
+#   1. environment variables            e.g. APP_PUBLIC_URL, GIT_SSH_HOST
+#   2. external YAML                    e.g. /config/application.yaml (mounted read only)
+#   3. the safe defaults in this file
+#
+# Nothing here names an organization, a domain, or a course. Every such value is either
+# a neutral placeholder or comes from the environment. A Checkstyle rule and a PMD rule
+# fail the build if one is hard coded in Java instead.
+
+spring:
+  application:
+    name: ${APP_NAME:GitGrader}
+
+  config:
+    # Lets an operator drop a file into /config without rebuilding the image.
+    import: "optional:file:/config/application.yaml,optional:file:./config/application.yaml"
+
+  threads:
+    virtual:
+      # Grading waits on container I/O far more than it computes.
+      enabled: true
+
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/gitgrader}
+    username: ${SPRING_DATASOURCE_USERNAME:gitgrader}
+    password: ${SPRING_DATASOURCE_PASSWORD:gitgrader}
+    hikari:
+      pool-name: gitgrader-pool
+      maximum-pool-size: ${DB_POOL_SIZE:10}
+      minimum-idle: 2
+      # HikariCP binds these as raw milliseconds, NOT as Spring Durations. Writing "10s"
+      # here fails binding at startup with a NumberFormatException.
+      connection-timeout: 10000
+      # Long enough for a synchronous grading wait, short enough to surface a leak.
+      leak-detection-threshold: 60000
+
+  jpa:
+    open-in-view: false
+    hibernate:
+      # NEVER create or update. Flyway is the single owner of the schema; anything else
+      # risks silent data loss on upgrade, which section 21 forbids outright.
+      ddl-auto: validate
+    properties:
+      hibernate:
+        jdbc:
+          time_zone: UTC
+          batch_size: 50
+        order_inserts: true
+        order_updates: true
+        query:
+          fail_on_pagination_over_collection_fetch: true
+          in_clause_parameter_padding: true
+
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    baseline-on-migrate: false
+    validate-on-migrate: true
+    # A destructive repair must be a deliberate operator action, never automatic.
+    clean-disabled: true
+    out-of-order: false
+
+  modulith:
+    events:
+      jdbc:
+        schema-initialization:
+          # Owned by Flyway migration V2. See that file for the reasoning.
+          enabled: false
+      completion-mode: update
+      republish-outstanding-events-on-restart: true
+
+  servlet:
+    multipart:
+      max-file-size: 25MB
+      max-request-size: 50MB
+
+  mvc:
+    problemdetails:
+      enabled: true
+
+  web:
+    resources:
+      add-mappings: true
+      cache:
+        cachecontrol:
+          max-age: 365d
+          cache-public: true
+
+server:
+  port: ${SERVER_PORT:8080}
+  # Only honour X-Forwarded-* when an operator explicitly opts in, because trusting
+  # those headers unconditionally lets a client forge its own source address.
+  forward-headers-strategy: ${SERVER_FORWARD_HEADERS_STRATEGY:none}
+  shutdown: graceful
+  error:
+    whitelabel:
+      enabled: false
+    include-message: never
+    include-binding-errors: never
+    include-stacktrace: never
+    include-exception: false
+  servlet:
+    session:
+      cookie:
+        name: ${SECURITY_SESSION_COOKIE_NAME:GITGRADER_SESSION}
+        http-only: true
+        secure: ${SECURITY_SESSION_SECURE_COOKIE:true}
+        same-site: lax
+      timeout: ${SECURITY_SESSION_TIMEOUT:8h}
+  compression:
+    enabled: true
+    mime-types: application/json,application/problem+json,text/html,text/css,application/javascript
+
+# =============================================================================
+# GitGrader: product identity. Every user visible string comes from here.
+# =============================================================================
+app:
+  name: ${APP_NAME:GitGrader}
+  public-url: ${APP_PUBLIC_URL:http://localhost:8080}
+  support-email: ${APP_SUPPORT_EMAIL:support@example.org}
+  organization-name: ${APP_ORGANIZATION_NAME:Example Organization}
+  documentation-url: ${APP_DOCUMENTATION_URL:https://github.com/git-grader/gitgrader}
+  default-timezone: ${APP_DEFAULT_TIMEZONE:UTC}
+  data-directory: ${APP_DATA_DIRECTORY:/data}
+  registration:
+    enabled: ${APP_REGISTRATION_ENABLED:true}
+    require-instructor-verification: ${APP_REQUIRE_INSTRUCTOR_VERIFICATION:false}
+    max-keys-per-student: ${APP_MAX_KEYS_PER_STUDENT:5}
+  result-tokens:
+    entropy-bits: ${APP_RESULT_TOKEN_ENTROPY_BITS:256}
+    time-to-live: ${APP_RESULT_TOKEN_TTL:P180D}
+    prefix-length: 8
+
+# =============================================================================
+# Git over SSH
+# =============================================================================
+git:
+  enabled: ${GIT_ENABLED:true}
+  # What students are told to clone from. Behind a port mapping or proxy this is
+  # deliberately not the same as the listen address below.
+  ssh-host: ${GIT_SSH_HOST:localhost}
+  ssh-port: ${GIT_SSH_PORT:2222}
+  listen-address: ${GIT_LISTEN_ADDRESS:0.0.0.0}
+  listen-port: ${GIT_LISTEN_PORT:2222}
+  ssh-user: ${GIT_SSH_USER:git}
+  host-key-path: ${GIT_HOST_KEY_PATH:/data/git/ssh/hostkey.ser}
+  repository-directory: ${GIT_REPOSITORY_DIRECTORY:/data/git/repositories}
+  max-push-size: ${GIT_MAX_PUSH_SIZE:50MB}
+  max-file-size: ${GIT_MAX_FILE_SIZE:10MB}
+  max-file-count: ${GIT_MAX_FILE_COUNT:2000}
+  require-signed-commits: ${GIT_REQUIRE_SIGNED_COMMITS:true}
+  idle-timeout: 10m
+  # These are authorized_keys BLOB type names. "ssh-rsa" is how every RSA public key is
+  # written, including a fresh 4096-bit one; "rsa-sha2-256"/"rsa-sha2-512" are signature
+  # algorithm names and never appear in a key file. SHA-1 RSA signatures are refused at
+  # verification time, not by excluding the blob type here.
+  allowed-key-types:
+    - ssh-ed25519
+    - sk-ssh-ed25519@openssh.com
+    - ecdsa-sha2-nistp256
+    - ecdsa-sha2-nistp384
+    - ecdsa-sha2-nistp521
+    - ssh-rsa
+
+# =============================================================================
+# Grading sandbox
+# =============================================================================
+grading:
+  runner: ${GRADING_RUNNER:docker}
+  working-directory: ${GRADING_WORKING_DIRECTORY:/data/grading}
+  max-parallel-jobs: ${GRADING_MAX_PARALLEL_JOBS:2}
+  default-timeout: ${GRADING_DEFAULT_TIMEOUT:120s}
+  default-memory-limit: ${GRADING_DEFAULT_MEMORY_LIMIT:512MB}
+  default-cpu-limit: ${GRADING_DEFAULT_CPU_LIMIT:1.0}
+  default-pid-limit: ${GRADING_DEFAULT_PID_LIMIT:256}
+  # OFF by default. A grading container has no route off the host, which removes data
+  # exfiltration and "phone home for the answer" in one step.
+  network-enabled: ${GRADING_NETWORK_ENABLED:false}
+  log-size-limit: ${GRADING_LOG_SIZE_LIMIT:1MB}
+  synchronous-timeout: ${GRADING_SYNCHRONOUS_TIMEOUT:20s}
+  retain-workspaces: ${GRADING_RETAIN_WORKSPACES:false}
+  docker:
+    host: ${GRADING_DOCKER_HOST:unix:///var/run/docker.sock}
+    # Set when GitGrader itself runs in a container: the engine resolves bind mounts
+    # against the HOST filesystem, not against this container's view of it.
+    workspace-mount-root: ${GRADING_DOCKER_WORKSPACE_MOUNT_ROOT:}
+    user: ${GRADING_DOCKER_USER:65534:65534}
+    pull-timeout: 5m
+    read-only-root-filesystem: true
+    tmpfs-size: 64MB
+    drop-all-capabilities: true
+    no-new-privileges: true
+  queue:
+    poll-interval: 2s
+    claim-timeout: 15m
+    max-attempts: 3
+    retry-backoff: 30s
+
+# =============================================================================
+# Storage layout
+# =============================================================================
+storage:
+  repositories-directory: ${STORAGE_REPOSITORIES_DIRECTORY:/data/git/repositories}
+  templates-directory: ${STORAGE_TEMPLATES_DIRECTORY:/data/templates}
+  # Physically separate from templates and repositories. This is a security boundary.
+  tests-directory: ${STORAGE_TESTS_DIRECTORY:/data/tests}
+  artifacts-directory: ${STORAGE_ARTIFACTS_DIRECTORY:/data/artifacts}
+  temp-directory: ${STORAGE_TEMP_DIRECTORY:/data/tmp}
+
+# =============================================================================
+# Security
+# =============================================================================
+security:
+  ldap:
+    enabled: ${SECURITY_LDAP_ENABLED:false}
+    url: ${SECURITY_LDAP_URL:ldap://localhost:389}
+    base-dn: ${SECURITY_LDAP_BASE_DN:}
+    manager-dn: ${SECURITY_LDAP_MANAGER_DN:}
+    manager-password: ${SECURITY_LDAP_MANAGER_PASSWORD:}
+    user-search-base: ${SECURITY_LDAP_USER_SEARCH_BASE:ou=people}
+    user-search-filter: ${SECURITY_LDAP_USER_SEARCH_FILTER:(uid={0})}
+    group-search-base: ${SECURITY_LDAP_GROUP_SEARCH_BASE:ou=groups}
+    group-search-filter: ${SECURITY_LDAP_GROUP_SEARCH_FILTER:(member={0})}
+    instructor-group: ${SECURITY_LDAP_INSTRUCTOR_GROUP:gitgrader-instructors}
+    admin-group: ${SECURITY_LDAP_ADMIN_GROUP:gitgrader-admins}
+    verify-certificate: ${SECURITY_LDAP_VERIFY_CERTIFICATE:true}
+    referral: follow
+  local-accounts:
+    # Development only. A startup check refuses to boot if this is true under the
+    # production profile - a forgotten local account is a back door.
+    enabled: ${SECURITY_LOCAL_ACCOUNTS_ENABLED:false}
+    accounts: []
+  rate-limits:
+    registration-per-hour-per-ip: ${SECURITY_RATE_REGISTRATION_IP:5}
+    registration-per-hour-global: ${SECURITY_RATE_REGISTRATION_GLOBAL:200}
+    result-lookup-per-minute-per-ip: ${SECURITY_RATE_RESULT_IP:60}
+    login-per-minute-per-ip: ${SECURITY_RATE_LOGIN_IP:10}
+    ssh-auth-per-minute-per-ip: ${SECURITY_RATE_SSH_IP:30}
+    block-duration: 15m
+  session:
+    timeout: ${SECURITY_SESSION_TIMEOUT:8h}
+    cookie-name: ${SECURITY_SESSION_COOKIE_NAME:GITGRADER_SESSION}
+    secure-cookie: ${SECURITY_SESSION_SECURE_COOKIE:true}
+    same-site: Lax
+
+# =============================================================================
+# Observability
+# =============================================================================
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus,modulith
+      base-path: /actuator
+  endpoint:
+    health:
+      probes:
+        enabled: true
+      show-details: when-authorized
+      show-components: when-authorized
+      roles: ADMIN
+    info:
+      access: read-only
+  health:
+    livenessstate:
+      enabled: true
+    readinessstate:
+      enabled: true
+    # Boot registers an LDAP health indicator whenever spring-boot-starter-ldap is on the
+    # classpath, regardless of whether LDAP is actually configured. Left on, it probes
+    # localhost:389 and reports the whole application DOWN on every deployment that does
+    # not use a directory - which is the default. It therefore tracks the LDAP switch.
+    ldap:
+      enabled: ${SECURITY_LDAP_ENABLED:false}
+  info:
+    env:
+      enabled: false
+    build:
+      enabled: true
+    git:
+      enabled: true
+      mode: simple
+  observations:
+    key-values:
+      application: ${APP_NAME:GitGrader}
+  metrics:
+    tags:
+      application: ${APP_NAME:GitGrader}
+
+springdoc:
+  api-docs:
+    path: /api/v1/openapi
+  swagger-ui:
+    path: /api/v1/docs
+    # Reachable in dev; the production profile turns it off.
+    enabled: ${SPRINGDOC_UI_ENABLED:true}
+    operationsSorter: alpha
+    tagsSorter: alpha
+
+logging:
+  level:
+    root: INFO
+    org.gitgrader: ${LOG_LEVEL_GITGRADER:INFO}
+    org.springframework.security: WARN
+    org.apache.sshd: WARN
+    org.eclipse.jgit: WARN
+  pattern:
+    correlation: "[${spring.application.name:},%X{traceId:-},%X{spanId:-},%X{correlationId:-}] "

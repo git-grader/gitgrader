@@ -1,0 +1,39 @@
+/*
+ * Copyright the GitGrader contributors.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     https://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package org.gitgrader.runtimes;
+
+import java.util.List;
+import java.util.Optional;
+import java.util.UUID;
+
+/** Provides read-only access to execution runtimes. */
+public interface RuntimeCatalog {
+
+	/**
+	 * Finds a runtime by identifier.
+	 * @param id runtime identifier
+	 * @return matching runtime, if present
+	 */
+	Optional<RuntimeView> findRuntime(UUID id);
+
+	/**
+	 * Lists all runtimes.
+	 * @return runtimes ordered by key
+	 */
+	List<RuntimeView> findAll();
+
+}

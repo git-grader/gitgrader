@@ -1,0 +1,76 @@
+{
+  "suiteKey": "assignment-01-string-utils",
+  "version": "1.0.0",
+  "tests": [
+    {
+      "id": "h01",
+      "name": "h01 truncate preserves text at the maximum length",
+      "category": "Truncation - boundary conditions",
+      "hint": "Check what happens when the text is exactly the maximum length.",
+      "weight": 1
+    },
+    {
+      "id": "h02",
+      "name": "h02 truncate counts Unicode characters rather than UTF-16 units",
+      "category": "Truncation - Unicode handling",
+      "hint": "Count user-perceived characters rather than storage units.",
+      "weight": 1
+    },
+    {
+      "id": "h03",
+      "name": "h03 slugify normalises accented letters",
+      "category": "Slug generation - character normalisation",
+      "hint": "Consider how letters with marks should appear in a URL label.",
+      "weight": 1
+    },
+    {
+      "id": "h04",
+      "name": "h04 slugify collapses punctuation and whitespace",
+      "category": "Slug generation - separators",
+      "hint": "Ensure runs of separators produce one clean separator.",
+      "weight": 1
+    },
+    {
+      "id": "h05",
+      "name": "h05 titleCase capitalises hyphenated words",
+      "category": "Title casing - word boundaries",
+      "hint": "Treat punctuation that joins words as a word boundary when appropriate.",
+      "weight": 1
+    },
+    {
+      "id": "h06",
+      "name": "h06 wordCount returns zero for empty text",
+      "category": "Word counting - empty input",
+      "hint": "Decide what an input with no words should return.",
+      "weight": 1
+    },
+    {
+      "id": "h07",
+      "name": "h07 wordCount accepts mixed whitespace",
+      "category": "Word counting - whitespace",
+      "hint": "Do not assume that every separator is an ordinary space.",
+      "weight": 1
+    },
+    {
+      "id": "h08",
+      "name": "h08 reverseWords normalises repeated whitespace",
+      "category": "Word reversal - whitespace",
+      "hint": "Define the output spacing after separating the words.",
+      "weight": 1
+    },
+    {
+      "id": "h09",
+      "name": "h09 isPalindrome ignores case and punctuation",
+      "category": "Palindrome checking - normalisation",
+      "hint": "Compare the meaningful characters, not the presentation characters.",
+      "weight": 1
+    },
+    {
+      "id": "h10",
+      "name": "h10 isPalindrome rejects a non-palindrome",
+      "category": "Palindrome checking - negative case",
+      "hint": "Make sure the comparison can return false as well as true.",
+      "weight": 1
+    }
+  ]
+}

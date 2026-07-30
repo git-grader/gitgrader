@@ -1,0 +1,68 @@
+#
+# Copyright the GitGrader contributors.
+# SPDX-License-Identifier: Apache-2.0
+#
+# Test profile.
+#
+# Datasource properties are supplied per test class by Testcontainers through
+# @DynamicPropertySource, so nothing here points at a fixed database.
+
+app:
+  public-url: http://localhost:8080
+  data-directory: ./target/test-data
+  result-tokens:
+    entropy-bits: 256
+
+git:
+  # No test needs a listening SSH port unless it explicitly starts one; leaving the
+  # server enabled would make every @SpringBootTest bind a port and race the next one.
+  enabled: false
+  ssh-host: localhost
+  ssh-port: 2222
+  host-key-path: ./target/test-data/git/ssh/hostkey.ser
+  repository-directory: ./target/test-data/git/repositories
+
+grading:
+  runner: noop
+  working-directory: ./target/test-data/grading
+  max-parallel-jobs: 1
+
+storage:
+  repositories-directory: ./target/test-data/git/repositories
+  templates-directory: ./target/test-data/templates
+  tests-directory: ./target/test-data/tests
+  artifacts-directory: ./target/test-data/artifacts
+  temp-directory: ./target/test-data/tmp
+
+security:
+  ldap:
+    enabled: false
+  local-accounts:
+    enabled: false
+  session:
+    secure-cookie: false
+
+audit:
+  # Fixed so that address hashes are stable and assertable across a test run.
+  ip-hash-key: test-only-audit-ip-hash-key-not-a-secret
+
+spring:
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        format_sql: true
+  flyway:
+    enabled: true
+  modulith:
+    events:
+      jdbc:
+        schema-initialization:
+          enabled: false
+
+logging:
+  level:
+    org.gitgrader: DEBUG
+    org.testcontainers: INFO
+    com.github.dockerjava: WARN
