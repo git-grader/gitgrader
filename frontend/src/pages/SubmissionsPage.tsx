@@ -13,7 +13,7 @@ export function SubmissionsPage() {
     queryFn: () => api.getSubmissions()
   });
 
-  if (isLoading) return <Box p={4}><CircularProgress /></Box>;
+  if (isLoading) return <Box sx={{ p: 4 }}><CircularProgress /></Box>;
   if (!data) return null;
 
   const columns: GridColDef[] = [

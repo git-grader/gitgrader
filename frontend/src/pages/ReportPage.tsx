@@ -16,7 +16,7 @@ export function ReportPage() {
     queryFn: () => api.getCourseReport(courseId || '')
   });
 
-  if (isLoading) return <Box p={4}><CircularProgress /></Box>;
+  if (isLoading) return <Box sx={{ p: 4 }}><CircularProgress /></Box>;
   if (!data) return null;
 
   const totalStudents = data.students.length;
