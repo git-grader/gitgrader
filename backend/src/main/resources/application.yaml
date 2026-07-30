@@ -253,6 +253,12 @@ security:
 # Observability
 # =============================================================================
 management:
+  # Must stay false while the application runs from a packaged layout. Modulith's
+  # observability resolves a bean's owning module through ArchUnit on the thread that
+  # handles a domain event, cannot load application classes from there, and fails with
+  # ClassNotFoundException. Events are then dropped: submissions record but never grade.
+  tracing:
+    enabled: false
   endpoints:
     web:
       exposure:

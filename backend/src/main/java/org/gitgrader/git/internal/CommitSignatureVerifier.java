@@ -26,8 +26,10 @@ import jakarta.annotation.PostConstruct;
 import org.eclipse.jgit.lib.GpgConfig;
 import org.eclipse.jgit.lib.Repository;
 import org.eclipse.jgit.lib.SignatureVerifier.SignatureVerification;
+import org.eclipse.jgit.lib.SignatureVerifierFactory;
 import org.eclipse.jgit.lib.SignatureVerifiers;
 import org.eclipse.jgit.revwalk.RevCommit;
+import org.eclipse.jgit.signing.ssh.SshSignatureVerifierFactory;
 import org.eclipse.jgit.signing.ssh.SigningKeyDatabase;
 import org.eclipse.jgit.util.RawParseUtils;
 import org.gitgrader.git.CommitSignatureResult;
@@ -96,6 +98,27 @@ public class CommitSignatureVerifier {
 		SigningKeyDatabase.setInstance(new CryptographyOnlySigningKeyDatabase());
 		logger.info("Installed GitGrader signing key database; commit signature authorization "
 				+ "is resolved against the ssh_keys registry, not against allowed_signers");
+		registerSshSignatureVerifier();
+	}
+
+	/**
+	 * Registers the SSH signature verifier explicitly rather than leaving it to
+	 * discovery.
+	 *
+	 * <p>
+	 * JGit finds verifiers with the single argument form of {@code ServiceLoader.load},
+	 * which searches the thread's context class loader. That loader is the application's
+	 * own during startup but not necessarily on the SSH worker threads that handle a
+	 * push, and inside a packaged application the service files live in nested jars the
+	 * wrong loader cannot see. The lookup then simply finds nothing, and because a
+	 * missing verifier is reported as an unprocessable signature rather than as an error,
+	 * the result is that every signed push is refused as invalid with no failure logged
+	 * anywhere. Binding the verifier here removes the dependency on which thread asks.
+	 */
+	private static void registerSshSignatureVerifier() {
+		SignatureVerifierFactory factory = new SshSignatureVerifierFactory();
+		SignatureVerifiers.set(factory.getType(), factory.create());
+		logger.info("Registered the {} commit signature verifier explicitly", factory.getType());
 	}
 
 	/**

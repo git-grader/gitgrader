@@ -23,6 +23,7 @@ services:
       GIT_REPOSITORY_DIRECTORY: /data/git/repositories
       GRADING_WORKING_DIRECTORY: /data/grading
       GRADING_DOCKER_WORKSPACE_MOUNT_ROOT: ${GRADING_DOCKER_WORKSPACE_MOUNT_ROOT:-}
+      GRADING_DOCKER_TESTS_MOUNT_ROOT: ${GRADING_DOCKER_TESTS_MOUNT_ROOT:-}
       GRADING_MAX_PARALLEL_JOBS: ${GRADING_MAX_PARALLEL_JOBS:-2}
       GRADING_DEFAULT_TIMEOUT: ${GRADING_DEFAULT_TIMEOUT:-120s}
       GRADING_DEFAULT_MEMORY_LIMIT: ${GRADING_DEFAULT_MEMORY_LIMIT:-512MB}
@@ -33,10 +34,22 @@ services:
       STORAGE_TEMPLATES_DIRECTORY: /data/templates
       STORAGE_TESTS_DIRECTORY: /data/tests
       STORAGE_ARTIFACTS_DIRECTORY: /data/artifacts
+      # Grading workspaces are exported here, so this has to satisfy two constraints at
+      # once: the root filesystem is read-only, so it must sit inside a mounted volume,
+      # and the runner translates a workspace to a host path by appending only the
+      # directory's name to GRADING_DOCKER_WORKSPACE_MOUNT_ROOT, so it must be a direct
+      # child of the volume that variable points at. The default of /data/tmp satisfies
+      # neither and leaves every run failing to materialise the submitted commit.
+      STORAGE_TEMP_DIRECTORY: /data/grading
       SECURITY_LDAP_ENABLED: ${SECURITY_LDAP_ENABLED:-false}
       SECURITY_LOCAL_ACCOUNTS_ENABLED: ${SECURITY_LOCAL_ACCOUNTS_ENABLED:-false}
       SECURITY_SESSION_SECURE_COOKIE: ${SECURITY_SESSION_SECURE_COOKIE:-true}
       SERVER_FORWARD_HEADERS_STRATEGY: ${SERVER_FORWARD_HEADERS_STRATEGY:-none}
+      # JGit caches filesystem timing attributes in a user config file and treats being
+      # unable to write it as a hard failure, which surfaces as every signed commit being
+      # reported invalid. The root filesystem is read-only, so it is pointed at the tmpfs
+      # below. The cache is a performance aid and is expected to be rebuilt per start.
+      XDG_CONFIG_HOME: /tmp
     ports:
       - "${HTTP_PORT:-8080}:8080"
       - "${SSH_PORT:-2222}:2222"
