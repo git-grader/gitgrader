@@ -34,7 +34,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: aquasecurity/trivy-action@0.33.1
+      - uses: aquasecurity/trivy-action@v0.33.1
         with:
           scan-type: fs
           format: sarif
@@ -46,10 +46,16 @@ jobs:
           sarif_file: trivy-fs.sarif
   gitleaks:
     runs-on: ubuntu-latest
+    # Surfaced as job-level env because the secrets context is available to neither a job
+    # nor a step "if". The action requires a paid licence for organisation-owned
+    # repositories, so without one this scan is skipped rather than failing every run.
+    env:
+      GITLEAKS_LICENSE: ${{ secrets.GITLEAKS_LICENSE }}
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - uses: gitleaks/gitleaks-action@v2
+      - if: env.GITLEAKS_LICENSE != ''
+        uses: gitleaks/gitleaks-action@v2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
