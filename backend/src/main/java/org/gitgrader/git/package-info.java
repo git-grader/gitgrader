@@ -28,6 +28,6 @@
  */
 @org.springframework.modulith.ApplicationModule(displayName = "Git",
 		allowedDependencies = { "identity", "sshkeys", "courses", "assignments", "templates", "submissions", "grading",
-				"security" })
+				"security", "registration" })
 @org.jspecify.annotations.NullMarked
 package org.gitgrader.git;
