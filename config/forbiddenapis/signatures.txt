@@ -1,0 +1,60 @@
+# Copyright the GitGrader contributors.
+# SPDX-License-Identifier: Apache-2.0
+#
+# Project specific forbidden APIs.
+#
+# Rationale: grading must be deterministic and reproducible across hosts, so any
+# API whose behaviour depends on the ambient JVM default locale, default charset
+# or default time zone is banned. Security sensitive APIs are banned outright.
+
+@defaultMessage Use an explicit Charset (almost always StandardCharsets.UTF_8)
+java.lang.String#getBytes()
+java.lang.String#String(byte[])
+java.lang.String#String(byte[],int,int)
+java.io.FileReader#<init>(java.io.File)
+java.io.FileReader#<init>(java.lang.String)
+java.io.FileWriter#<init>(java.io.File)
+java.io.FileWriter#<init>(java.lang.String)
+java.io.InputStreamReader#<init>(java.io.InputStream)
+java.io.OutputStreamWriter#<init>(java.io.OutputStream)
+java.io.PrintStream#<init>(java.io.File)
+java.io.PrintStream#<init>(java.lang.String)
+java.io.PrintWriter#<init>(java.io.File)
+java.io.PrintWriter#<init>(java.lang.String)
+java.io.ByteArrayOutputStream#toString()
+
+@defaultMessage Use an explicit Locale (Locale.ROOT for machine readable text)
+java.lang.String#format(java.lang.String,java.lang.Object[])
+java.lang.String#toLowerCase()
+java.lang.String#toUpperCase()
+java.text.NumberFormat#getInstance()
+java.text.NumberFormat#getNumberInstance()
+java.text.NumberFormat#getPercentInstance()
+java.text.DecimalFormat#<init>(java.lang.String)
+
+@defaultMessage Use the injected java.time.Clock so that deadlines are testable
+java.time.Instant#now()
+java.time.LocalDate#now()
+java.time.LocalDateTime#now()
+java.time.ZonedDateTime#now()
+java.time.OffsetDateTime#now()
+java.lang.System#currentTimeMillis()
+
+@defaultMessage Use java.security.SecureRandom for anything reaching a token, key or identifier
+java.util.Random#<init>()
+java.lang.Math#random()
+
+@defaultMessage Untrusted code must only ever run through GradingRunner, never as a child of this JVM
+java.lang.Runtime#exec(java.lang.String)
+java.lang.Runtime#exec(java.lang.String[])
+java.lang.Runtime#exec(java.lang.String,java.lang.String[])
+java.lang.Runtime#exec(java.lang.String,java.lang.String[],java.io.File)
+java.lang.Runtime#exec(java.lang.String[],java.lang.String[])
+java.lang.Runtime#exec(java.lang.String[],java.lang.String[],java.io.File)
+
+@defaultMessage Write to a Logger, not to the process streams
+java.lang.System#out
+java.lang.System#err
+
+@defaultMessage Prefer explicit resolution against the configured data directory
+java.io.File#createTempFile(java.lang.String,java.lang.String)

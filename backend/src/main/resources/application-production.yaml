@@ -1,0 +1,60 @@
+#
+# Copyright the GitGrader contributors.
+# SPDX-License-Identifier: Apache-2.0
+#
+# Production profile: activated with SPRING_PROFILES_ACTIVE=production.
+#
+# This file only ever tightens defaults. Anything relaxed here would be a footgun,
+# because "production" is exactly the environment where nobody re-reads the config.
+
+spring:
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        generate_statistics: false
+  flyway:
+    clean-disabled: true
+    validate-on-migrate: true
+
+server:
+  error:
+    include-message: never
+    include-stacktrace: never
+    include-binding-errors: never
+
+springdoc:
+  swagger-ui:
+    # The schema stays available at /api/v1/openapi for tooling; the interactive
+    # try-it-out console does not need to be exposed on a public instance.
+    enabled: ${SPRINGDOC_UI_ENABLED:false}
+
+security:
+  session:
+    secure-cookie: true
+  local-accounts:
+    # Redundant with the startup assertion in LocalAccountsGuard, deliberately: config
+    # and code both have to be wrong before a development login exists in production.
+    enabled: false
+
+logging:
+  level:
+    root: INFO
+    org.gitgrader: INFO
+    # Never raise these in production: LDAP debug logging prints bind credentials, and
+    # JGit/SSHD debug logging can echo repository content.
+    org.springframework.security: WARN
+    org.springframework.ldap: WARN
+    org.apache.sshd: WARN
+    org.eclipse.jgit: WARN
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus
+  endpoint:
+    health:
+      show-details: when-authorized
+      show-components: when-authorized

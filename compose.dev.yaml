@@ -1,0 +1,43 @@
+services:
+  app:
+    # No build stanza: the image is produced by buildpacks, not a Dockerfile, so there is
+    # nothing here for Docker to build. Create it first with:
+    #   ./mvnw spring-boot:build-image
+    environment:
+      SPRING_PROFILES_ACTIVE: dev
+      SECURITY_LOCAL_ACCOUNTS_ENABLED: 'true'
+      SECURITY_SESSION_SECURE_COOKIE: 'false'
+      SECURITY_LDAP_ENABLED: ${SECURITY_LDAP_ENABLED:-true}
+      SECURITY_LDAP_URL: ldap://openldap:389
+      SECURITY_LDAP_BASE_DN: dc=example,dc=org
+      SECURITY_LDAP_MANAGER_DN: cn=admin,dc=example,dc=org
+      SECURITY_LDAP_MANAGER_PASSWORD: ${LDAP_ADMIN_PASSWORD:-adminpassword}
+      SECURITY_LDAP_VERIFY_CERTIFICATE: 'false'
+      LOGGING_LEVEL_ORG_SPRINGFRAMEWORK_SECURITY: ${SECURITY_LOG_LEVEL:-INFO}
+    depends_on:
+      openldap:
+        condition: service_started
+    volumes:
+      - ./config:/config:ro
+  database:
+    ports:
+      - "5432:5432"
+
+  # Directory used to sign in as an instructor during development. The application only
+  # reads it, so the data is seeded once from deployment/ldap/bootstrap.ldif.
+  openldap:
+    image: osixia/openldap:1.5.0
+    command: ["--copy-service"]
+    environment:
+      LDAP_ORGANISATION: Example University
+      LDAP_DOMAIN: example.org
+      LDAP_ADMIN_PASSWORD: ${LDAP_ADMIN_PASSWORD:-adminpassword}
+    volumes:
+      - ./deployment/ldap/bootstrap.ldif:/container/service/slapd/assets/config/bootstrap/ldif/custom/bootstrap.ldif:ro
+    ports:
+      - "${LDAP_PORT:-1389}:389"
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: '3'

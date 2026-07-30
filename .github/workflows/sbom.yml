@@ -1,0 +1,28 @@
+name: SBOM
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  cyclonedx:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '25'
+          cache: maven
+      - run: ./mvnw -B org.cyclonedx:cyclonedx-maven-plugin:makeAggregateBom
+      - uses: actions/upload-artifact@v4
+        with:
+          name: cyclonedx-sbom
+          path: |
+            **/target/bom.xml
+            **/target/bom.json
+          if-no-files-found: error

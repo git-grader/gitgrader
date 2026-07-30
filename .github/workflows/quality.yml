@@ -1,0 +1,43 @@
+name: Quality
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '25'
+          cache: maven
+      - run: ./mvnw -B verify -DskipTests
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: static-analysis-reports
+          path: |
+            **/target/checkstyle-*.xml
+            **/target/pmd.xml
+            **/target/cpd.xml
+            **/target/spotbugsXml.xml
+          if-no-files-found: warn
+  dependency-check:
+    if: ${{ secrets.NVD_API_KEY != '' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '25'
+          cache: maven
+      - run: ./mvnw -B -Psecurity verify -DskipTests
+        env:
+          NVD_API_KEY: ${{ secrets.NVD_API_KEY }}

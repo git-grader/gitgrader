@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE suppressions PUBLIC
+		"-//Checkstyle//DTD SuppressionFilter Configuration 1.2//EN"
+		"https://checkstyle.org/dtds/suppressions_1_2.dtd">
+<!--
+  Copyright the GitGrader contributors.
+  SPDX-License-Identifier: Apache-2.0
+-->
+<suppressions>
+	<!--
+	  Tests are allowed long fixtures, magic numbers and dense assertions.
+	  InnerTypeLast is suppressed because JUnit 5 @Nested classes are inner types that
+	  idiomatically precede shared helper methods; enforcing it would fight the framework.
+	-->
+	<suppress files="[\\/]src[\\/]test[\\/]" checks="MagicNumber|JavadocType|MissingJavadocType|SummaryJavadoc|JavadocStyle|MethodLength|FileLength|ClassFanOutComplexity|DeclarationOrder|VisibilityModifier|CyclomaticComplexity|AnonInnerLength|ReturnCount|MultipleStringLiterals|InnerTypeLast|OuterTypeNumber" />
+
+	<!-- package-info.java files carry module metadata, not documented API. -->
+	<suppress files="package-info\.java" checks="JavadocType|MissingJavadocType|SummaryJavadoc|RegexpSingleline" />
+
+	<!-- Generated or vendored sources are never style checked. -->
+	<suppress files="[\\/]target[\\/]" checks="[a-zA-Z0-9]*" />
+
+	<!--
+	  The push feedback writer is the one place allowed to talk about "remote:"
+	  protocol output and to build multi-branch human readable text.
+	-->
+	<suppress files="PushFeedbackWriter\.java" checks="MethodLength|MagicNumber" />
+
+	<!-- Flyway callbacks and Spring configuration classes wire many collaborators. -->
+	<suppress files=".*Config(uration)?\.java" checks="ClassFanOutComplexity|MagicNumber" />
+
+	<!-- Configuration property records intentionally declare many components. -->
+	<suppress files=".*Properties\.java" checks="ParameterNumber|MagicNumber|JavadocStyle|ClassFanOutComplexity" />
+</suppressions>

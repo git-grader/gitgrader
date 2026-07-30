@@ -1,0 +1,253 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Copyright the GitGrader contributors.
+  SPDX-License-Identifier: Apache-2.0
+-->
+<ruleset name="GitGrader PMD rules"
+		 xmlns="http://pmd.sourceforge.net/ruleset/2.0.0"
+		 xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+		 xsi:schemaLocation="http://pmd.sourceforge.net/ruleset/2.0.0 https://pmd.sourceforge.io/ruleset_2_0_0.xsd">
+
+	<description>
+		PMD rules for GitGrader. Focused on real defects, security relevant patterns and
+		maintainability. Formatting rules are excluded because spring-javaformat owns
+		formatting; documentation rules are excluded because Checkstyle owns Javadoc.
+	</description>
+
+	<exclude-pattern>.*/target/.*</exclude-pattern>
+	<exclude-pattern>.*/generated-sources/.*</exclude-pattern>
+
+	<!-- ==================== Best practices ==================== -->
+	<rule ref="category/java/bestpractices.xml">
+		<exclude name="GuardLogStatement" />
+		<exclude name="JUnitAssertionsShouldIncludeMessage" />
+		<exclude name="JUnitTestsShouldIncludeAssert" />
+		<exclude name="JUnitTestContainsTooManyAsserts" />
+		<exclude name="AvoidReassigningParameters" />
+		<exclude name="UnitTestShouldUseTestAnnotation" />
+		<exclude name="UnitTestAssertionsShouldIncludeMessage" />
+		<exclude name="UnitTestContainsTooManyAsserts" />
+		<exclude name="UnitTestShouldIncludeAssert" />
+		<!--
+		  Single-method interfaces are the normal shape of a service abstraction in a
+		  Spring application (GradingRunner, ActorProvider, SigningKeyOwnership).
+		  Annotating them @FunctionalInterface would wrongly advertise that they are meant
+		  to be written as lambdas, when they are implemented by injected beans.
+		-->
+		<exclude name="ImplicitFunctionalInterface" />
+		<!--
+		  DIRECT CONFLICT with Checkstyle's MissingSwitchDefault, which this project also
+		  runs. PMD wants the default branch removed from an exhaustive enum switch;
+		  Checkstyle wants it present. Checkstyle wins here on purpose: a
+		  `default -> throw` means that adding an enum constant fails loudly at the switch
+		  instead of silently taking no branch, and these enums (PushOutcome,
+		  SubmissionStatus) are expected to grow.
+		-->
+		<exclude name="ExhaustiveSwitchHasDefault" />
+	</rule>
+	<rule ref="category/java/bestpractices.xml/PreserveStackTrace">
+		<properties>
+			<!--
+			  Kept on, but see SshKeyParser: the two suppressions there are deliberate.
+			  A parse failure on the public registration endpoint may involve private key
+			  material, and a preserved cause is exactly what would carry it into a log.
+			-->
+			<property name="violationSuppressXPath" value="//ClassDeclaration[@SimpleName='SshKeyParser']" />
+		</properties>
+	</rule>
+
+	<!-- ==================== Error prone ==================== -->
+	<rule ref="category/java/errorprone.xml">
+		<exclude name="AvoidLiteralsInIfCondition" />
+		<exclude name="AvoidDuplicateLiterals" />
+		<exclude name="NullAssignment" />
+		<exclude name="AvoidFieldNameMatchingMethodName" />
+		<exclude name="MissingSerialVersionUID" />
+		<exclude name="UseLocaleWithCaseConversions" />
+		<exclude name="TestClassWithoutTestCases" />
+		<!--
+		  Catching RuntimeException at a trust boundary is intentional and is the safer
+		  choice here. Both call sites (SSH key parsing, commit signature parsing) process
+		  attacker-controlled bytes through third-party parsers whose failure modes are not
+		  part of their published API; letting an unexpected runtime type escape would turn
+		  a malformed push into a 500 instead of a clean rejection.
+		-->
+		<exclude name="AvoidCatchingGenericException" />
+		<!--
+		  Fires on methods returning a @Nullable byte[] or String, which are not
+		  collections. Optionality in this codebase is expressed with JSpecify @Nullable
+		  under @NullMarked packages, which is checked and more precise than this heuristic.
+		-->
+		<exclude name="ReturnEmptyCollectionRatherThanNull" />
+	</rule>
+	<rule ref="category/java/errorprone.xml/CloseResource">
+		<properties>
+			<!-- Spring manages EntityManager, DataSource and JGit Repository lifecycles. -->
+			<property name="closeTargets"
+					  value="java.sql.Connection,java.io.InputStream,java.io.OutputStream" />
+			<property name="allowedResourceTypes"
+					  value="java.io.ByteArrayInputStream|java.io.ByteArrayOutputStream|java.io.StringWriter|java.io.CharArrayWriter|java.util.stream.Stream" />
+		</properties>
+	</rule>
+
+	<!-- ==================== Security relevant subset ==================== -->
+	<rule ref="category/java/security.xml" />
+
+	<!-- ==================== Multithreading ==================== -->
+	<rule ref="category/java/multithreading.xml">
+		<exclude name="DoNotUseThreads" />
+		<exclude name="UseConcurrentHashMap" />
+		<exclude name="AvoidSynchronizedAtMethodLevel" />
+	</rule>
+
+	<!-- ==================== Performance ==================== -->
+	<rule ref="category/java/performance.xml">
+		<exclude name="AvoidInstantiatingObjectsInLoops" />
+		<exclude name="ConsecutiveAppendsShouldReuse" />
+	</rule>
+
+	<!-- ==================== Design, with pragmatic ceilings ==================== -->
+	<rule ref="category/java/design.xml">
+		<exclude name="LawOfDemeter" />
+		<exclude name="LoosePackageCoupling" />
+		<exclude name="TooManyMethods" />
+		<exclude name="ExcessiveImports" />
+		<exclude name="DataClass" />
+		<exclude name="AvoidCatchingGenericException" />
+		<exclude name="SignatureDeclareThrowsException" />
+		<exclude name="CouplingBetweenObjects" />
+		<!-- Re-declared below with project specific thresholds. -->
+		<exclude name="CyclomaticComplexity" />
+		<exclude name="NPathComplexity" />
+		<exclude name="ExcessiveParameterList" />
+		<exclude name="TooManyFields" />
+		<exclude name="NcssCount" />
+		<exclude name="CognitiveComplexity" />
+	</rule>
+	<rule ref="category/java/design.xml/CyclomaticComplexity">
+		<properties>
+			<property name="classReportLevel" value="90" />
+			<property name="methodReportLevel" value="12" />
+		</properties>
+	</rule>
+	<rule ref="category/java/design.xml/NPathComplexity">
+		<properties>
+			<property name="reportLevel" value="200" />
+		</properties>
+	</rule>
+	<rule ref="category/java/design.xml/ExcessiveParameterList">
+		<properties>
+			<!--
+			  Constructors, not methods, are what push past nine here: a Spring service
+			  that orchestrates a multi-step flow legitimately injects that many
+			  collaborators, and Checkstyle's ParameterNumber already caps real methods at
+			  eight. A lower ceiling would only encourage hiding dependencies in a
+			  service-locator or a god-object parameter holder.
+			-->
+			<property name="minimum" value="12" />
+		</properties>
+	</rule>
+	<rule ref="category/java/design.xml/SingularField">
+		<properties>
+			<!--
+			  A JPA entity field is a mapped column. One that happens to be written in a
+			  single method still has to be persisted, so "replace it with a local
+			  variable" is simply wrong for an @Entity. Scoped to entities rather than
+			  disabled outright, so the rule still applies to ordinary classes.
+			-->
+			<property name="violationSuppressXPath"
+					  value="//ClassDeclaration[ModifierList/Annotation[@SimpleName='Entity']]" />
+		</properties>
+	</rule>
+
+	<rule ref="category/java/design.xml/TooManyFields">
+		<properties>
+			<!--
+			  A JPA entity has one field per column by definition, and `assignments` is
+			  genuinely wide: schedule, limits, three version pins and a runtime reference.
+			  Splitting it to satisfy a field count would add a join and an @Embeddable
+			  without making anything clearer.
+			-->
+			<property name="maxfields" value="30" />
+		</properties>
+	</rule>
+	<rule ref="category/java/design.xml/NcssCount">
+		<properties>
+			<property name="methodReportLevel" value="60" />
+			<property name="classReportLevel" value="500" />
+		</properties>
+	</rule>
+	<rule ref="category/java/design.xml/CognitiveComplexity">
+		<properties>
+			<property name="reportLevel" value="20" />
+		</properties>
+	</rule>
+
+	<!-- ==================== Code style, semantic parts only ==================== -->
+	<rule ref="category/java/codestyle.xml/UnnecessaryModifier" />
+	<rule ref="category/java/codestyle.xml/UnnecessaryReturn" />
+	<rule ref="category/java/codestyle.xml/UnnecessaryImport" />
+	<rule ref="category/java/codestyle.xml/UnnecessaryCast" />
+	<rule ref="category/java/codestyle.xml/UnnecessarySemicolon" />
+	<rule ref="category/java/codestyle.xml/UselessParentheses" />
+	<rule ref="category/java/codestyle.xml/UselessQualifiedThis" />
+	<rule ref="category/java/codestyle.xml/EmptyControlStatement" />
+	<rule ref="category/java/codestyle.xml/UnnecessaryBoxing" />
+	<rule ref="category/java/codestyle.xml/UseDiamondOperator" />
+	<rule ref="category/java/codestyle.xml/UseShortArrayInitializer" />
+	<rule ref="category/java/codestyle.xml/IdenticalCatchBranches" />
+	<rule ref="category/java/codestyle.xml/ForLoopShouldBeWhileLoop" />
+	<rule ref="category/java/codestyle.xml/PrematureDeclaration" />
+	<rule ref="category/java/codestyle.xml/ClassNamingConventions">
+		<properties>
+			<!-- Utility class names are constrained by Checkstyle, not by a suffix rule. -->
+			<property name="utilityClassPattern" value="[A-Z][a-zA-Z0-9]*" />
+		</properties>
+	</rule>
+
+	<!-- ==================== Project specific ==================== -->
+	<rule name="NoHardcodedPublicUrl"
+		  language="java"
+		  message="Public URLs and host names must come from configuration (AppProperties), never from a string literal."
+		  class="net.sourceforge.pmd.lang.rule.xpath.XPathRule">
+		<description>
+			GitGrader must be organization neutral and self hostable. Clone URLs, result
+			URLs and SSH host names are always derived from configuration.
+
+			NOTE: XPath's matches() implements XML Schema regular expressions, which have
+			no lookaround. The allow-list is therefore expressed as a second matches()
+			wrapped in not(), rather than as a negative lookahead.
+		</description>
+		<priority>2</priority>
+		<properties>
+			<property name="xpath">
+				<value><![CDATA[
+//StringLiteral[
+  matches(@Image, '^"https?://')
+  and not(matches(@Image, '^"https?://(localhost|127\.0\.0\.1|0\.0\.0\.0|\[::1\]|example\.(org|com|net)|docs\.example|www\.apache\.org|www\.w3\.org|creativecommons\.org|spdx\.org|github\.com/git-grader|\{)'))
+]
+				]]></value>
+			</property>
+		</properties>
+	</rule>
+
+	<rule name="NoRuntimeExec"
+		  language="java"
+		  message="Do not shell out with Runtime.exec or ProcessBuilder. Untrusted code runs only through GradingRunner."
+		  class="net.sourceforge.pmd.lang.rule.xpath.XPathRule">
+		<description>
+			Student code must only ever be executed inside an isolated grading runner,
+			never as a child process of the application JVM.
+		</description>
+		<priority>1</priority>
+		<properties>
+			<property name="xpath">
+				<value><![CDATA[
+//MethodCall[@MethodName = 'exec'][TypeExpression//ClassType[@SimpleName = 'Runtime']]
+|
+//ConstructorCall[ClassType[@SimpleName = 'ProcessBuilder']]
+				]]></value>
+			</property>
+		</properties>
+	</rule>
+</ruleset>
