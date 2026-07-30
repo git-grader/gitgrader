@@ -23,6 +23,8 @@ import java.util.List;
 import org.eclipse.jgit.lib.ObjectId;
 import org.eclipse.jgit.lib.Repository;
 import org.eclipse.jgit.revwalk.RevCommit;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.eclipse.jgit.revwalk.RevWalk;
 import org.eclipse.jgit.transport.ReceiveCommand;
 import org.gitgrader.configuration.GitProperties;
@@ -47,6 +49,8 @@ public class PushAdmissionRules {
 
 	/** Abbreviated hash length used in messages, matching git's default. */
 	private static final int SHORT_SHA_LENGTH = 7;
+
+	private static final Logger logger = LoggerFactory.getLogger(PushAdmissionRules.class);
 
 	/**
 	 * Ceiling on commits inspected per push.
@@ -163,6 +167,11 @@ public class PushAdmissionRules {
 	 */
 	private String explain(RevCommit commit, CommitSignatureResult result) {
 		String shortSha = commit.abbreviate(SHORT_SHA_LENGTH).name();
+		// The student is told only that the signature is unacceptable, deliberately. The
+		// operator needs the reason though, and without it a rejected push is impossible
+		// to diagnose from the server side.
+		logger.info("Signature on commit {} rejected as {}: key={} detail={}", shortSha, result.status(),
+				result.keyFingerprint(), result.detail());
 		return switch (result.status()) {
 			case UNSIGNED -> "Commit " + shortSha + " is not signed. Enable SSH commit signing:\n"
 					+ "  git config --global gpg.format ssh\n"
