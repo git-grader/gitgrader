@@ -29,7 +29,6 @@ jobs:
             **/target/spotbugsXml.xml
           if-no-files-found: warn
   dependency-check:
-    if: ${{ secrets.NVD_API_KEY != '' }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -38,6 +37,15 @@ jobs:
           distribution: temurin
           java-version: '25'
           cache: maven
-      - run: ./mvnw -B -Psecurity verify -DskipTests
+      # The secrets context is not available to a job-level "if", so the presence of the
+      # key is checked inside the step. Guarding the job instead makes the whole workflow
+      # file invalid, which GitHub reports as a run that fails instantly with no logs.
+      - name: Dependency check
         env:
           NVD_API_KEY: ${{ secrets.NVD_API_KEY }}
+        run: |
+          if [ -z "$NVD_API_KEY" ]; then
+            echo "NVD_API_KEY is not configured; skipping the dependency check."
+            exit 0
+          fi
+          ./mvnw -B -Psecurity verify -DskipTests

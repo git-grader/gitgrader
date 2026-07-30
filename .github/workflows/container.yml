@@ -56,4 +56,7 @@ jobs:
           subject-name: ghcr.io/git-grader/gitgrader
           subject-digest: ${{ steps.push.outputs.digest }}
           push-to-registry: true
-      - run: printf 'Image digest: %s\n' '${{ steps.push.outputs.digest }}'
+      # Block scalar on purpose: the colon inside "Image digest:" would otherwise be read
+      # as a YAML mapping and make the whole workflow file unparseable.
+      - run: |
+          printf 'Image digest: %s\n' '${{ steps.push.outputs.digest }}'

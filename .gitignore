@@ -18,7 +18,7 @@ pnpm-debug.log*
 .env
 .env.*
 !.env.example
-data/
+/data/
 config/*.local.*
 
 # IDEs
@@ -38,9 +38,12 @@ config/*.local.*
 Thumbs.db
 Desktop.ini
 
-# Test and analysis output
-coverage/
-reports/
-playwright-report/
-test-results/
+# Test and analysis output. These are anchored, because an unanchored directory name
+# matches at every level: a bare "reports/" silently excluded the reports module and its
+# tests from the repository while the build kept passing locally.
+/coverage/
+frontend/coverage/
+/reports/
+frontend/playwright-report/
+frontend/test-results/
 .scannerwork/
