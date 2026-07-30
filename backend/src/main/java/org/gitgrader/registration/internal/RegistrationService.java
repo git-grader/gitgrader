@@ -36,6 +36,7 @@ import org.gitgrader.identity.StudentRegistry;
 import org.gitgrader.identity.StudentView;
 import org.gitgrader.registration.domain.RegistrationAttempt;
 import org.gitgrader.registration.web.AvailabilityResponse;
+import org.gitgrader.registration.StudentRegistered;
 import org.gitgrader.registration.web.RegistrationRequest;
 import org.gitgrader.registration.web.RegistrationResponse;
 import org.gitgrader.security.RateLimiter;
@@ -45,6 +46,7 @@ import org.gitgrader.sshkeys.SshKeyView;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -77,10 +79,12 @@ public class RegistrationService {
 
 	private final Clock clock;
 
+	private final ApplicationEventPublisher events;
+
 	public RegistrationService(AppProperties appProperties, RateLimiter rateLimiter, CourseCatalog courseCatalog,
 			StudentDirectory studentDirectory, StudentRegistry studentRegistry, SshKeyRegistry sshKeyRegistry,
 			RegistrationAttemptRepository attemptRepository, ClientAddressHasher hasher, AuditService auditService,
-			Clock clock) {
+			Clock clock, ApplicationEventPublisher events) {
 		this.appProperties = appProperties;
 		this.rateLimiter = rateLimiter;
 		this.courseCatalog = courseCatalog;
@@ -91,6 +95,7 @@ public class RegistrationService {
 		this.hasher = hasher;
 		this.auditService = auditService;
 		this.clock = clock;
+		this.events = events;
 	}
 
 	@Transactional(readOnly = true)
@@ -138,6 +143,8 @@ public class RegistrationService {
 			.with("classLabel", request.classKey())
 			.build());
 		recordAttempt(now, ipHash, "ACCEPTED", null, studentNumberHash, emailHash);
+		this.events.publishEvent(
+				new StudentRegistered(student.id(), student.studentNumber(), course.id(), course.courseKey(), now));
 
 		return new RegistrationResponse(student.id(), student.studentNumber(), student.fullName(), student.status(),
 				sshKey.fingerprint(), Collections.emptyList());
