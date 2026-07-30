@@ -90,9 +90,9 @@ class DockerGradingRunner implements GradingRunner {
 					.withFollowStream(true)
 					.exec(callback);
 
-				boolean completed = this.dockerClient.waitContainerCmd(containerId)
-					.exec(new com.github.dockerjava.api.command.WaitContainerResultCallback())
-					.awaitCompletion(request.timeout().toMillis(), TimeUnit.MILLISECONDS);
+				com.github.dockerjava.api.command.WaitContainerResultCallback waitCallback = new com.github.dockerjava.api.command.WaitContainerResultCallback();
+				this.dockerClient.waitContainerCmd(containerId).exec(waitCallback);
+				boolean completed = waitCallback.awaitCompletion(request.timeout().toMillis(), TimeUnit.MILLISECONDS);
 
 				if (!completed) {
 					this.dockerClient.killContainerCmd(containerId).exec();
@@ -100,12 +100,15 @@ class DockerGradingRunner implements GradingRunner {
 							this.clock.millis() - start, true, false, null);
 				}
 
-				// Docker reports a null exit code when inspect races the container's
-				// teardown. Dereferencing it would turn a finished grading run into a
-				// crash, so an unknown code is reported as -1 instead.
-				Long exitCode = this.dockerClient.inspectContainerCmd(containerId).exec().getState().getExitCodeLong();
-				return new GradingResult((exitCode != null) ? exitCode.intValue() : -1, callback.getStdout(),
-						callback.getStderr(), this.clock.millis() - start, false, false, null);
+				// Taken from the wait result rather than by inspecting the container.
+				// Containers are created with auto-remove, so Docker deletes them the
+				// moment they exit and a following inspect loses that race and answers
+				// 404. That surfaced as an infrastructure failure, which would tell a
+				// student their submission broke the grader when it had in fact been
+				// graded. The wait already carries the code, and needs nothing to exist.
+				Integer exitCode = waitCallback.awaitStatusCode();
+				return new GradingResult((exitCode != null) ? exitCode : -1, callback.getStdout(), callback.getStderr(),
+						this.clock.millis() - start, false, false, null);
 
 			}
 			finally {
