@@ -8,6 +8,7 @@ import type { RegistrationRequest } from '../api';
 import { Box, Button, TextField, Typography, Alert, Paper, MenuItem } from '@mui/material';
 import { useNavigate } from 'react-router';
 import { useMeta } from '../components/MetaProvider';
+import { BrandMark } from '../components/BrandMark';
 
 export function RegistrationPage() {
   const meta = useMeta();
@@ -52,6 +53,7 @@ export function RegistrationPage() {
 
   return (
     <Box sx={{ p: 4, maxWidth: 'md', mx: 'auto' }}>
+      <BrandMark />
       <Paper sx={{ p: 4 }}>
         <Typography variant="h4" component="h1" gutterBottom>
           Register for {meta.name}

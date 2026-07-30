@@ -47,3 +47,6 @@ frontend/coverage/
 frontend/playwright-report/
 frontend/test-results/
 .scannerwork/
+
+# Downloaded installers
+*.deb
