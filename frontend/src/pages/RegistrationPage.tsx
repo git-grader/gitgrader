@@ -27,11 +27,11 @@ export function RegistrationPage() {
     }
   });
 
-  if (isLoading) return <Box p={4}>Loading...</Box>;
+  if (isLoading) return <Box sx={{ p: 4 }}>Loading...</Box>;
 
   if (!avail?.open) {
     return (
-      <Box p={4} maxWidth="sm" mx="auto">
+      <Box sx={{ p: 4, maxWidth: 'sm', mx: 'auto' }}>
         <Alert severity="info">Registration is currently closed.</Alert>
       </Box>
     );
@@ -51,7 +51,7 @@ export function RegistrationPage() {
   };
 
   return (
-    <Box p={4} maxWidth="md" mx="auto">
+    <Box sx={{ p: 4, maxWidth: 'md', mx: 'auto' }}>
       <Paper sx={{ p: 4 }}>
         <Typography variant="h4" component="h1" gutterBottom>
           Register for {meta.name}

@@ -11,7 +11,7 @@ export function CoursesPage() {
     queryFn: () => api.getAvailability()
   });
 
-  if (isLoading) return <Box p={4}><CircularProgress /></Box>;
+  if (isLoading) return <Box sx={{ p: 4 }}><CircularProgress /></Box>;
   if (!data) return null;
 
   return (

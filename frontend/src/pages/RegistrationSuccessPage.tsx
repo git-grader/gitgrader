@@ -12,7 +12,7 @@ export function RegistrationSuccessPage() {
   if (!result) return <Navigate to="/register" replace />;
 
   return (
-    <Box p={4} maxWidth="md" mx="auto">
+    <Box sx={{ p: 4, maxWidth: 'md', mx: 'auto' }}>
       <Paper sx={{ p: 4 }}>
         <Typography variant="h4" component="h1" gutterBottom>Registration Successful</Typography>
         <Typography component="p" sx={{ mb: 2 }}>Welcome, {result.fullName}. Your SSH key fingerprint is {result.keyFingerprint}.</Typography>

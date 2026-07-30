@@ -21,7 +21,7 @@ export const RegistrationRequestSchema = z.object({
   firstName: z.string().min(1, 'First name is required'),
   lastName: z.string().min(1, 'Last name is required'),
   studentNumber: z.string().min(1, 'Student number is required'),
-  email: z.string().email('Invalid email'),
+  email: z.email('Invalid email'),
   courseKey: z.string().min(1, 'Course is required'),
   classKey: z.string().min(1, 'Class is required'),
   publicKey: z.string().min(1, 'Public key is required')
@@ -94,7 +94,7 @@ export const DashboardSchema = z.object({
 });
 export type Dashboard = z.infer<typeof DashboardSchema>;
 
-export const PageSchema = <T extends z.ZodTypeAny>(itemSchema: T) => z.object({
+export const PageSchema = <T extends z.ZodType>(itemSchema: T) => z.object({
   content: z.array(itemSchema),
   totalElements: z.number(),
   totalPages: z.number(),

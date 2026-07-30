@@ -1,4 +1,4 @@
-import { defineConfig } from 'vite';
+import { defineConfig } from 'vitest/config';
 import react from '@vitejs/plugin-react';
 
 export default defineConfig({
@@ -15,9 +15,17 @@ export default defineConfig({
     sourcemap: true,
     rollupOptions: {
       output: {
-        manualChunks: {
-          vendor: ['react', 'react-dom', 'react-router', '@tanstack/react-query', 'zod'],
-          mui: ['@mui/material', '@mui/icons-material', '@emotion/react', '@emotion/styled', '@mui/x-data-grid']
+        // Rolldown replaced the object form of manualChunks with named groups matched
+        // against the module id, so the split is expressed as paths rather than as a
+        // list of package names.
+        codeSplitting: {
+          groups: [
+            { name: 'mui', test: /node_modules[\\/](@mui|@emotion)[\\/]/ },
+            {
+              name: 'vendor',
+              test: /node_modules[\\/](react|react-dom|react-router|@tanstack[\\/]react-query|zod)[\\/]/
+            }
+          ]
         }
       }
     }

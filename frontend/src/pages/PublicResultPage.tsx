@@ -34,8 +34,8 @@ export function PublicResultPage() {
     queryFn: () => api.getResult(token || '')
   });
 
-  if (isLoading) return <Box p={4}>Loading...</Box>;
-  if (error || !data) return <Box p={4}><Alert severity="error">Result not found or invalid token.</Alert></Box>;
+  if (isLoading) return <Box sx={{ p: 4 }}>Loading...</Box>;
+  if (error || !data) return <Box sx={{ p: 4 }}><Alert severity="error">Result not found or invalid token.</Alert></Box>;
 
   // Defensively strip hidden tests
   const safeTests = data.tests.map(test => {
@@ -51,7 +51,7 @@ export function PublicResultPage() {
   });
 
   return (
-    <Box p={4} maxWidth="md" mx="auto">
+    <Box sx={{ p: 4, maxWidth: 'md', mx: 'auto' }}>
       <Typography variant="h4" component="h1" gutterBottom>{data.assignmentTitle}</Typography>
       <Typography variant="subtitle1" component="h2" gutterBottom>{data.courseName}</Typography>
       <Paper sx={{ p: 4, mb: 4 }}>

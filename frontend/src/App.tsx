@@ -30,7 +30,7 @@ const queryClient = new QueryClient();
 function ErrorBoundary() {
   const error = useRouteError();
   return (
-    <Box p={4} role="alert">
+    <Box role="alert" sx={{ p: 4 }}>
       <Typography variant="h4" gutterBottom>Oops!</Typography>
       <Typography color="error">
         {isRouteErrorResponse(error) ? error.statusText : (error as Error).message}
@@ -41,7 +41,7 @@ function ErrorBoundary() {
 
 function NotFound() {
   return (
-    <Box p={4} role="alert">
+    <Box role="alert" sx={{ p: 4 }}>
       <Typography variant="h4" gutterBottom>404 Not Found</Typography>
     </Box>
   );

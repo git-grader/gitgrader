@@ -18,7 +18,7 @@ export function InstructorLayout() {
     retry: false
   });
 
-  if (isLoading) return <Box p={4}><CircularProgress /></Box>;
+  if (isLoading) return <Box sx={{ p: 4 }}><CircularProgress /></Box>;
   if (error) return <Navigate to="/login" state={{ from: location }} replace />;
   if (!me) return null;
 
