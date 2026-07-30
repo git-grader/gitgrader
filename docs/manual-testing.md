@@ -8,63 +8,17 @@ The sample assignment ships with a reference solution that deliberately fails th
 of its ten hidden checks, so the expected outcome is **7 of 10, 70.0 %**. A different
 number means something is wrong, which is more useful than a pass/fail.
 
-## Prepare
+## Start
 
-Requires Docker and JDK 25. The build downloads its own Node.
-
-```sh
-cp .env.example .env
-```
-
-Edit `.env` and set `DOCKER_GID` to the group that owns the Docker socket, otherwise
-the stack refuses to start:
+Needs Docker, and JDK 25 the first time so the image can be built.
 
 ```sh
-stat -c '%g' /var/run/docker.sock
+./scripts/install.sh --demo
 ```
 
-Build the image. There is no Dockerfile; buildpacks produce the image:
-
-```sh
-./mvnw spring-boot:build-image -pl backend
-```
-
-Start the stack. The development overlay adds a directory to sign in against:
-
-```sh
-docker compose -f compose.yaml -f compose.dev.yaml up -d
-```
-
-Wait for it to answer:
-
-```sh
-until curl -sf http://localhost:8080/actuator/health/readiness; do sleep 5; done
-```
-
-## Load the sample course
-
-Seed the catalogue:
-
-```sh
-docker compose -f compose.yaml -f compose.dev.yaml exec -T database \
-  psql -U gitgrader -d gitgrader -q < examples/seed-data.sql
-```
-
-The template and the hidden tests live on volumes, so copy them in. The paths match
-the `storage_path` values the seed data records, and the owner matches the user the
-application runs as:
-
-```sh
-tar -C examples/assignments/assignment-01-string-utils -cf - template hidden-tests |
-docker run --rm -i \
-  -v git-grader_templates:/t -v git-grader_tests:/s alpine:3.20 sh -c '
-    mkdir -p /tmp/x && tar -C /tmp/x -xf - &&
-    mkdir -p /t/examples/assignments/assignment-01-string-utils \
-             /s/examples/assignments/assignment-01-string-utils &&
-    cp -r /tmp/x/template     /t/examples/assignments/assignment-01-string-utils/ &&
-    cp -r /tmp/x/hidden-tests /s/examples/assignments/assignment-01-string-utils/ &&
-    chown -R 1002:1001 /t /s'
-```
+That brings everything up on <http://localhost:8080> with the sample course
+loaded: the catalogue, the starter project and the hidden tests. It takes a few
+minutes the first time, mostly building the image.
 
 ## Sign in as an instructor
 
@@ -157,8 +111,8 @@ docker compose -f compose.yaml -f compose.dev.yaml exec -T database \
 
 - Push the same commit again and the submission should be rejected as already recorded.
 - Push from a key that belongs to nobody and authentication should fail outright.
-- `docker compose restart app`, then confirm the SSH host key is unchanged: a changed
-  key gives every student a host key warning.
+- `docker compose -f compose.yaml -f compose.dev.yaml restart app`, then confirm the
+  SSH host key is unchanged: a changed key gives every student a host key warning.
 - Sign in as an instructor and export a course report as CSV, JSON and XLSX.
 
 ## Clearing up

@@ -4,6 +4,59 @@ GitGrader accepts untrusted student repositories and runs untrusted code. It is
 not a general-purpose sandbox and must be deployed as a security-sensitive
 service on infrastructure appropriate for that risk.
 
+## What is trusted
+
+```mermaid
+flowchart TB
+  student([Student]):::person
+
+  subgraph hostile["Treated as hostile"]
+    push["Pushed repository<br/><i>arbitrary content</i>"]:::bad
+    code["Student code<br/><i>arbitrary execution</i>"]:::bad
+  end
+
+  subgraph service["Trusted: the service"]
+    app["Application"]:::good
+    hidden[("Hidden tests<br/><i>instructor-only</i>")]:::secret
+  end
+
+  subgraph danger["Effectively host root"]
+    engine["Docker Engine<br/><i>via /var/run/docker.sock</i>"]:::risk
+  end
+
+  sandbox["Grading sandbox<br/><i>non-root, no network, read-only root,<br/>dropped capabilities, CPU/memory/PID limits, timeout</i>"]:::box
+
+  student -->|"signed push"| push
+  push --> app
+  app -->|"starts a sandbox"| engine
+  engine --> sandbox
+  code --> sandbox
+  hidden -->|"read-only, one run"| sandbox
+  sandbox -->|"score and per-test outcome only"| app
+  app -->|"category and hint, never the test"| student
+
+  classDef person fill:#0D162C,color:#fff,stroke:#0D162C
+  classDef bad fill:#DC2626,color:#fff,stroke:#b91c1c
+  classDef good fill:#2563EB,color:#fff,stroke:#1e4fc4
+  classDef secret fill:#475569,color:#fff,stroke:#334155
+  classDef risk fill:#B45309,color:#fff,stroke:#92400e
+  classDef box fill:#DCE3EA,color:#0D162C,stroke:#94a3b8
+  style hostile fill:#fef2f2,stroke:#fecaca
+  style service fill:#F5F7FA,stroke:#DCE3EA
+  style danger fill:#fffbeb,stroke:#fde68a
+```
+
+**Reading it.** Red is content the service assumes is hostile. Blue is the
+service itself. Grey is material a student must never see. Amber is the one
+edge where a compromise stops being contained.
+
+Three things this is meant to make obvious. Student code only ever executes
+inside the sandbox, never in the application. Hidden tests enter that sandbox
+read-only for a single run and leave it only as a score and a category, never
+as a name or an assertion. And the application holds the Docker socket, so
+compromising the application is compromising the host: the hardening below
+narrows what a submission can do, it does not contain a broken application.
+
 ## Execution isolation
 
 The Docker runner is configured to run as a non-root user, with network disabled

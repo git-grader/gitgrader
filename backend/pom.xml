@@ -41,6 +41,13 @@
 		<maven.compiler.release>25</maven.compiler.release>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 
+		<!-- Ahead of the version Spring Boot manages: 42.7.11 silently downgrades a
+		     channelBinding=require connection from SCRAM-SHA-256-PLUS to plain
+		     SCRAM-SHA-256, losing the man-in-the-middle protection that setting exists
+		     to give (CVE-2026-54291, fixed in 42.7.12). Drop this once the managed
+		     version reaches it. -->
+		<postgresql.version>42.7.13</postgresql.version>
+
 		<spring-boot.build-image.imageName>ghcr.io/git-grader/gitgrader:${project.version}</spring-boot.build-image.imageName>
 
 		<!-- Dependency versions not managed by the Spring Boot BOM. -->

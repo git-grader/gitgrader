@@ -16,41 +16,50 @@ careful runner/host isolation. In particular, the default Docker socket mount is
 
 ## Quick start
 
+Needs Docker, and JDK 25 the first time so the image can be built.
+
 ```sh
-git clone <repo> && cd git-grader && cp .env.example .env && docker compose up -d
+git clone git@github.com:git-grader/gitgrader.git
+cd gitgrader
+./scripts/install.sh --demo
 ```
 
-Before sharing the service, edit `.env`: replace the marked passwords and set
-the public HTTP/SSH names. Compose starts PostgreSQL then the app; use
-`docker compose ps` to wait for healthy services and run
-`scripts/verify-install.sh` to check readiness, API meta, and SSH. The command
-requires the configured GHCR image tag to have been published; otherwise build
-an image locally with `./mvnw spring-boot:build-image`.
+That brings up the service on <http://localhost:8080> with a sample course
+loaded, so there is something to grade straight away. Sign in as
+`instructor` / `password`. To walk the whole path a student takes, follow the
+[manual testing guide](docs/manual-testing.md).
 
-```mermaid
-flowchart LR
-  student[Student] -->|SSH: MINA SSHD| admission[Push admission]
-  admission --> submission[Submission]
-  submission --> queue[(DB job queue)]
-  queue --> sandbox[Docker grading sandbox]
-  tests[Hidden tests: read-only] --> sandbox
-  sandbox --> result[Result-token URL]
-  instructor[Instructor] -->|LDAP| spa[SPA]
-  spa --> api[REST API]
-```
+Leave off `--demo` for an empty instance. Before anyone else uses it, read
+[installation](docs/installation.md): the passwords in `.env` are the example
+ones and the service expects to sit behind HTTPS.
 
 ```mermaid
-flowchart LR
-  configuration & audit --> shared[shared modules]
-  sshkeys --> identity
-  registration --> identity & sshkeys
-  courses --> identity
-  assignments --> courses & templates & runtimes & identity
-  submissions --> identity & assignments & courses & sshkeys
-  grading --> submissions & assignments & runtimes
-  git --> identity & sshkeys & courses & assignments & templates & submissions & grading
-  security --> identity
+C4Context
+  title System context: who uses GitGrader and what it depends on
+  Person(student, "Student", "Writes the assignment and pushes it")
+  Person(instructor, "Instructor", "Publishes coursework and reads results")
+  System(gitgrader, "GitGrader", "Accepts signed pushes, grades them in an isolated container, publishes a result")
+  System_Ext(directory, "Directory", "Where instructors and administrators already have accounts")
+  System_Ext(runtime, "Container runtime", "Runs one throwaway sandbox per submission")
+  Rel(student, gitgrader, "Pushes signed commits", "Git over SSH")
+  Rel(student, gitgrader, "Opens the result link", "HTTPS")
+  Rel(instructor, gitgrader, "Manages coursework", "HTTPS")
+  Rel(gitgrader, directory, "Checks who is signing in", "LDAP")
+  Rel(gitgrader, runtime, "Starts a sandbox per submission", "Docker API")
+  UpdateLayoutConfig($c4ShapeInRow="2", $c4BoundaryInRow="1")
 ```
+
+**Reading it.** A person is someone using the service; a plain box is the service
+itself; a shaded box is something it depends on but does not own. Each arrow is
+labelled with what crosses it and over which protocol.
+
+Two things are worth noticing. Students never get an account: an SSH key
+identifies them when pushing, and an unguessable link is the only credential
+needed to read a result. And grading is the one place the service reaches
+outward, starting a container it then throws away.
+
+[The architecture guide](docs/architecture.md) goes on to the containers inside
+that single box, the modules inside those, and the path a submission takes.
 
 The database records scoring as a percentage: `tests passed / tests total × 100`.
 For example, 7 of 10 tests is **70.0 %**.

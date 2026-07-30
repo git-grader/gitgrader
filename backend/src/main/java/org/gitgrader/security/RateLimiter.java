@@ -22,7 +22,6 @@ import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
 import io.github.bucket4j.Bandwidth;
 import io.github.bucket4j.Bucket;
-import io.github.bucket4j.Refill;
 
 import org.gitgrader.audit.ClientAddressHasher;
 import org.gitgrader.configuration.SecurityProperties;
@@ -97,7 +96,7 @@ public class RateLimiter {
 	}
 
 	private Bucket createBucket(long capacity, Duration period) {
-		Bandwidth limit = Bandwidth.classic(capacity, Refill.greedy(capacity, period));
+		Bandwidth limit = Bandwidth.builder().capacity(capacity).refillGreedy(capacity, period).build();
 		return Bucket.builder().addLimit(limit).build();
 	}
 
