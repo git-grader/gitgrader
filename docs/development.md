@@ -21,6 +21,13 @@ npm ci
 npm run dev
 ```
 
+Two TypeScript versions are installed on purpose. Type checking runs on
+TypeScript 7 through `npm run typecheck`, which the build calls before Vite.
+`typescript-eslint` cannot load against 7 yet, so the package named
+`typescript` stays on 6 to satisfy it and the 7 compiler is installed
+alongside as `typescript7`. Once `typescript-eslint` supports 7, drop the
+alias and point `typescript` at it.
+
 Use the development Compose overlay for a source-built environment:
 
 ```sh

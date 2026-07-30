@@ -5,10 +5,11 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc --noEmit && vite build",
+    "build": "npm run typecheck && vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "test:ci": "vitest run --coverage"
+    "test:ci": "vitest run --coverage",
+    "typecheck": "node node_modules/typescript7/bin/tsc --noEmit"
   },
   "dependencies": {
     "@emotion/react": "^11.14.0",
@@ -42,6 +43,7 @@
     "prettier": "^3.9.6",
     "typescript": "^6.0.3",
     "typescript-eslint": "^8.65.0",
+    "typescript7": "npm:typescript@^7.0.2",
     "vite": "^8.1.5",
     "vitest": "^4.1.10",
     "vitest-axe": "^0.1.0"
