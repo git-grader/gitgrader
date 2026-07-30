@@ -9,10 +9,16 @@ on:
 permissions:
   contents: read
   security-events: write
+  # Required on private repositories: the CodeQL and SARIF upload actions read the
+  # workflow run through the Actions API, and without this they fail with
+  # "Resource not accessible by integration" before any result is reported.
+  actions: read
 
 jobs:
   codeql:
     strategy:
+      # One language failing should not cancel the scan of the other.
+      fail-fast: false
       matrix:
         language: [java-kotlin, javascript-typescript]
     runs-on: ubuntu-latest
