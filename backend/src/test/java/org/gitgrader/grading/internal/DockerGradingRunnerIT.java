@@ -24,9 +24,13 @@ import java.time.Duration;
 import java.util.Comparator;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Stream;
 
 import com.github.dockerjava.api.DockerClient;
+import com.github.dockerjava.api.async.ResultCallback;
+import com.github.dockerjava.api.exception.NotFoundException;
+import com.github.dockerjava.api.model.PullResponseItem;
 import org.gitgrader.configuration.GradingProperties;
 import org.gitgrader.grading.GradingExecutionRequest;
 import org.gitgrader.grading.GradingResult;
@@ -64,11 +68,16 @@ class DockerGradingRunnerIT {
 
 	@Test
 	@DisplayName("executes the hidden checks in a container and reports 7 of 10")
-	void gradesThePartialSolution(@TempDir Path tempDir) throws IOException {
+	void gradesThePartialSolution(@TempDir Path tempDir) throws IOException, InterruptedException {
 		GradingProperties properties = properties();
 		DockerClient client = new DockerClientConfiguration().dockerClient(properties);
 		Assumptions.assumeTrue(daemonReachable(client), "Docker daemon is not reachable");
 		Assumptions.assumeTrue(Files.isDirectory(EXAMPLE), "example assignment is not present");
+		// The runner never pulls: a grading run must use exactly the digest the
+		// assignment
+		// pinned, and silently fetching it would hide a runtime that was never published.
+		// Fetching it is therefore this test's own setup rather than the runner's job.
+		ensureImagePresent(client);
 
 		Path workspace = tempDir.resolve("workspace");
 		copyDirectory(EXAMPLE.resolve("template"), workspace);
@@ -90,6 +99,19 @@ class DockerGradingRunnerIT {
 		assertThat(result.stdout()).contains("# pass 7").contains("# fail 3").contains("1..10");
 		// A non-zero exit is the student's three failing checks, not a broken runner.
 		assertThat(result.exitCode()).isNotZero();
+	}
+
+	private static void ensureImagePresent(DockerClient client) throws InterruptedException {
+		try {
+			client.inspectImageCmd(IMAGE).exec();
+			return;
+		}
+		catch (NotFoundException ex) {
+			// Not cached on this machine yet, so fetch it below.
+		}
+		client.pullImageCmd(IMAGE)
+			.exec(new ResultCallback.Adapter<PullResponseItem>())
+			.awaitCompletion(5, TimeUnit.MINUTES);
 	}
 
 	private static boolean daemonReachable(DockerClient client) {
