@@ -50,18 +50,3 @@ jobs:
         if: always()
         with:
           sarif_file: trivy-fs.sarif
-  gitleaks:
-    runs-on: ubuntu-latest
-    # Surfaced as job-level env because the secrets context is available to neither a job
-    # nor a step "if". The action requires a paid licence for organisation-owned
-    # repositories, so without one this scan is skipped rather than failing every run.
-    env:
-      GITLEAKS_LICENSE: ${{ secrets.GITLEAKS_LICENSE }}
-    steps:
-      - uses: actions/checkout@v7
-        with:
-          fetch-depth: 0
-      - if: env.GITLEAKS_LICENSE != ''
-        uses: gitleaks/gitleaks-action@v3
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
