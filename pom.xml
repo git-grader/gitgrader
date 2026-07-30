@@ -1,0 +1,141 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Copyright the GitGrader contributors.
+  SPDX-License-Identifier: Apache-2.0
+-->
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+		 xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+		 xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+	<modelVersion>4.0.0</modelVersion>
+
+	<groupId>org.gitgrader</groupId>
+	<artifactId>gitgrader-parent</artifactId>
+	<version>0.1.0-SNAPSHOT</version>
+	<packaging>pom</packaging>
+
+	<name>GitGrader</name>
+	<description>Self-hostable platform for automated grading of programming assignments submitted over Git.</description>
+	<url>https://github.com/git-grader/gitgrader</url>
+	<inceptionYear>2026</inceptionYear>
+
+	<licenses>
+		<license>
+			<name>Apache License, Version 2.0</name>
+			<url>https://www.apache.org/licenses/LICENSE-2.0.txt</url>
+			<distribution>repo</distribution>
+		</license>
+	</licenses>
+
+	<organization>
+		<name>The GitGrader Project</name>
+		<url>https://github.com/git-grader</url>
+	</organization>
+
+	<developers>
+		<developer>
+			<id>gitgrader</id>
+			<name>The GitGrader contributors</name>
+			<url>https://github.com/git-grader/gitgrader/graphs/contributors</url>
+		</developer>
+	</developers>
+
+	<scm>
+		<connection>scm:git:https://github.com/git-grader/gitgrader.git</connection>
+		<developerConnection>scm:git:git@github.com:git-grader/gitgrader.git</developerConnection>
+		<url>https://github.com/git-grader/gitgrader</url>
+		<tag>HEAD</tag>
+	</scm>
+
+	<issueManagement>
+		<system>GitHub Issues</system>
+		<url>https://github.com/git-grader/gitgrader/issues</url>
+	</issueManagement>
+
+	<modules>
+		<module>backend</module>
+	</modules>
+
+	<properties>
+		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+		<project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
+		<java.version>25</java.version>
+		<maven.compiler.release>25</maven.compiler.release>
+
+		<!-- Minimum tool versions enforced by maven-enforcer-plugin. -->
+		<minimum.maven.version>3.9.0</minimum.maven.version>
+
+		<!--
+		  The aggregator itself is not a Spring Boot application. Boot goals are
+		  skipped here and re-enabled in the backend module, so that root-level
+		  `./mvnw spring-boot:run` and `./mvnw spring-boot:build-image` work.
+		-->
+		<spring-boot.run.skip>true</spring-boot.run.skip>
+		<spring-boot.repackage.skip>true</spring-boot.repackage.skip>
+		<spring-boot.build-image.skip>true</spring-boot.build-image.skip>
+		<spring-boot.aot.skip>true</spring-boot.aot.skip>
+
+		<!-- Quality tooling is configured in the backend module. -->
+		<config.directory>${maven.multiModuleProjectDirectory}/config</config.directory>
+	</properties>
+
+	<build>
+		<pluginManagement>
+			<plugins>
+				<plugin>
+					<groupId>org.apache.maven.plugins</groupId>
+					<artifactId>maven-enforcer-plugin</artifactId>
+					<version>3.6.3</version>
+				</plugin>
+				<!--
+				  Default lifecycle plugins are pinned so that an aggregator build is
+				  reproducible instead of drifting with the local Maven distribution.
+				-->
+				<plugin>
+					<groupId>org.apache.maven.plugins</groupId>
+					<artifactId>maven-clean-plugin</artifactId>
+					<version>3.5.0</version>
+				</plugin>
+				<plugin>
+					<groupId>org.apache.maven.plugins</groupId>
+					<artifactId>maven-install-plugin</artifactId>
+					<version>3.1.4</version>
+				</plugin>
+				<plugin>
+					<groupId>org.apache.maven.plugins</groupId>
+					<artifactId>maven-deploy-plugin</artifactId>
+					<version>3.1.4</version>
+				</plugin>
+				<plugin>
+					<groupId>org.apache.maven.plugins</groupId>
+					<artifactId>maven-site-plugin</artifactId>
+					<version>3.21.0</version>
+				</plugin>
+			</plugins>
+		</pluginManagement>
+		<plugins>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-enforcer-plugin</artifactId>
+				<executions>
+					<execution>
+						<id>enforce-build-environment</id>
+						<goals>
+							<goal>enforce</goal>
+						</goals>
+						<configuration>
+							<rules>
+								<requireMavenVersion>
+									<version>[${minimum.maven.version},)</version>
+								</requireMavenVersion>
+								<requireJavaVersion>
+									<version>[${java.version},)</version>
+								</requireJavaVersion>
+								<banDuplicatePomDependencyVersions />
+							</rules>
+						</configuration>
+					</execution>
+				</executions>
+			</plugin>
+		</plugins>
+	</build>
+</project>

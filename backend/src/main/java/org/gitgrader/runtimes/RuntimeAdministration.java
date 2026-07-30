@@ -1,0 +1,39 @@
+/*
+ * Copyright the GitGrader contributors.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     https://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package org.gitgrader.runtimes;
+
+import java.util.UUID;
+
+/** Creates and updates digest-pinned execution runtimes. */
+public interface RuntimeAdministration {
+
+	/**
+	 * Registers a runtime.
+	 * @param definition validated runtime values
+	 * @return created runtime
+	 */
+	RuntimeView create(RuntimeDefinition definition);
+
+	/**
+	 * Replaces mutable runtime metadata while preserving its identity.
+	 * @param id runtime identifier
+	 * @param definition replacement values
+	 * @return updated runtime
+	 */
+	RuntimeView update(UUID id, RuntimeDefinition definition);
+
+}

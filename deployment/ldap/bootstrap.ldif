@@ -1,0 +1,41 @@
+# Directory contents for the development stack. This mirrors the shape the application
+# expects by default: people under ou=people matched by uid, and group membership
+# expressed with the member attribute under ou=groups. Changing the layout here means
+# changing SECURITY_LDAP_USER_SEARCH_BASE and friends to match.
+#
+# The password for both accounts is "password" and is only ever used by the local
+# development stack; this directory is never part of a deployment.
+
+dn: ou=people,dc=example,dc=org
+objectClass: organizationalUnit
+ou: people
+
+dn: ou=groups,dc=example,dc=org
+objectClass: organizationalUnit
+ou: groups
+
+dn: uid=instructor,ou=people,dc=example,dc=org
+objectClass: inetOrgPerson
+uid: instructor
+cn: Ada Lovelace
+sn: Lovelace
+mail: instructor@example.org
+userPassword: password
+
+dn: uid=admin-user,ou=people,dc=example,dc=org
+objectClass: inetOrgPerson
+uid: admin-user
+cn: Grace Hopper
+sn: Hopper
+mail: admin@example.org
+userPassword: password
+
+dn: cn=gitgrader-instructors,ou=groups,dc=example,dc=org
+objectClass: groupOfNames
+cn: gitgrader-instructors
+member: uid=instructor,ou=people,dc=example,dc=org
+
+dn: cn=gitgrader-admins,ou=groups,dc=example,dc=org
+objectClass: groupOfNames
+cn: gitgrader-admins
+member: uid=admin-user,ou=people,dc=example,dc=org

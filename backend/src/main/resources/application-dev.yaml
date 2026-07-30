@@ -1,0 +1,70 @@
+#
+# Copyright the GitGrader contributors.
+# SPDX-License-Identifier: Apache-2.0
+#
+# Development profile: `./mvnw spring-boot:run -Dspring-boot.run.profiles=dev`
+#
+# Everything here exists to let a contributor run the whole platform on a laptop with
+# only Docker and a JDK. None of it is reachable under the production profile.
+
+app:
+  public-url: http://localhost:8080
+  data-directory: ./target/data
+  registration:
+    enabled: true
+
+git:
+  ssh-host: localhost
+  ssh-port: 2222
+  listen-port: 2222
+  host-key-path: ./target/data/git/ssh/hostkey.ser
+  repository-directory: ./target/data/git/repositories
+
+grading:
+  working-directory: ./target/data/grading
+  max-parallel-jobs: 1
+  docker:
+    # When GitGrader runs on the host (not in a container) the engine and the JVM see
+    # the same paths, so no mount translation is needed.
+    workspace-mount-root: ""
+
+storage:
+  repositories-directory: ./target/data/git/repositories
+  templates-directory: ./target/data/templates
+  tests-directory: ./target/data/tests
+  artifacts-directory: ./target/data/artifacts
+  temp-directory: ./target/data/tmp
+
+security:
+  session:
+    # No TLS on localhost, so a Secure cookie would never be sent back.
+    secure-cookie: false
+  ldap:
+    enabled: false
+  local-accounts:
+    enabled: true
+    accounts:
+      - username: instructor
+        password: instructor
+        display-name: Local Instructor (development)
+        roles:
+          - INSTRUCTOR
+      - username: admin
+        password: admin
+        display-name: Local Administrator (development)
+        roles:
+          - INSTRUCTOR
+          - ADMIN
+
+logging:
+  level:
+    org.gitgrader: DEBUG
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: "*"
+  endpoint:
+    health:
+      show-details: always

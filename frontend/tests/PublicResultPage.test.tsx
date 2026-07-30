@@ -1,0 +1,77 @@
+// Copyright the GitGrader contributors.
+// SPDX-License-Identifier: Apache-2.0
+
+import { render, screen } from '@testing-library/react';
+import { PublicResultPage } from '../src/pages/PublicResultPage';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { MemoryRouter, Route, Routes } from 'react-router';
+import { expect, test, vi } from 'vitest';
+import { axe } from 'vitest-axe';
+
+
+vi.mock('../src/api', async () => {
+  const actual = await vi.importActual('../src/api') as any;
+  return {
+    ...actual,
+    api: {
+      ...actual.api,
+      getResult: vi.fn().mockResolvedValue({
+        assignmentTitle: 'Test Assig',
+        courseName: 'Test Course',
+        commitSha: 'abcdef12',
+        receivedAt: new Date().toISOString(),
+        verified: true,
+        passed: 1,
+        total: 2,
+        score: 50.0,
+        tests: [
+          { public: true, name: 'PubTest', outcome: 'PASSED', message: 'OK' },
+          { public: false, name: 'HiddenTestSecret', category: 'Security', outcome: 'FAILED', hint: 'Check constraints', message: 'secret stacktrace' }
+        ]
+      })
+    }
+  };
+});
+
+const queryClient = new QueryClient();
+
+test('PublicResultPage defensive stripping', async () => {
+  render(
+    <QueryClientProvider client={queryClient}>
+      <MemoryRouter initialEntries={['/result/token123']}>
+        <Routes>
+          <Route path="/result/:token" element={<PublicResultPage />} />
+        </Routes>
+      </MemoryRouter>
+    </QueryClientProvider>
+  );
+  
+  await screen.findByText('Test Assig');
+  
+  // Should show public test details
+  expect(screen.getByText('PubTest')).toBeInTheDocument();
+  expect(screen.getByText('OK')).toBeInTheDocument();
+  
+  // Should hide secret names/messages
+  expect(screen.queryByText('HiddenTestSecret')).not.toBeInTheDocument();
+  expect(screen.queryByText('secret stacktrace')).not.toBeInTheDocument();
+  
+  // Should show category and hint
+  expect(screen.getByText('Security')).toBeInTheDocument();
+  expect(screen.getByText('Check constraints')).toBeInTheDocument();
+});
+
+test('PublicResultPage has no a11y violations', async () => {
+  const { container } = render(
+    <QueryClientProvider client={queryClient}>
+      <MemoryRouter initialEntries={['/result/token123']}>
+        <Routes>
+          <Route path="/result/:token" element={<PublicResultPage />} />
+        </Routes>
+      </MemoryRouter>
+    </QueryClientProvider>
+  );
+  await screen.findByText('Test Assig');
+  const results = await axe(container);
+  expect(results).toHaveNoViolations();
+});
