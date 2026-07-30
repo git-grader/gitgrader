@@ -4,14 +4,17 @@
 import { Outlet, Navigate, Link, useLocation } from 'react-router';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '../api';
-import { Box, Drawer, List, ListItem, ListItemButton, ListItemText, AppBar, Toolbar, Typography, CircularProgress } from '@mui/material';
+import { Box, Drawer, List, ListItem, ListItemButton, ListItemText, AppBar, Toolbar, Typography, CircularProgress, useTheme } from '@mui/material';
 import { useMeta } from './MetaProvider';
+import PrimaryMark from '../assets/brand/gitgrader-mark-primary.svg';
+import ReversedMark from '../assets/brand/gitgrader-mark-reversed.svg';
 
 const DRAWER_WIDTH = 240;
 
 export function InstructorLayout() {
   const meta = useMeta();
   const location = useLocation();
+  const theme = useTheme();
   const { data: me, isLoading, error } = useQuery({
     queryKey: ['me'],
     queryFn: api.getMe,
@@ -26,10 +29,11 @@ export function InstructorLayout() {
 
   return (
     <Box sx={{ display: 'flex' }}>
-      <AppBar position="fixed" sx={{ zIndex: (theme) => theme.zIndex.drawer + 1 }}>
+      <AppBar position="fixed" sx={{ zIndex: (theme) => theme.zIndex.drawer + 1, backgroundColor: 'background.paper', borderBottom: 1, borderColor: 'divider', color: 'text.primary', boxShadow: 'none' }}>
         <Toolbar>
+          <Box component="img" src={theme.palette.mode === 'dark' ? ReversedMark : PrimaryMark} alt="GitGrader" sx={{ height: 24, mr: 3 }} />
           <Typography variant="h6" noWrap component="div">
-            {meta.name} - Instructor
+            {meta.organizationName ? `${meta.organizationName} - Instructor` : 'Instructor'}
           </Typography>
         </Toolbar>
       </AppBar>

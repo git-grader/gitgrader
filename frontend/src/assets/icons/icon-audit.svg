@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" fill="none"
+    stroke="#0D162C" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <title>Audit</title>
+    <circle cx="6" cy="6" r="2" />
+    <circle cx="6" cy="12" r="2" />
+    <circle cx="6" cy="18" r="2" />
+    <path d="M11 6 H20" />
+    <path d="M11 12 H17" />
+    <path d="M11 18 H19" />
+</svg>

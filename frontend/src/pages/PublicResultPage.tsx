@@ -56,7 +56,7 @@ export function PublicResultPage() {
       <Typography variant="subtitle1" component="h2" gutterBottom>{data.courseName}</Typography>
       <Paper sx={{ p: 4, mb: 4 }}>
         <Box sx={{ display: 'flex', gap: 2, alignItems: 'center', mb: 2, flexWrap: 'wrap' }}>
-          <Chip label={`Commit: ${data.commitSha.substring(0, 8)}`} />
+          <Chip label={`Commit: ${data.commitSha.substring(0, 8)}`} sx={{ fontFamily: '"JetBrains Mono", monospace' }} />
           <Chip label={`Received: ${new Date(data.receivedAt).toLocaleString()}`} />
           {data.verified ? (
             <Chip 
