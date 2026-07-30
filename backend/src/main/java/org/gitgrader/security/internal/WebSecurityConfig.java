@@ -62,7 +62,13 @@ public class WebSecurityConfig {
 	@Bean
 	@Order(1)
 	public SecurityFilterChain publicFilterChain(HttpSecurity http) throws Exception {
-		http.securityMatcher("/register/**", "/api/v1/registration/**", "/api/v1/results/**", "/api/v1/meta", "/css/**",
+		// The shell and its assets are as public as the pages that need them:
+		// registration
+		// and a result link are both reached without signing in, and neither can render
+		// if the bundle behind them is gated. The bundler emits to /assets, so listing
+		// only /js and /css left every public route redirecting to the sign-in page.
+		http.securityMatcher("/register/**", "/api/v1/registration/**", "/api/v1/results/**", "/api/v1/meta",
+				"/index.html", "/assets/**", "/favicon.ico", "/apple-touch-icon.png", "/*.svg", "/*.png", "/css/**",
 				"/js/**", "/images/**", "/actuator/health/**", "/actuator/info")
 			.authorizeHttpRequests((authz) -> authz.anyRequest().permitAll())
 			.csrf((csrf) -> csrf.csrfTokenRepository(CookieCsrfTokenRepository.withHttpOnlyFalse())
