@@ -76,6 +76,7 @@ For example, 7 of 10 tests is **70.0 %**.
 - [Backup and restore](docs/backup-restore.md)
 - [Upgrade](docs/upgrade.md)
 - [Development](docs/development.md)
+- [Manual testing](docs/manual-testing.md)
 - [Configuration](docs/configuration.md)
 - [API](docs/api.md)
 - [Release process](docs/release-process.md)
