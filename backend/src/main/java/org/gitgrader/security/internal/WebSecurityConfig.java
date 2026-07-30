@@ -125,7 +125,10 @@ public class WebSecurityConfig {
 	@Bean
 	public SecurityFilterChain defaultFilterChain(HttpSecurity http) throws Exception {
 		http.authorizeHttpRequests((authz) -> authz.anyRequest().authenticated())
-			.formLogin((form) -> form.permitAll())
+			// Naming the page stops Spring Security generating one of its own, which it
+			// serves at this same path and which would otherwise be the first thing
+			// anyone signing in sees, unstyled and unbranded.
+			.formLogin((form) -> form.loginPage("/login").permitAll())
 			.logout((logout) -> logout.logoutUrl("/logout")
 				.invalidateHttpSession(true)
 				.deleteCookies(this.properties.session().cookieName()))

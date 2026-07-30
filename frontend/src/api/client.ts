@@ -22,6 +22,27 @@ function getXsrfToken(): string | null {
   return match ? decodeURIComponent(match[2] || '') : null;
 }
 
+/**
+ * Submits a form-encoded POST, as Spring Security's sign-in expects.
+ *
+ * The token is sent as a header rather than a form field on purpose. The server masks
+ * the token it renders into forms, so the value readable from the cookie is only
+ * accepted from the header; sending it as `_csrf` is rejected.
+ */
+export async function postForm(path: string, fields: Record<string, string>): Promise<Response> {
+  const headers = new Headers({ 'Content-Type': 'application/x-www-form-urlencoded' });
+  const xsrf = getXsrfToken();
+  if (xsrf) {
+    headers.set('X-XSRF-TOKEN', xsrf);
+  }
+  return fetch(path, {
+    method: 'POST',
+    headers,
+    body: new URLSearchParams(fields).toString(),
+    redirect: 'follow'
+  });
+}
+
 export async function fetchApi<T>(path: string, options: RequestInit = {}): Promise<T> {
   const headers = new Headers(options.headers || {});
   if (!headers.has('Accept')) {
