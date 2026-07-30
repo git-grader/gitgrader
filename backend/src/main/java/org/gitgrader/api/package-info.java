@@ -28,6 +28,7 @@
  * module only knows about HTTP.
  */
 @org.springframework.modulith.ApplicationModule(displayName = "Web API",
-		allowedDependencies = { "identity", "sshkeys", "reports", "courses", "assignments", "submissions" })
+		allowedDependencies = { "identity", "sshkeys", "reports", "courses", "assignments", "submissions", "grading",
+				"security" })
 @org.jspecify.annotations.NullMarked
 package org.gitgrader.api;
