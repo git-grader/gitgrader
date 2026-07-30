@@ -36,6 +36,7 @@ import com.github.dockerjava.api.async.ResultCallback;
 import com.github.dockerjava.api.model.Frame;
 import com.github.dockerjava.api.model.StreamType;
 import org.gitgrader.configuration.GradingProperties;
+import org.gitgrader.configuration.StorageProperties;
 import org.gitgrader.grading.GradingExecutionRequest;
 import org.gitgrader.grading.GradingResult;
 import org.gitgrader.grading.GradingRunner;
@@ -67,10 +68,14 @@ class DockerGradingRunner implements GradingRunner {
 
 	private final Clock clock;
 
-	DockerGradingRunner(DockerClient dockerClient, GradingProperties properties, Clock clock) {
+	private final StorageProperties storage;
+
+	DockerGradingRunner(DockerClient dockerClient, GradingProperties properties, Clock clock,
+			StorageProperties storage) {
 		this.dockerClient = dockerClient;
 		this.properties = properties;
 		this.clock = clock;
+		this.storage = storage;
 	}
 
 	@Override
@@ -161,8 +166,7 @@ class DockerGradingRunner implements GradingRunner {
 		}
 
 		hostConfig.withBinds(new Bind(hostWorkspace, new Volume("/workspace"), AccessMode.rw),
-				new Bind(request.hiddenTestsDirectory().toAbsolutePath().toString(), new Volume("/opt/hidden-tests"),
-						AccessMode.ro));
+				new Bind(hostHiddenTests(request), new Volume("/opt/hidden-tests"), AccessMode.ro));
 
 		List<String> env = new ArrayList<>();
 		request.environment().forEach((k, v) -> env.add(k + "=" + v));
@@ -183,6 +187,27 @@ class DockerGradingRunner implements GradingRunner {
 			.withWorkingDir("/workspace")
 			.withEnv(env)
 			.withCmd(cmdArgs);
+	}
+
+	/**
+	 * Resolves where the hidden tests live as the Docker daemon sees them.
+	 *
+	 * <p>
+	 * Binds are resolved by the daemon on the host, not inside this process. When the
+	 * application is itself containerised its own path for the tests means nothing there,
+	 * and Docker answers a missing bind source by creating an empty directory rather than
+	 * by failing. The tests then simply are not present, the runner reports no results at
+	 * all, and every submission is scored zero without anything going wrong visibly.
+	 * @param request the execution request
+	 * @return the path to bind, translated onto the host when a root is configured
+	 */
+	private String hostHiddenTests(GradingExecutionRequest request) {
+		Path tests = request.hiddenTestsDirectory().toAbsolutePath();
+		String mountRoot = this.properties.docker().testsMountRoot();
+		if (mountRoot.isEmpty()) {
+			return tests.toString();
+		}
+		return mountRoot + "/" + this.storage.tests().relativize(tests);
 	}
 
 	@SuppressWarnings("PMD.AvoidStringBufferField") // bounded and per-run; never long

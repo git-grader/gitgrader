@@ -20,6 +20,7 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.attribute.PosixFilePermissions;
 import java.util.Comparator;
 import java.util.stream.Stream;
 
@@ -94,8 +95,38 @@ public class GradingWorkspaceFactory {
 				writeEntry(repository, treeWalk, workspace);
 			}
 		}
+		openToTheSandboxUser(workspace);
 		logger.debug("Materialised {}@{} into {}", repositoryPath, commitSha, workspace);
 		return workspace;
+	}
+
+	/**
+	 * Widens the workspace so the grading sandbox can read and write it.
+	 *
+	 * <p>
+	 * The sandbox deliberately runs as an unprivileged user unrelated to this process,
+	 * and a directory created here is private to its owner, so the sandbox cannot read a
+	 * single file of it. That surfaces as a run in which no test executes at all: the
+	 * suite fails to load the submitted code and reports nothing, which is recorded as a
+	 * score of zero rather than as an error, so a correct submission is failed silently.
+	 *
+	 * <p>
+	 * The application cannot chown to the sandbox user, having no privilege to give files
+	 * away, so access is granted by mode instead. Read and traverse only: the sandbox has
+	 * to load the submission, not modify it, and the content is the student's own work
+	 * inside a per-run directory on a private volume. A runtime whose install or test
+	 * command needs to write should be given a writable mount of its own rather than
+	 * having this opened up.
+	 * @param workspace the populated workspace
+	 * @throws IOException if the permissions cannot be applied
+	 */
+	private static void openToTheSandboxUser(Path workspace) throws IOException {
+		try (Stream<Path> paths = Files.walk(workspace)) {
+			for (Path path : paths.toList()) {
+				Files.setPosixFilePermissions(path, Files.isDirectory(path)
+						? PosixFilePermissions.fromString("rwxrwxrwx") : PosixFilePermissions.fromString("rw-r--r--"));
+			}
+		}
 	}
 
 	/**

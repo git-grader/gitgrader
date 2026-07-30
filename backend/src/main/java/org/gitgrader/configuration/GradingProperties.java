@@ -102,6 +102,8 @@ public record GradingProperties(
 
 			@DefaultValue("") String workspaceMountRoot,
 
+			@DefaultValue("") String testsMountRoot,
+
 			@DefaultValue("65534:65534") @NotBlank String user,
 
 			@DefaultValue("5m") Duration pullTimeout,
