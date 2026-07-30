@@ -781,6 +781,14 @@
 								<format>JSON</format>
 							</formats>
 							<nvdApiKey>${env.NVD_API_KEY}</nvdApiKey>
+							<!-- NIST throttles the shared address ranges CI runners come from, and
+							     answers 503 rather than 429 when it does, which the plugin treats as
+							     fatal and which fails the build with nothing wrong in the code. Backing
+							     off and retrying rides out the throttle; keeping the downloaded feed
+							     valid for a day means most runs do not ask for it at all. -->
+							<nvdApiDelay>4000</nvdApiDelay>
+							<nvdMaxRetryCount>15</nvdMaxRetryCount>
+							<nvdValidForHours>24</nvdValidForHours>
 							<skipTestScope>true</skipTestScope>
 							<skipProvidedScope>false</skipProvidedScope>
 						</configuration>
