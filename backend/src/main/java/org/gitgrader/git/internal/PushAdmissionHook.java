@@ -40,9 +40,11 @@ import org.gitgrader.git.internal.StudentKeyAuthenticator.AuthenticatedStudent;
 import org.gitgrader.security.ResultTokenService;
 import org.gitgrader.submissions.NewSubmission;
 import org.gitgrader.submissions.SignatureVerdict;
+import org.gitgrader.submissions.SubmissionRefusedException;
 import org.gitgrader.submissions.SubmissionService;
 import org.gitgrader.submissions.SubmissionStatus;
 import org.gitgrader.submissions.SubmissionView;
+import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
@@ -130,15 +132,27 @@ public class PushAdmissionHook {
 			PushVerdict verdict = rules.evaluate(pack.getRepository(), command, student, decision.accepted(),
 					describe(decision));
 			if (!verdict.accepted()) {
-				command.setResult(ReceiveCommand.Result.REJECTED_OTHER_REASON, "rejected");
-				pack.sendMessage("");
-				pack.sendMessage(verdict.message());
-				logger.info("Rejected push from student {} to {}: {}", student.studentId(), repository.repositoryPath(),
-						verdict.message());
+				reject(pack, command, student, repository, verdict.message());
 				continue;
 			}
-			accept(pack, student, repository, assignment.get(), decision, verdict, receivedAt);
+			try {
+				accept(pack, student, repository, assignment.get(), decision, verdict, receivedAt);
+			}
+			catch (SubmissionRefusedException ex) {
+				// Recording the submission rolled back, so the ref must not move either.
+				// The audit entry survives: it is written in its own transaction.
+				reject(pack, command, student, repository, ex.getMessage());
+			}
 		}
+	}
+
+	private void reject(ReceivePack pack, ReceiveCommand command, AuthenticatedStudent student,
+			RepositoryRecord repository, @Nullable String message) {
+		command.setResult(ReceiveCommand.Result.REJECTED_OTHER_REASON, "rejected");
+		pack.sendMessage("");
+		pack.sendMessage(message);
+		logger.info("Rejected push from student {} to {}: {}", student.studentId(), repository.repositoryPath(),
+				message);
 	}
 
 	/**
