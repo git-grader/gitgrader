@@ -58,6 +58,19 @@ else
 fi
 printf '    Docker socket group is %s.\n' "$socket_gid"
 
+# --demo starts a directory to sign in against, so it has to be switched on. The
+# example configuration ships it off, which is right for a real deployment and wrong
+# here: without this the only authentication left is a local account list that is
+# empty, and every sign-in is refused.
+if [[ "$WITH_DEMO" == true ]]; then
+  if grep -q '^SECURITY_LDAP_ENABLED=' .env; then
+    sed -i 's/^SECURITY_LDAP_ENABLED=.*/SECURITY_LDAP_ENABLED=true/' .env
+  else
+    printf 'SECURITY_LDAP_ENABLED=true\n' >> .env
+  fi
+  printf '    Demo directory enabled for sign-in.\n'
+fi
+
 # Read the version the compose file will ask for, so a rebuild is only done when
 # that exact image is genuinely absent.
 version="$(grep -E '^GITGRADER_VERSION=' .env | cut -d= -f2- || true)"
@@ -154,8 +167,11 @@ Sign in with the development directory: instructor / password
 EOF
 else
   cat <<'EOF'
-There is no course yet. Add "--demo" to load a sample one, or sign in and
-create your own.
+There is no course yet, and nobody can sign in until you point the application
+at your directory: set SECURITY_LDAP_ENABLED=true and the SECURITY_LDAP_* values
+in .env, then start it again. docs/installation.md walks through it.
+
+To look around first without any of that, run this again with "--demo".
 
 EOF
 fi
