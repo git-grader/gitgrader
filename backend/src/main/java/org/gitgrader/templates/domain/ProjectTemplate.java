@@ -25,6 +25,7 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import jakarta.persistence.Version;
+import org.gitgrader.templates.ProjectTemplateView;
 import org.jspecify.annotations.Nullable;
 
 /** A named student-visible project template. */
@@ -80,6 +81,14 @@ public class ProjectTemplate {
 	 */
 	public UUID id() {
 		return this.id;
+	}
+
+	/**
+	 * Converts this entity to its public summary.
+	 * @return project template view
+	 */
+	public ProjectTemplateView toView() {
+		return new ProjectTemplateView(this.id, this.templateKey, this.name, this.description);
 	}
 
 }

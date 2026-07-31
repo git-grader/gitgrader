@@ -106,4 +106,21 @@
 		<Class name="org.gitgrader.grading.internal.GradingWorkspaceFactory" />
 		<Bug pattern="OVERLY_PERMISSIVE_FILE_PERMISSION" />
 	</Match>
+
+	<!--
+	  The same reasoning as the workspace above, for uploaded coursework. The JDK creates
+	  temporary directories readable only by their owner, and a published test suite is
+	  mounted into the grading sandbox, which runs as an unrelated unprivileged user. Left
+	  at 0700 the sandbox cannot traverse the directory, no test is ever collected, and the
+	  submission is recorded as zero with nothing to explain it.
+
+	  Read and traverse only, never write, and only on a private volume that is never served
+	  over HTTP and never copied into a student template. It is the same mode the sample
+	  content is already staged with. Scoped to this class so a permissive mode set anywhere
+	  else still fails the build.
+	-->
+	<Match>
+		<Class name="org.gitgrader.templates.web.SecureZipExtractor" />
+		<Bug pattern="OVERLY_PERMISSIVE_FILE_PERMISSION" />
+	</Match>
 </FindBugsFilter>

@@ -20,8 +20,25 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+
 /** Provides read-only access to student-visible template versions. */
 public interface TemplateCatalog {
+
+	/**
+	 * Finds a project template summary.
+	 * @param id template identifier
+	 * @return matching template, if present
+	 */
+	Optional<ProjectTemplateView> findTemplate(UUID id);
+
+	/**
+	 * Lists project templates.
+	 * @param pageable requested page and ordering
+	 * @return matching templates
+	 */
+	Page<ProjectTemplateView> findAll(Pageable pageable);
 
 	/**
 	 * Finds a template version.
