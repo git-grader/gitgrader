@@ -68,6 +68,17 @@ class CourseTest {
 			.hasMessageContaining("Course key");
 	}
 
+	@Test
+	void updatingToActiveAndEnablingRegistrationOpensRegistration() {
+		Course course = course("java-101", CourseStatus.DRAFT, false, null, null);
+		CourseDefinition active = new CourseDefinition("java-101", "Updated Java", "Description", "Spring", null, null,
+				"Europe/Zurich", CourseStatus.ACTIVE, null, null, true);
+
+		course.update(active, CLOCK);
+
+		assertThat(course.registrationOpen(Instant.now(CLOCK))).isTrue();
+	}
+
 	private static Course course(String key, CourseStatus status, boolean enabled, Instant opens, Instant closes) {
 		return new Course(
 				new CourseDefinition(key, "Java", null, null, null, null, "UTC", status, opens, closes, enabled),

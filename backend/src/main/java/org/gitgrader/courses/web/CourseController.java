@@ -35,6 +35,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -67,6 +68,17 @@ public class CourseController {
 		return this.administration.createCourse(definition);
 	}
 
+	/**
+	 * Updates a course.
+	 * @param id course identifier
+	 * @param definition replacement course values
+	 * @return updated course
+	 */
+	@PutMapping("/{id}")
+	public CourseView update(@PathVariable UUID id, @Valid @RequestBody CourseDefinition definition) {
+		return this.administration.update(id, definition);
+	}
+
 	@GetMapping("/{id}")
 	public CourseView detail(@PathVariable UUID id) {
 		return this.catalog.findCourse(id).orElseThrow(() -> new IllegalArgumentException("Course not found"));
@@ -81,6 +93,19 @@ public class CourseController {
 	@ResponseStatus(HttpStatus.CREATED)
 	public CourseClassView createClass(@PathVariable UUID id, @Valid @RequestBody ClassRequest request) {
 		return this.administration.createClass(id, request.classKey(), request.name());
+	}
+
+	/**
+	 * Updates a class in a course.
+	 * @param id owning course identifier
+	 * @param classId class identifier
+	 * @param request replacement class values
+	 * @return updated class
+	 */
+	@PutMapping("/{id}/classes/{classId}")
+	public CourseClassView updateClass(@PathVariable UUID id, @PathVariable UUID classId,
+			@Valid @RequestBody ClassRequest request) {
+		return this.administration.updateClass(id, classId, request.classKey(), request.name());
 	}
 
 	/** Course class creation request. */

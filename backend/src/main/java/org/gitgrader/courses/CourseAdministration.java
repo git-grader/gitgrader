@@ -31,6 +31,14 @@ public interface CourseAdministration {
 	CourseView createCourse(CourseDefinition definition);
 
 	/**
+	 * Updates a course while preserving its stable key.
+	 * @param id course identifier
+	 * @param definition replacement course values
+	 * @return updated course
+	 */
+	CourseView update(UUID id, CourseDefinition definition);
+
+	/**
 	 * Adds a class to a course.
 	 * @param courseId course identifier
 	 * @param classKey course-local class key
@@ -38,6 +46,16 @@ public interface CourseAdministration {
 	 * @return created class
 	 */
 	CourseClassView createClass(UUID courseId, String classKey, String name);
+
+	/**
+	 * Updates a class of a course while preserving its stable key.
+	 * @param courseId owning course identifier
+	 * @param classId class identifier
+	 * @param classKey stable course-local class key
+	 * @param name replacement display name
+	 * @return updated class
+	 */
+	CourseClassView updateClass(UUID courseId, UUID classId, String classKey, String name);
 
 	/**
 	 * Enrolls one student once in a course and optional class.

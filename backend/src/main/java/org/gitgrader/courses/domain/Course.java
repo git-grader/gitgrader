@@ -31,6 +31,7 @@ import jakarta.persistence.Table;
 import jakarta.persistence.Version;
 
 import org.gitgrader.courses.CourseDefinition;
+import org.gitgrader.courses.CourseIdentityMismatchException;
 import org.gitgrader.courses.CourseStatus;
 import org.gitgrader.courses.CourseView;
 import org.jspecify.annotations.Nullable;
@@ -102,19 +103,22 @@ public class Course {
 		validateDates(definition.startsOn(), definition.endsOn());
 		Instant now = Instant.now(clock);
 		this.id = UUID.randomUUID();
-		this.courseKey = definition.courseKey();
-		this.name = definition.name();
-		this.description = definition.description();
-		this.semester = definition.semester();
-		this.startsOn = definition.startsOn();
-		this.endsOn = definition.endsOn();
-		this.timezone = definition.timezone();
-		this.status = definition.status();
-		this.registrationOpensAt = definition.registrationOpensAt();
-		this.registrationClosesAt = definition.registrationClosesAt();
-		this.registrationEnabled = definition.registrationEnabled();
 		this.createdAt = now;
-		this.updatedAt = now;
+		apply(definition, now);
+	}
+
+	/**
+	 * Replaces course values while preserving its stable key.
+	 * @param definition replacement course values
+	 * @param clock application clock
+	 */
+	public void update(CourseDefinition definition, Clock clock) {
+		if (!this.courseKey.equals(definition.courseKey())) {
+			throw new CourseIdentityMismatchException("courseKey cannot be changed");
+		}
+		validateCourseKey(definition.courseKey());
+		validateDates(definition.startsOn(), definition.endsOn());
+		apply(definition, Instant.now(clock));
 	}
 
 	/**
@@ -145,6 +149,21 @@ public class Course {
 		return new CourseView(this.id, this.courseKey, this.name, this.description, this.semester, this.startsOn,
 				this.endsOn, this.timezone, this.status, this.registrationOpensAt, this.registrationClosesAt,
 				this.registrationEnabled);
+	}
+
+	private void apply(CourseDefinition definition, Instant updatedAt) {
+		this.courseKey = definition.courseKey();
+		this.name = definition.name();
+		this.description = definition.description();
+		this.semester = definition.semester();
+		this.startsOn = definition.startsOn();
+		this.endsOn = definition.endsOn();
+		this.timezone = definition.timezone();
+		this.status = definition.status();
+		this.registrationOpensAt = definition.registrationOpensAt();
+		this.registrationClosesAt = definition.registrationClosesAt();
+		this.registrationEnabled = definition.registrationEnabled();
+		this.updatedAt = updatedAt;
 	}
 
 	private static void validateCourseKey(String courseKey) {

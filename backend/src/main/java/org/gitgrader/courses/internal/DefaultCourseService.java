@@ -94,9 +94,31 @@ public class DefaultCourseService implements CourseCatalog, CourseAdministration
 	}
 
 	@Override
+	public CourseView update(UUID id, CourseDefinition definition) {
+		Course course = this.courses.findById(id)
+			.orElseThrow(() -> new IllegalArgumentException("Course not found: " + id));
+		course.update(definition, this.clock);
+		return this.courses.save(course).toView();
+	}
+
+	@Override
 	public CourseClassView createClass(UUID courseId, String classKey, String name) {
 		requireCourse(courseId);
 		return this.classes.save(new CourseClass(courseId, classKey, name, this.clock)).toView();
+	}
+
+	@Override
+	public CourseClassView updateClass(UUID courseId, UUID classId, String classKey, String name) {
+		CourseClass courseClass = this.classes.findById(classId)
+			.orElseThrow(() -> new IllegalArgumentException("Course class not found: " + classId));
+		// A class reached through the wrong course is not that course's class. Reporting
+		// it
+		// as missing keeps the path from confirming that it exists somewhere else.
+		if (!courseClass.courseId().equals(courseId)) {
+			throw new IllegalArgumentException("Course class not found: " + classId);
+		}
+		courseClass.update(classKey, name, this.clock);
+		return this.classes.save(courseClass).toView();
 	}
 
 	@Override
