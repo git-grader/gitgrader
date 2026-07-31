@@ -15,7 +15,7 @@ class RateLimiterTest {
 	void consumesTokensAndRefusesWhenEmpty() {
 		ClientAddressHasher hasher = new ClientAddressHasher(
 				new AuditProperties("secret-key", java.time.Duration.ofDays(1)));
-		SecurityProperties.RateLimits limits = new SecurityProperties.RateLimits(2, 200, 60, 10, 30,
+		SecurityProperties.RateLimits limits = new SecurityProperties.RateLimits(2, 200, 60, 10, 30, 20, 60,
 				Duration.ofMinutes(15));
 		SecurityProperties props = new SecurityProperties(null, null, limits, null, "csp", "rcsp");
 

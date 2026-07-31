@@ -154,6 +154,11 @@ public record SecurityProperties(
 	 * which makes token guessing pointless on top of the token entropy
 	 * @param loginPerMinutePerIp sign-in attempts allowed from one address
 	 * @param sshAuthPerMinutePerIp SSH authentication attempts allowed from one address
+	 * @param submissionsPerHourPerAssignment accepted pushes allowed from one student on
+	 * one assignment in a rolling hour; counted in the database, so it holds across
+	 * restarts and across instances in a way an in-memory bucket cannot
+	 * @param submissionsPerHourPerStudent accepted pushes allowed from one student across
+	 * every assignment in a rolling hour
 	 * @param blockDuration how long a source is refused after exhausting a limit
 	 */
 	public record RateLimits(
@@ -167,6 +172,10 @@ public record SecurityProperties(
 			@DefaultValue("10") @Min(1) int loginPerMinutePerIp,
 
 			@DefaultValue("30") @Min(1) int sshAuthPerMinutePerIp,
+
+			@DefaultValue("20") @Min(1) int submissionsPerHourPerAssignment,
+
+			@DefaultValue("60") @Min(1) int submissionsPerHourPerStudent,
 
 			@DefaultValue("15m") Duration blockDuration) {
 	}
