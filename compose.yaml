@@ -77,6 +77,11 @@ services:
     read_only: true
     tmpfs:
       - /tmp
+    # Compose sends SIGTERM and then SIGKILLs 10 seconds later by default, which is far
+    # less than a grading run needs to wind down: the application would be killed mid-run
+    # on every redeploy, stranding the job until its 15 minute lease expired. This must
+    # stay above spring.lifecycle.timeout-per-shutdown-phase.
+    stop_grace_period: 90s
     # The socket above is owned by the host's docker group, and this container runs
     # unprivileged, so without membership of that group every grading run fails with a
     # permission error long after startup looked fine. The gid differs per host, so it
