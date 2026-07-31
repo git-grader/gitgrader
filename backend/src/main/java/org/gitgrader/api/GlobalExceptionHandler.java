@@ -20,6 +20,7 @@ import java.util.List;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
 import org.springframework.security.access.AccessDeniedException;
@@ -47,7 +48,7 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
  */
 @RestControllerAdvice(basePackages = { "org.gitgrader.api", "org.gitgrader.identity.web", "org.gitgrader.courses.web",
 		"org.gitgrader.assignments.web", "org.gitgrader.submissions.web", "org.gitgrader.runtimes.web",
-		"org.gitgrader.audit.web", "org.gitgrader.reports" })
+		"org.gitgrader.audit.web", "org.gitgrader.reports", "org.gitgrader.templates.web" })
 public class GlobalExceptionHandler {
 
 	private static final Logger logger = LoggerFactory.getLogger(GlobalExceptionHandler.class);
@@ -117,6 +118,21 @@ public class GlobalExceptionHandler {
 				"That operation is not possible in the current state.");
 		problem.setTitle("Conflict");
 		logger.warn("Rejected an operation because of the object's state", ex);
+		return problem;
+	}
+
+	/**
+	 * Renders a write refused by a database constraint, most often a reused key.
+	 * @param ex the failure
+	 * @return a 409 problem document
+	 */
+	@ExceptionHandler(DataIntegrityViolationException.class)
+	public ProblemDetail handleDataIntegrity(DataIntegrityViolationException ex) {
+		ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT,
+				"That conflicts with something that already exists. A key may already be in use.");
+		problem.setTitle("Conflict");
+		// The constraint name would name tables and columns, so it stays in the log.
+		logger.warn("Rejected a write that violated a database constraint", ex);
 		return problem;
 	}
 
