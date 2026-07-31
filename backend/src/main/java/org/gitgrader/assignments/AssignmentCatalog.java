@@ -39,6 +39,12 @@ public interface AssignmentCatalog {
 	List<AssignmentView> findByCourse(UUID courseId);
 
 	/**
+	 * Lists every assignment in deterministic course and display order.
+	 * @return all assignments
+	 */
+	List<AssignmentView> findAll();
+
+	/**
 	 * Returns the student's live extended deadline or the assignment deadline.
 	 * @param assignmentId assignment identifier
 	 * @param studentId student identifier

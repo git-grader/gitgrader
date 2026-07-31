@@ -44,7 +44,7 @@ public class SpaForwardingController {
 	 * @return a forward to {@code index.html}
 	 */
 	@GetMapping({ "/", "/login", "/dashboard", "/students/**", "/courses/**", "/assignments/**", "/submissions/**",
-			"/reports/**", "/admin/**" })
+			"/materials/**", "/reports/**", "/admin/**" })
 	public String instructorApp() {
 		return FORWARD_TO_SHELL;
 	}
