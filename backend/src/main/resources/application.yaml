@@ -91,6 +91,13 @@ spring:
       enabled: true
 
   web:
+    error:
+      whitelabel:
+        enabled: false
+      include-message: never
+      include-binding-errors: never
+      include-stacktrace: never
+      include-exception: false
     resources:
       add-mappings: true
       cache:
@@ -104,13 +111,6 @@ server:
   # those headers unconditionally lets a client forge its own source address.
   forward-headers-strategy: ${SERVER_FORWARD_HEADERS_STRATEGY:none}
   shutdown: graceful
-  error:
-    whitelabel:
-      enabled: false
-    include-message: never
-    include-binding-errors: never
-    include-stacktrace: never
-    include-exception: false
   servlet:
     session:
       cookie:

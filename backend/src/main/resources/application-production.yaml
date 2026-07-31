@@ -17,12 +17,11 @@ spring:
   flyway:
     clean-disabled: true
     validate-on-migrate: true
-
-server:
-  error:
-    include-message: never
-    include-stacktrace: never
-    include-binding-errors: never
+  web:
+    error:
+      include-message: never
+      include-stacktrace: never
+      include-binding-errors: never
 
 springdoc:
   swagger-ui:
