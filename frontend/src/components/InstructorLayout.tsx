@@ -52,6 +52,7 @@ export function InstructorLayout() {
             <ListItem disablePadding><ListItemButton component={Link} to="/students"><ListItemText primary="Students" /></ListItemButton></ListItem>
             <ListItem disablePadding><ListItemButton component={Link} to="/courses"><ListItemText primary="Courses" /></ListItemButton></ListItem>
             <ListItem disablePadding><ListItemButton component={Link} to="/assignments"><ListItemText primary="Assignments" /></ListItemButton></ListItem>
+            <ListItem disablePadding><ListItemButton component={Link} to="/materials"><ListItemText primary="Materials" /></ListItemButton></ListItem>
             <ListItem disablePadding><ListItemButton component={Link} to="/submissions"><ListItemText primary="Submissions" /></ListItemButton></ListItem>
             {/* Note: Server enforces authorization independently. Hiding UI is convenience. */}
             {isAdmin && (

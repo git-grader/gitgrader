@@ -26,6 +26,7 @@ import { StudentDetailPage } from './pages/StudentDetailPage';
 import { CourseDetailPage } from './pages/CourseDetailPage';
 import { AssignmentDetailPage } from './pages/AssignmentDetailPage';
 import { SubmissionDetailPage } from './pages/SubmissionDetailPage';
+import { MaterialsPage } from './pages/MaterialsPage';
 
 const queryClient = new QueryClient();
 
@@ -81,6 +82,7 @@ const router = createBrowserRouter([
           { path: 'courses/:id', element: <CourseDetailPage /> },
           { path: 'assignments', element: <AssignmentsPage /> },
           { path: 'assignments/:id', element: <AssignmentDetailPage /> },
+          { path: 'materials', element: <MaterialsPage /> },
           { path: 'submissions', element: <SubmissionsPage /> },
           { path: 'submissions/:id', element: <SubmissionDetailPage /> },
           { path: 'reports/course/:courseId', element: <ReportPage /> },
