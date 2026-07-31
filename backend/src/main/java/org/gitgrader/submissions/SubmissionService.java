@@ -98,6 +98,20 @@ public interface SubmissionService {
 	Page<SubmissionView> findByCourse(UUID courseId, Pageable pageable);
 
 	/**
+	 * Lists submissions across every course.
+	 * @param pageable page and ordering
+	 * @return a page of submissions
+	 */
+	Page<SubmissionView> findAll(Pageable pageable);
+
+	/**
+	 * Counts submissions in one lifecycle state.
+	 * @param status lifecycle state
+	 * @return number of matching submissions
+	 */
+	long countByStatus(SubmissionStatus status);
+
+	/**
 	 * Counts how many times a student submitted for an assignment.
 	 * @param studentId the student
 	 * @param assignmentId the assignment

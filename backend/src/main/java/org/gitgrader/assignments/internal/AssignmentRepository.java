@@ -32,4 +32,10 @@ interface AssignmentRepository extends JpaRepository<Assignment, UUID> {
 	 */
 	List<Assignment> findByCourseIdOrderByDisplayOrderAsc(UUID courseId);
 
+	/**
+	 * Lists every assignment in deterministic course and display order.
+	 * @return ordered assignments
+	 */
+	List<Assignment> findAllByOrderByCourseIdAscDisplayOrderAscIdAsc();
+
 }

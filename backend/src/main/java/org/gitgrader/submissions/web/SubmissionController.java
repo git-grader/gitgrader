@@ -49,11 +49,17 @@ public class SubmissionController {
 	}
 
 	@GetMapping
-	public Page<SubmissionView> list(@RequestParam UUID courseId,
+	public Page<SubmissionView> list(@RequestParam(required = false) @Nullable UUID courseId,
 			@RequestParam(required = false) @Nullable UUID assignmentId,
 			@RequestParam(required = false) @Nullable UUID studentId,
 			@RequestParam(required = false) @Nullable SubmissionStatus status, Pageable pageable) {
-		Page<SubmissionView> page = this.submissions.findByCourse(courseId, pageable);
+		Pageable ordered = pageable.getSort().isSorted() ? pageable
+				: org.springframework.data.domain.PageRequest.of(pageable.getPageNumber(), pageable.getPageSize(),
+						org.springframework.data.domain.Sort.by(
+								org.springframework.data.domain.Sort.Order.desc("receivedAt"),
+								org.springframework.data.domain.Sort.Order.desc("id")));
+		Page<SubmissionView> page = courseId == null ? this.submissions.findAll(ordered)
+				: this.submissions.findByCourse(courseId, ordered);
 		List<SubmissionView> filtered = page.getContent()
 			.stream()
 			.filter((item) -> assignmentId == null || item.assignmentId().equals(assignmentId))

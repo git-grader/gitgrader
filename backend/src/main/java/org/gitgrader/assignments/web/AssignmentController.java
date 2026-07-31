@@ -68,9 +68,10 @@ public class AssignmentController {
 	}
 
 	@GetMapping
-	public Page<AssignmentView> list(@RequestParam UUID courseId,
+	public Page<AssignmentView> list(@RequestParam(required = false) @Nullable UUID courseId,
 			@RequestParam(required = false) @Nullable AssignmentStatus status, Pageable pageable) {
-		List<AssignmentView> assignments = this.catalog.findByCourse(courseId)
+		List<AssignmentView> assignments = (courseId == null ? this.catalog.findAll()
+				: this.catalog.findByCourse(courseId))
 			.stream()
 			.filter((item) -> status == null || item.status() == status)
 			.toList();

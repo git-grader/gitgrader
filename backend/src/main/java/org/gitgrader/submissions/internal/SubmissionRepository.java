@@ -73,6 +73,13 @@ public interface SubmissionRepository extends JpaRepository<Submission, UUID> {
 	List<Submission> findByStatus(SubmissionStatus status);
 
 	/**
+	 * Counts submissions in one status.
+	 * @param status the status
+	 * @return number of matching submissions
+	 */
+	long countByStatus(SubmissionStatus status);
+
+	/**
 	 * Counts how many submissions a student made for an assignment.
 	 * @param studentId the student
 	 * @param assignmentId the assignment

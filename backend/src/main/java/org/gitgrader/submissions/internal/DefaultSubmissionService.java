@@ -246,6 +246,18 @@ public class DefaultSubmissionService implements SubmissionService {
 
 	@Override
 	@Transactional(readOnly = true)
+	public Page<SubmissionView> findAll(Pageable pageable) {
+		return this.repository.findAll(pageable).map(DefaultSubmissionService::toView);
+	}
+
+	@Override
+	@Transactional(readOnly = true)
+	public long countByStatus(SubmissionStatus status) {
+		return this.repository.countByStatus(status);
+	}
+
+	@Override
+	@Transactional(readOnly = true)
 	public long countAttempts(UUID studentId, UUID assignmentId) {
 		return this.repository.countByStudentIdAndAssignmentId(studentId, assignmentId);
 	}
