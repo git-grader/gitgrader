@@ -19,7 +19,7 @@ package org.gitgrader.assignments;
 import java.time.Instant;
 import java.util.UUID;
 
-/** Creates, publishes, and extends assignments. */
+/** Creates, updates, publishes, and extends assignments. */
 public interface AssignmentAdministration {
 
 	/**
@@ -28,6 +28,14 @@ public interface AssignmentAdministration {
 	 * @return created assignment
 	 */
 	AssignmentView create(AssignmentDefinition definition);
+
+	/**
+	 * Updates a draft assignment without changing its identity.
+	 * @param assignmentId assignment identifier
+	 * @param definition replacement assignment values
+	 * @return updated assignment
+	 */
+	AssignmentView update(UUID assignmentId, AssignmentDefinition definition);
 
 	/**
 	 * Changes assignment lifecycle status after checking publication completeness.

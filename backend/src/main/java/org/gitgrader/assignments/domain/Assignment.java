@@ -30,6 +30,7 @@ import jakarta.persistence.Table;
 import jakarta.persistence.Version;
 import org.gitgrader.assignments.AdmissionDecision;
 import org.gitgrader.assignments.AssignmentDefinition;
+import org.gitgrader.assignments.AssignmentIdentityMismatchException;
 import org.gitgrader.assignments.AssignmentStatus;
 import org.gitgrader.assignments.AssignmentView;
 import org.jspecify.annotations.Nullable;
@@ -134,6 +135,29 @@ public class Assignment {
 		this.updatedAt = now;
 		apply(definition);
 		validatePublication(this.status);
+	}
+
+	/**
+	 * Replaces the values of a draft assignment while preserving its identity.
+	 * @param definition replacement assignment values
+	 * @param clock application clock
+	 */
+	public void update(AssignmentDefinition definition, Clock clock) {
+		if (this.status != AssignmentStatus.DRAFT) {
+			throw new IllegalStateException("Only draft assignments can be updated");
+		}
+		if (definition.status() != AssignmentStatus.DRAFT) {
+			throw new IllegalStateException("An assignment update must retain draft status");
+		}
+		if (!this.courseId.equals(definition.courseId())) {
+			throw new AssignmentIdentityMismatchException("courseId cannot be changed");
+		}
+		if (!this.assignmentKey.equals(definition.assignmentKey())) {
+			throw new AssignmentIdentityMismatchException("assignmentKey cannot be changed");
+		}
+		apply(definition);
+		validatePublication(AssignmentStatus.OPEN);
+		this.updatedAt = Instant.now(clock);
 	}
 
 	/**

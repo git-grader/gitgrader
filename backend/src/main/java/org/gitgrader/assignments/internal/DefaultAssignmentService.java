@@ -101,6 +101,14 @@ public class DefaultAssignmentService implements AssignmentCatalog, AssignmentAd
 	}
 
 	@Override
+	public AssignmentView update(UUID assignmentId, AssignmentDefinition definition) {
+		Assignment assignment = this.assignments.findById(assignmentId)
+			.orElseThrow(() -> new IllegalArgumentException("Assignment not found: " + assignmentId));
+		assignment.update(definition, this.clock);
+		return this.assignments.save(assignment).toView();
+	}
+
+	@Override
 	public AssignmentView changeStatus(UUID assignmentId, AssignmentStatus status) {
 		Assignment assignment = requireAssignment(assignmentId);
 		assignment.changeStatus(status, this.clock);
