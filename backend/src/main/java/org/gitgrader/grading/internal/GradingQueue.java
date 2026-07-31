@@ -24,6 +24,7 @@ import java.util.UUID;
 
 import org.gitgrader.configuration.GradingProperties;
 import org.gitgrader.grading.FailureCategory;
+import org.gitgrader.grading.GradingJobStatus;
 import org.gitgrader.grading.GradingRunStatus;
 import org.gitgrader.grading.domain.GradingJob;
 import org.gitgrader.grading.domain.GradingRun;
@@ -106,6 +107,40 @@ public class GradingQueue {
 		claimed.forEach((id) -> this.jobs.findById(id)
 			.ifPresent((job) -> job.claim(worker, this.properties.queue().claimTimeout(), this.clock)));
 		return claimed;
+	}
+
+	/**
+	 * Hands every job this worker still holds back to the queue.
+	 *
+	 * <p>
+	 * Called when the process is shutting down. Without it, an in-flight job stays
+	 * {@code CLAIMED} until its lease runs out - fifteen minutes by default - during
+	 * which the student sees a submission stuck in {@code RUNNING} and no worker will
+	 * touch it.
+	 *
+	 * <p>
+	 * The attempt each job consumed is refunded, because a redeploy is not the student's
+	 * doing. That is the difference between this and {@link #reapAbandonedClaims}: an
+	 * expired lease might belong to a job that hangs its worker and must stay bounded,
+	 * but an orderly shutdown says nothing at all about the job.
+	 * @param worker the worker that is stopping
+	 * @return how many jobs were returned
+	 */
+	@Transactional
+	public int requeueHeldJobs(String worker) {
+		List<GradingJob> held = this.jobs.findByClaimedByAndStatusIn(worker,
+				List.of(GradingJobStatus.CLAIMED, GradingJobStatus.RUNNING));
+		for (GradingJob job : held) {
+			job.requeueAfterShutdown(this.clock);
+			this.runs.findById(job.gradingRunId()).ifPresent((run) -> {
+				run.requeue();
+				this.submissions.markStatus(run.submissionId(), SubmissionStatus.QUEUED);
+			});
+		}
+		if (!held.isEmpty()) {
+			logger.info("Returned {} in-flight grading job(s) to the queue for {}", held.size(), worker);
+		}
+		return held.size();
 	}
 
 	/**

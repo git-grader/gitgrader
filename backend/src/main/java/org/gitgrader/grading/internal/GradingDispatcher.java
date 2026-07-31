@@ -17,12 +17,17 @@
 package org.gitgrader.grading.internal;
 
 import java.nio.file.Path;
+import java.time.Duration;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 
+import org.gitgrader.configuration.GradingProperties;
 import org.gitgrader.grading.internal.GradingQueue.ClaimedWork;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.context.SmartLifecycle;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
@@ -40,7 +45,15 @@ import org.springframework.stereotype.Component;
  * second instance of the application is a valid way to add grading capacity.
  */
 @Component
-public class GradingDispatcher {
+public class GradingDispatcher implements SmartLifecycle {
+
+	/**
+	 * Stops after the transports, so no push or request can queue work into a queue that
+	 * is already draining.
+	 */
+	static final int SHUTDOWN_PHASE = Integer.MAX_VALUE - 1024;
+
+	private static final Duration DRAIN_POLL = Duration.ofMillis(200);
 
 	private static final Logger logger = LoggerFactory.getLogger(GradingDispatcher.class);
 
@@ -48,11 +61,18 @@ public class GradingDispatcher {
 
 	private final GradingExecutor executor;
 
+	private final GradingProperties properties;
+
 	private final String workerId = "worker-" + UUID.randomUUID();
 
-	public GradingDispatcher(GradingQueue queue, GradingExecutor executor) {
+	private final AtomicBoolean accepting = new AtomicBoolean();
+
+	private final AtomicInteger inFlight = new AtomicInteger();
+
+	public GradingDispatcher(GradingQueue queue, GradingExecutor executor, GradingProperties properties) {
 		this.queue = queue;
 		this.executor = executor;
+		this.properties = properties;
 	}
 
 	/**
@@ -60,9 +80,18 @@ public class GradingDispatcher {
 	 */
 	@Scheduled(fixedDelayString = "${grading.queue.poll-interval:2s}")
 	public void poll() {
+		if (!this.accepting.get()) {
+			return;
+		}
 		try {
 			this.queue.reapAbandonedClaims();
 			for (UUID jobId : this.queue.claimBatch(this.workerId)) {
+				if (!this.accepting.get()) {
+					// Shutdown began after the batch was claimed. Everything still held
+					// is
+					// handed back by stop(), so returning here loses nothing.
+					return;
+				}
 				process(jobId);
 			}
 		}
@@ -70,6 +99,70 @@ public class GradingDispatcher {
 			// The scheduler stops invoking a task that throws, which would silently halt
 			// all grading. Every failure is swallowed here and retried on the next tick.
 			logger.error("Grading dispatcher tick failed", ex);
+		}
+	}
+
+	@Override
+	public void start() {
+		this.accepting.set(true);
+	}
+
+	@Override
+	public boolean isRunning() {
+		return this.accepting.get();
+	}
+
+	String workerId() {
+		return this.workerId;
+	}
+
+	@Override
+	public int getPhase() {
+		return SHUTDOWN_PHASE;
+	}
+
+	/**
+	 * Stops claiming, lets a run in progress finish if it can, and hands back the rest.
+	 *
+	 * <p>
+	 * A grading run can legitimately take minutes, and blocking a redeploy for that long
+	 * is worse than repeating the work: a run is reproducible, because it re-materialises
+	 * from an immutable commit. So the wait is bounded by
+	 * {@code grading.queue.drain-timeout} - long enough for a short run to land - and
+	 * anything still executing is returned to the queue with its attempt refunded.
+	 *
+	 * <p>
+	 * The abandoned container is left to Docker, which removes it on exit because every
+	 * sandbox is created with auto-remove.
+	 */
+	@Override
+	public void stop() {
+		this.accepting.set(false);
+		awaitQuiet(this.properties.queue().drainTimeout());
+		try {
+			this.queue.requeueHeldJobs(this.workerId);
+		}
+		catch (RuntimeException ex) {
+			// Losing the database here only means the lease has to expire instead, which
+			// is slower but still correct. It must never break the shutdown sequence.
+			logger.warn("Could not return in-flight grading jobs to the queue", ex);
+		}
+	}
+
+	private void awaitQuiet(Duration timeout) {
+		long deadline = System.nanoTime() + timeout.toNanos();
+		while (this.inFlight.get() > 0 && System.nanoTime() < deadline) {
+			try {
+				Thread.sleep(DRAIN_POLL.toMillis());
+			}
+			catch (InterruptedException ex) {
+				Thread.currentThread().interrupt();
+				return;
+			}
+		}
+		if (this.inFlight.get() > 0) {
+			logger.info("Shutdown drain timed out with {} run(s) still executing; returning them to the queue",
+					this.inFlight.get());
 		}
 	}
 
@@ -91,6 +184,7 @@ public class GradingDispatcher {
 		UUID runId = work.get().run().id();
 		this.queue.markRunning(jobId, runId);
 
+		this.inFlight.incrementAndGet();
 		Path workspace = null;
 		try {
 			GradingExecutor.Outcome outcome = this.executor.execute(work.get().run());
@@ -101,6 +195,7 @@ public class GradingDispatcher {
 			this.queue.recordFailure(jobId, runId, ex);
 		}
 		finally {
+			this.inFlight.decrementAndGet();
 			if (workspace != null) {
 				this.executor.discardWorkspace(workspace);
 			}
