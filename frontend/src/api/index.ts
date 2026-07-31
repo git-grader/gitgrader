@@ -149,6 +149,18 @@ export const CourseDefinitionSchema = z.object({
 });
 export type CourseDefinition = z.infer<typeof CourseDefinitionSchema>;
 
+export const CourseViewSchema = CourseSummarySchema.extend({
+  description: z.string().optional().nullable(),
+  semester: z.string().optional().nullable(),
+  startsOn: z.string().optional().nullable(),
+  endsOn: z.string().optional().nullable(),
+  timezone: z.string(),
+  registrationOpensAt: z.string().optional().nullable(),
+  registrationClosesAt: z.string().optional().nullable(),
+  registrationEnabled: z.boolean()
+});
+export type CourseView = z.infer<typeof CourseViewSchema>;
+
 export const ClassSchema = z.object({
   id: z.string(),
   courseId: z.string(),
@@ -386,10 +398,20 @@ export const api = {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(req)
   }),
-  getCourse: (id: string) => fetchApi<CourseSummary>(`/api/v1/courses/${id}`),
+  updateCourse: (id: string, req: CourseDefinition) => fetchApi<CourseView>(`/api/v1/courses/${id}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(req)
+  }),
+  getCourse: (id: string) => fetchApi<CourseView>(`/api/v1/courses/${id}`),
   getCourseClasses: (id: string) => fetchApi<Class[]>(`/api/v1/courses/${id}/classes`),
   createClass: (id: string, req: ClassDefinition) => fetchApi<undefined>(`/api/v1/courses/${id}/classes`, {
     method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(req)
+  }),
+  updateClass: (id: string, classId: string, req: ClassDefinition) => fetchApi<undefined>(`/api/v1/courses/${id}/classes/${classId}`, {
+    method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(req)
   }),

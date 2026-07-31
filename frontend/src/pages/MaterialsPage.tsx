@@ -1,3 +1,6 @@
+// Copyright the GitGrader contributors.
+// SPDX-License-Identifier: Apache-2.0
+
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '../api';
@@ -222,6 +225,7 @@ function TestSuiteVersionList({ suiteId }: { suiteId: string }) {
 export function MaterialsPage() {
   const queryClient = useQueryClient();
   const [tab, setTab] = useState(0);
+  const [searchQuery, setSearchQuery] = useState('');
 
   const [tOpen, setTOpen] = useState(false);
   const [tForm, setTForm] = useState<TemplateDefinition>({ templateKey: '', name: '', description: '' });
@@ -242,9 +246,31 @@ export function MaterialsPage() {
     onSuccess: () => { void queryClient.invalidateQueries({ queryKey: ['testSuites'] }); setTsOpen(false); }
   });
 
+  const filteredTemplates = templates?.content.filter(t => 
+    t.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
+    t.templateKey.toLowerCase().includes(searchQuery.toLowerCase())
+  ) || [];
+
+  const filteredTestSuites = testSuites?.content.filter(ts => 
+    ts.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
+    ts.suiteKey.toLowerCase().includes(searchQuery.toLowerCase())
+  ) || [];
+
+  const emptyStateMessage = searchQuery ? `No matches found for "${searchQuery}".` : "No items found.";
+
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-      <Typography variant="h4" component="h1">Materials</Typography>
+    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <Typography variant="h4" component="h1">Materials</Typography>
+        <TextField
+          size="small"
+          label="Search"
+          placeholder="Search by name or key..."
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          sx={{ width: 300 }}
+        />
+      </Box>
       
       <Box sx={{ borderBottom: 1, borderColor: 'divider' }}>
         <Tabs value={tab} onChange={(_e, v: number) => setTab(v)}>
@@ -257,12 +283,19 @@ export function MaterialsPage() {
         <Alert severity="info" sx={{ mb: 3 }}>
           <strong>PUBLIC:</strong> Template content is what students receive. It is publicly visible when published.
         </Alert>
-        <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '16px' }}>
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+          <Typography variant="body2" color="text.secondary">
+            Showing {filteredTemplates.length} {filteredTemplates.length === 1 ? 'template' : 'templates'}
+          </Typography>
           <Button variant="contained" onClick={() => setTOpen(true)}>New Template</Button>
-        </div>
-        {tLoading ? <CircularProgress /> : (
+        </Box>
+        {tLoading ? <CircularProgress /> : filteredTemplates.length === 0 ? (
+          <Paper sx={{ p: 4, textAlign: 'center' }}>
+            <Typography color="text.secondary">{emptyStateMessage}</Typography>
+          </Paper>
+        ) : (
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-            {templates?.content.map(t => (
+            {filteredTemplates.map(t => (
               <Paper key={t.id} sx={{ p: 2 }}>
                 <Typography variant="h6">{t.name}</Typography>
                 <Typography color="text.secondary" gutterBottom>Key: {t.templateKey}</Typography>
@@ -278,12 +311,19 @@ export function MaterialsPage() {
         <Alert severity="warning" sx={{ mb: 3, bgcolor: '#fff4e5' }}>
           <strong>CONFIDENTIAL:</strong> Test suite content is hidden and NEVER shown to students. Keep answers secure.
         </Alert>
-        <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '16px' }}>
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+          <Typography variant="body2" color="text.secondary">
+            Showing {filteredTestSuites.length} {filteredTestSuites.length === 1 ? 'test suite' : 'test suites'}
+          </Typography>
           <Button variant="contained" onClick={() => setTsOpen(true)}>New Test Suite</Button>
-        </div>
-        {tsLoading ? <CircularProgress /> : (
+        </Box>
+        {tsLoading ? <CircularProgress /> : filteredTestSuites.length === 0 ? (
+          <Paper sx={{ p: 4, textAlign: 'center' }}>
+            <Typography color="text.secondary">{emptyStateMessage}</Typography>
+          </Paper>
+        ) : (
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-            {testSuites?.content.map(ts => (
+            {filteredTestSuites.map(ts => (
               <Paper key={ts.id} sx={{ p: 2 }}>
                 <Typography variant="h6">{ts.name}</Typography>
                 <Typography color="text.secondary" gutterBottom>Key: {ts.suiteKey}</Typography>
@@ -326,6 +366,6 @@ export function MaterialsPage() {
           </DialogActions>
         </form>
       </Dialog>
-    </div>
+    </Box>
   );
 }
