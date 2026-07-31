@@ -23,7 +23,7 @@ import java.util.UUID;
 import org.jspecify.annotations.Nullable;
 
 /**
- * Values used to create an assignment.
+ * Values used to create or update an assignment.
  *
  * @param courseId owning course
  * @param assignmentKey course-local stable key
