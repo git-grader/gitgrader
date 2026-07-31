@@ -44,15 +44,19 @@ overrides packaged defaults. The product properties below are exhaustive for
 | `grading.docker.pull-timeout` | — | `5m` | Image-pull timeout. |
 | `grading.docker.read-only-root-filesystem` / `tmpfs-size` / `drop-all-capabilities` / `no-new-privileges` | — | `true` / `64MB` / `true` / `true` | Docker hardening defaults. |
 | `grading.queue.poll-interval` / `claim-timeout` / `max-attempts` / `retry-backoff` | — | `2s` / `15m` / `3` / `30s` | Database queue operation. |
+| `grading.queue.max-pending-per-student-per-course` / `max-pending-per-course` / `max-pending-global` | `GRADING_QUEUE_MAX_PENDING_STUDENT` / `GRADING_QUEUE_MAX_PENDING_COURSE` / `GRADING_QUEUE_MAX_PENDING_GLOBAL` | `3` / `500` / `1000` | Ceilings on unstarted grading work. Coalescing already keeps a student to one queued run per assignment, so these are safety nets. |
+| `grading.queue.drain-timeout` | `GRADING_QUEUE_DRAIN_TIMEOUT` | `30s` | How long shutdown waits for a running sandbox before returning its job to the queue. Must stay below `spring.lifecycle.timeout-per-shutdown-phase`, which must stay below the container runtime's stop grace period. |
 | `storage.repositories-directory` / `templates-directory` / `tests-directory` / `artifacts-directory` / `temp-directory` | `STORAGE_REPOSITORIES_DIRECTORY` / `STORAGE_TEMPLATES_DIRECTORY` / `STORAGE_TESTS_DIRECTORY` / `STORAGE_ARTIFACTS_DIRECTORY` / `STORAGE_TEMP_DIRECTORY` | `/data/git/repositories` / `/data/templates` / `/data/tests` / `/data/artifacts` / `/data/tmp` | Persistent data locations. |
 | `security.ldap.*` | `SECURITY_LDAP_*` | See packaged YAML | LDAP URL, bind/search bases and filters, role groups, certificate validation, referral. |
 | `security.local-accounts.enabled` | `SECURITY_LOCAL_ACCOUNTS_ENABLED` | `false` | Development accounts; forbidden in production. |
-| `security.rate-limits.*` | `SECURITY_RATE_REGISTRATION_IP`, `SECURITY_RATE_REGISTRATION_GLOBAL`, `SECURITY_RATE_RESULT_IP`, `SECURITY_RATE_LOGIN_IP`, `SECURITY_RATE_SSH_IP` | `5`, `200`, `60`, `10`, `30` | Abuse limits; block duration is `15m`. |
+| `security.rate-limits.*` | `SECURITY_RATE_REGISTRATION_IP`, `SECURITY_RATE_REGISTRATION_GLOBAL`, `SECURITY_RATE_RESULT_IP`, `SECURITY_RATE_LOGIN_IP`, `SECURITY_RATE_SSH_IP` | `5`, `200`, `60`, `10`, `30` | Per-address abuse limits, held in memory. They reset on restart and are counted per instance. Block duration is `15m`. |
+| `security.rate-limits.submissions-per-hour-per-assignment` / `submissions-per-hour-per-student` | `SECURITY_RATE_SUBMISSIONS_ASSIGNMENT` / `SECURITY_RATE_SUBMISSIONS_STUDENT` | `20` / `60` | Rolling hourly push allowances. Counted in the database, so unlike the limits above they survive a restart and hold across instances. Exceeding one refuses the push with an explanation on the Git side band. |
 | `security.session.timeout` / `cookie-name` / `secure-cookie` / `same-site` | `SECURITY_SESSION_TIMEOUT` / `SECURITY_SESSION_COOKIE_NAME` / `SECURITY_SESSION_SECURE_COOKIE` | `8h` / `GITGRADER_SESSION` / `true` / `Lax` | Session behavior. |
 
 | Framework YAML path | Environment variable | Default |
 | --- | --- | --- |
 | `spring.datasource.url/username/password` | `SPRING_DATASOURCE_URL`, `SPRING_DATASOURCE_USERNAME`, `SPRING_DATASOURCE_PASSWORD` | localhost PostgreSQL / `gitgrader` / `gitgrader` |
+| `spring.lifecycle.timeout-per-shutdown-phase` | `SPRING_SHUTDOWN_PHASE_TIMEOUT` | `60s` |
 | `server.port` | `SERVER_PORT` | `8080` |
 | `server.forward-headers-strategy` | `SERVER_FORWARD_HEADERS_STRATEGY` | `none` |
 | `springdoc.swagger-ui.enabled` | `SPRINGDOC_UI_ENABLED` | `true`, production `false` |

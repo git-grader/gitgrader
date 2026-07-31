@@ -26,6 +26,12 @@ spring:
       # Grading waits on container I/O far more than it computes.
       enabled: true
 
+  lifecycle:
+    # Must outlast grading.queue.drain-timeout, or the shutdown phase is cut short and
+    # in-flight runs are abandoned instead of being handed back to the queue. Keep the
+    # chain ordered: drain-timeout < this < the container runtime's stop grace period.
+    timeout-per-shutdown-phase: ${SPRING_SHUTDOWN_PHASE_TIMEOUT:60s}
+
   datasource:
     url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/gitgrader}
     username: ${SPRING_DATASOURCE_USERNAME:gitgrader}
@@ -201,6 +207,14 @@ grading:
     claim-timeout: 15m
     max-attempts: 3
     retry-backoff: 30s
+    # Ceilings on unstarted work. Coalescing already keeps a student to one queued run
+    # per assignment, so these are safety nets rather than routine limits.
+    max-pending-per-student-per-course: ${GRADING_QUEUE_MAX_PENDING_STUDENT:3}
+    max-pending-per-course: ${GRADING_QUEUE_MAX_PENDING_COURSE:500}
+    max-pending-global: ${GRADING_QUEUE_MAX_PENDING_GLOBAL:1000}
+    # How long shutdown waits for a sandbox to finish before handing its job back. Must
+    # stay below spring.lifecycle.timeout-per-shutdown-phase.
+    drain-timeout: ${GRADING_QUEUE_DRAIN_TIMEOUT:30s}
 
 # =============================================================================
 # Storage layout
@@ -242,6 +256,10 @@ security:
     result-lookup-per-minute-per-ip: ${SECURITY_RATE_RESULT_IP:60}
     login-per-minute-per-ip: ${SECURITY_RATE_LOGIN_IP:10}
     ssh-auth-per-minute-per-ip: ${SECURITY_RATE_SSH_IP:30}
+    # Counted in the database, not in memory, so these hold across a restart and across
+    # instances. They bound how much grading work one student can create.
+    submissions-per-hour-per-assignment: ${SECURITY_RATE_SUBMISSIONS_ASSIGNMENT:20}
+    submissions-per-hour-per-student: ${SECURITY_RATE_SUBMISSIONS_STUDENT:60}
     block-duration: 15m
   session:
     timeout: ${SECURITY_SESSION_TIMEOUT:8h}
