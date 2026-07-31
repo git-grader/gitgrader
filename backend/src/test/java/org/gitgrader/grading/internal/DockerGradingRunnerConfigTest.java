@@ -62,7 +62,8 @@ class DockerGradingRunnerConfigTest {
 				DataSize.ofMegabytes(512), 1.0, 256, false, DataSize.ofMegabytes(1), Duration.ofSeconds(20), false,
 				new GradingProperties.Docker("unix:///var/run/docker.sock", "", "", "65534:65534",
 						Duration.ofMinutes(5), true, DataSize.ofMegabytes(64), true, true),
-				new GradingProperties.Queue(Duration.ofSeconds(2), Duration.ofMinutes(15), 3, Duration.ofSeconds(30)));
+				new GradingProperties.Queue(Duration.ofSeconds(2), Duration.ofMinutes(15), 3, Duration.ofSeconds(30), 3,
+						500, 1000, Duration.ofSeconds(30)));
 		this.clock = Clock.systemUTC();
 
 		this.request = new GradingExecutionRequest(Path.of("/data/workspace/student1"), Path.of("/data/tests/suite1"),
