@@ -17,12 +17,14 @@
 package org.gitgrader.security.internal;
 
 import org.gitgrader.configuration.SecurityProperties;
+import org.gitgrader.security.RateLimiter;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.annotation.Order;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.security.web.authentication.www.BasicAuthenticationFilter;
 import org.springframework.security.web.csrf.CookieCsrfTokenRepository;
 import org.springframework.security.web.header.writers.ReferrerPolicyHeaderWriter;
@@ -34,10 +36,16 @@ import org.springframework.security.web.header.writers.ReferrerPolicyHeaderWrite
 @EnableWebSecurity
 public class WebSecurityConfig {
 
+	/** Where Spring Security's form login posts; the rate limit is applied to it. */
+	private static final String LOGIN_PROCESSING_URL = "/login";
+
 	private final SecurityProperties properties;
 
-	public WebSecurityConfig(SecurityProperties properties) {
+	private final RateLimiter rateLimiter;
+
+	public WebSecurityConfig(SecurityProperties properties, RateLimiter rateLimiter) {
 		this.properties = properties;
+		this.rateLimiter = rateLimiter;
 	}
 
 	@Bean
@@ -128,7 +136,9 @@ public class WebSecurityConfig {
 			// Naming the page stops Spring Security generating one of its own, which it
 			// serves at this same path and which would otherwise be the first thing
 			// anyone signing in sees, unstyled and unbranded.
-			.formLogin((form) -> form.loginPage("/login").permitAll())
+			.formLogin((form) -> form.loginPage(LOGIN_PROCESSING_URL).permitAll())
+			.addFilterBefore(new LoginRateLimitFilter(this.rateLimiter, LOGIN_PROCESSING_URL),
+					UsernamePasswordAuthenticationFilter.class)
 			.logout((logout) -> logout.logoutUrl("/logout")
 				.invalidateHttpSession(true)
 				.deleteCookies(this.properties.session().cookieName()))
