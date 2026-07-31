@@ -139,6 +139,11 @@ public class Assignment {
 
 	/**
 	 * Replaces the values of a draft assignment while preserving its identity.
+	 *
+	 * <p>
+	 * A draft is allowed to remain incomplete. An instructor assembles an assignment over
+	 * several visits, attaching a template before the test suite it will be graded
+	 * against exists, so completeness is checked when publishing rather than here.
 	 * @param definition replacement assignment values
 	 * @param clock application clock
 	 */
@@ -156,7 +161,6 @@ public class Assignment {
 			throw new AssignmentIdentityMismatchException("assignmentKey cannot be changed");
 		}
 		apply(definition);
-		validatePublication(AssignmentStatus.OPEN);
 		this.updatedAt = Instant.now(clock);
 	}
 

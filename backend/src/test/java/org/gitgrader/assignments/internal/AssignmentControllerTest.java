@@ -23,6 +23,8 @@ import java.time.ZoneOffset;
 import java.util.Optional;
 import java.util.UUID;
 
+import org.jspecify.annotations.Nullable;
+
 import org.gitgrader.api.GlobalExceptionHandler;
 import org.gitgrader.assignments.AssignmentDefinition;
 import org.gitgrader.assignments.AssignmentStatus;
@@ -67,6 +69,21 @@ class AssignmentControllerTest {
 			.andExpect(jsonPath("$.templateVersionId").value(templateVersionId.toString()))
 			.andExpect(jsonPath("$.testSuiteVersionId").value(testSuiteVersionId.toString()))
 			.andExpect(jsonPath("$.runtimeId").value(runtimeId.toString()));
+	}
+
+	@Test
+	void draftMayBeSavedBeforeItIsComplete() throws Exception {
+		UUID courseId = UUID.randomUUID();
+		UUID templateVersionId = UUID.randomUUID();
+		Assignment assignment = assignment(courseId, "assignment-1", AssignmentStatus.DRAFT);
+
+		mockMvc(assignment)
+			.perform(put("/api/v1/assignments/{id}", assignment.toView().id()).contentType("application/json")
+				.content(definition(courseId, "assignment-1", templateVersionId, null, null)))
+			.andExpect(status().isOk())
+			.andExpect(jsonPath("$.templateVersionId").value(templateVersionId.toString()))
+			.andExpect(jsonPath("$.testSuiteVersionId").doesNotExist())
+			.andExpect(jsonPath("$.runtimeId").doesNotExist());
 	}
 
 	@Test
@@ -161,8 +178,12 @@ class AssignmentControllerTest {
 		return definition(courseId, assignmentKey, UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID());
 	}
 
-	private static String definition(UUID courseId, String assignmentKey, UUID templateVersionId,
-			UUID testSuiteVersionId, UUID runtimeId) {
+	private static String json(@Nullable UUID id) {
+		return id == null ? "null" : "\"" + id + "\"";
+	}
+
+	private static String definition(UUID courseId, String assignmentKey, @Nullable UUID templateVersionId,
+			@Nullable UUID testSuiteVersionId, @Nullable UUID runtimeId) {
 		return """
 				{
 				  "courseId":"%s",
@@ -179,16 +200,17 @@ class AssignmentControllerTest {
 				  "testCount":10,
 				  "passThreshold":80,
 				  "allowLate":false,
-				  "templateVersionId":"%s",
-				  "testSuiteVersionId":"%s",
-				  "runtimeId":"%s",
+				  "templateVersionId":%s,
+				  "testSuiteVersionId":%s,
+				  "runtimeId":%s,
 				  "timeoutSeconds":60,
 				  "memoryLimitBytes":1024,
 				  "cpuLimit":1,
 				  "pidLimit":16,
 				  "networkEnabled":false
 				}
-				""".formatted(courseId, assignmentKey, OPENS, DUE, templateVersionId, testSuiteVersionId, runtimeId);
+				""".formatted(courseId, assignmentKey, OPENS, DUE, json(templateVersionId), json(testSuiteVersionId),
+				json(runtimeId));
 	}
 
 }
