@@ -145,6 +145,30 @@ class GradingRunTest {
 		assertThat(first.submissionId()).isEqualTo(second.submissionId());
 	}
 
+	@Test
+	@DisplayName("a superseded run ends without a score")
+	void cancelLeavesNoScore() {
+		GradingRun run = newRun();
+
+		run.cancel(CLOCK);
+
+		assertThat(run.status()).isEqualTo(GradingRunStatus.CANCELLED);
+		assertThat(run.scorePercent()).isNull();
+		assertThat(run.passed()).isNull();
+	}
+
+	@Test
+	@DisplayName("a run handed back at shutdown returns to the queue with no start time")
+	void requeueClearsTheStartTime() {
+		GradingRun run = newRun();
+		run.markRunning(CLOCK);
+
+		run.requeue();
+
+		assertThat(run.status()).isEqualTo(GradingRunStatus.QUEUED);
+		assertThat(run.scorePercent()).isNull();
+	}
+
 	private static GradingRun newRun() {
 		return new GradingRun(UUID.fromString("00000000-0000-0000-0000-0000000000aa"), 1, "PUSH", null, null, null,
 				"corr-1", CLOCK);

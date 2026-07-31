@@ -231,6 +231,34 @@ public class GradingRun {
 	}
 
 	/**
+	 * Returns a started run to the queue because its worker is shutting down.
+	 *
+	 * <p>
+	 * Clears the start time so the retried run reports its own duration rather than one
+	 * measured from a sandbox that never finished. Nothing else is reset: no score was
+	 * written, because a run only records one when it completes.
+	 */
+	public void requeue() {
+		this.status = GradingRunStatus.QUEUED;
+		this.startedAt = null;
+		this.finishedAt = null;
+	}
+
+	/**
+	 * Withdraws a queued run because a newer submission superseded it.
+	 *
+	 * <p>
+	 * Leaves every score field null. A superseded run produced no evidence about the
+	 * student's work, and writing a zero would make it indistinguishable from a run that
+	 * executed and passed nothing.
+	 * @param clock the application clock
+	 */
+	public void cancel(Clock clock) {
+		this.status = GradingRunStatus.CANCELLED;
+		this.finishedAt = Instant.now(clock);
+	}
+
+	/**
 	 * Records a run that could not produce a score.
 	 *
 	 * <p>

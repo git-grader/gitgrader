@@ -20,14 +20,23 @@ import java.time.Clock;
 import java.util.Optional;
 import java.util.UUID;
 
+import io.micrometer.core.instrument.MeterRegistry;
+
 import org.gitgrader.assignments.AssignmentCatalog;
 import org.gitgrader.assignments.AssignmentView;
+import org.gitgrader.audit.AuditEventType;
+import org.gitgrader.audit.AuditRecord;
+import org.gitgrader.audit.AuditRecord.ActorType;
+import org.gitgrader.audit.AuditRecord.AuditSeverity;
+import org.gitgrader.audit.AuditService;
 import org.gitgrader.configuration.GradingProperties;
+import org.gitgrader.grading.GradingJobStatus;
 import org.gitgrader.grading.domain.GradingJob;
 import org.gitgrader.grading.domain.GradingRun;
 import org.gitgrader.submissions.SubmissionRecorded;
 import org.gitgrader.submissions.SubmissionService;
 import org.gitgrader.submissions.SubmissionStatus;
+import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.modulith.events.ApplicationModuleListener;
@@ -54,6 +63,20 @@ public class GradingOrchestrator {
 
 	private static final Logger logger = LoggerFactory.getLogger(GradingOrchestrator.class);
 
+	/** Rotation applied to one half of the lock key so the two ids do not cancel out. */
+	private static final int KEY_HALF_BITS = 32;
+
+	/**
+	 * Counter for every decision that withheld grading.
+	 *
+	 * <p>
+	 * Tagged only with the limit and the decision. Tagging with student, assignment or
+	 * course would give the series unbounded cardinality, which is how a metrics backend
+	 * is brought down by the very traffic these limits exist to survive; the audit trail
+	 * is where a specific student's throttling is looked up.
+	 */
+	private static final String THROTTLE_COUNTER = "gitgrader.throttle";
+
 	private final GradingRunRepository runs;
 
 	private final GradingJobRepository jobs;
@@ -64,15 +87,22 @@ public class GradingOrchestrator {
 
 	private final GradingProperties properties;
 
+	private final AuditService auditService;
+
+	private final MeterRegistry meters;
+
 	private final Clock clock;
 
 	public GradingOrchestrator(GradingRunRepository runs, GradingJobRepository jobs, AssignmentCatalog assignments,
-			SubmissionService submissions, GradingProperties properties, Clock clock) {
+			SubmissionService submissions, GradingProperties properties, AuditService auditService,
+			MeterRegistry meters, Clock clock) {
 		this.runs = runs;
 		this.jobs = jobs;
 		this.assignments = assignments;
 		this.submissions = submissions;
 		this.properties = properties;
+		this.auditService = auditService;
+		this.meters = meters;
 		this.clock = clock;
 	}
 
@@ -88,22 +118,42 @@ public class GradingOrchestrator {
 			logger.debug("Submission {} is not gradable; no grading run queued", event.submissionId());
 			return;
 		}
-		enqueue(event.submissionId(), event.assignmentId(), "PUSH");
+		enqueue(event.submissionId(), event.studentId(), event.courseId(), event.assignmentId(), "PUSH");
 	}
 
 	/**
-	 * Queues a grading run, creating the next attempt for the submission.
+	 * Queues a grading run, superseding any unstarted run this submission replaces.
 	 *
 	 * <p>
-	 * Also used for a manual re-grade, which is why the attempt number comes from the
-	 * database rather than being assumed to be one.
+	 * Only the newest unstarted submission for a student and assignment is worth grading.
+	 * A student pushing repeatedly used to add a sandbox run per push, all of which sat
+	 * in front of the rest of the course; now the older queued run is withdrawn and the
+	 * newest one takes its place. Every push is still recorded - the attempt history is
+	 * unchanged - but superseded work is marked {@code CANCELLED} rather than executed.
+	 *
+	 * <p>
+	 * Work already claimed by a worker is never withdrawn. Cancelling a running sandbox
+	 * would abandon its container and workspace, and the student would lose a result they
+	 * were already waiting for.
 	 * @param submissionId the submission to grade
+	 * @param studentId the student who pushed
+	 * @param courseId the course the assignment belongs to
 	 * @param assignmentId the assignment it answers
 	 * @param trigger what caused this run
-	 * @return the queued run
+	 * @return the queued run, or empty when a queue ceiling refused it
 	 */
 	@Transactional
-	public GradingRun enqueue(UUID submissionId, UUID assignmentId, String trigger) {
+	public Optional<GradingRun> enqueue(UUID submissionId, UUID studentId, UUID courseId, UUID assignmentId,
+			String trigger) {
+		this.jobs.lockForEnqueue(lockKey(studentId, assignmentId));
+		supersedePending(studentId, assignmentId, submissionId);
+
+		String exceeded = firstExceededCeiling(studentId, courseId);
+		if (exceeded != null) {
+			refuse(submissionId, studentId, courseId, assignmentId, exceeded);
+			return Optional.empty();
+		}
+
 		Optional<AssignmentView> assignment = this.assignments.findAssignment(assignmentId);
 		String correlationId = UUID.randomUUID().toString();
 
@@ -111,12 +161,90 @@ public class GradingOrchestrator {
 				assignment.map(AssignmentView::runtimeId).orElse(null), null,
 				assignment.map(AssignmentView::testSuiteVersionId).orElse(null), correlationId, this.clock));
 
-		this.jobs.save(new GradingJob(run.id(), submissionId, this.properties.queue().maxAttempts(), this.clock));
+		this.jobs.save(new GradingJob(run.id(), submissionId, studentId, courseId, assignmentId,
+				this.properties.queue().maxAttempts(), this.clock));
 		this.submissions.markStatus(submissionId, SubmissionStatus.QUEUED);
 
 		logger.info("Queued grading run {} (attempt {}) for submission {} [correlationId={}]", run.id(), run.attempt(),
 				submissionId, correlationId);
-		return run;
+		return Optional.of(run);
+	}
+
+	private void supersedePending(UUID studentId, UUID assignmentId, UUID replacementId) {
+		this.jobs.findByStudentIdAndAssignmentIdAndStatus(studentId, assignmentId, GradingJobStatus.PENDING)
+			.ifPresent((stale) -> {
+				stale.cancel(this.clock);
+				this.runs.findById(stale.gradingRunId()).ifPresent((run) -> run.cancel(this.clock));
+				this.submissions.markStatus(stale.submissionId(), SubmissionStatus.CANCELLED);
+
+				this.auditService.record(AuditRecord.of(AuditEventType.RATE_LIMIT_TRIGGERED)
+					.severity(AuditSeverity.INFO)
+					.actor(ActorType.STUDENT, studentId.toString(), null)
+					.subject("Submission", stale.submissionId().toString())
+					.course(stale.courseId())
+					.with("limit", "grading.pending-per-assignment")
+					.with("decision", "SUPERSEDE_PENDING")
+					.with("assignmentId", assignmentId.toString())
+					.with("supersededBy", replacementId.toString())
+					.build());
+				count("grading.pending-per-assignment", "SUPERSEDE_PENDING");
+
+				logger.info("Superseded queued grading for submission {}; submission {} replaces it",
+						stale.submissionId(), replacementId);
+			});
+	}
+
+	private @Nullable String firstExceededCeiling(UUID studentId, UUID courseId) {
+		GradingProperties.Queue queue = this.properties.queue();
+		if (this.jobs.countByStudentIdAndCourseIdAndStatus(studentId, courseId, GradingJobStatus.PENDING) >= queue
+			.maxPendingPerStudentPerCourse()) {
+			return "grading.queue.max-pending-per-student-per-course";
+		}
+		if (this.jobs.countByCourseIdAndStatus(courseId, GradingJobStatus.PENDING) >= queue.maxPendingPerCourse()) {
+			return "grading.queue.max-pending-per-course";
+		}
+		if (this.jobs.countByStatus(GradingJobStatus.PENDING) >= queue.maxPendingGlobal()) {
+			return "grading.queue.max-pending-global";
+		}
+		return null;
+	}
+
+	private void refuse(UUID submissionId, UUID studentId, UUID courseId, UUID assignmentId, String limit) {
+		this.submissions.markStatus(submissionId, SubmissionStatus.CANCELLED);
+		this.auditService.record(AuditRecord.of(AuditEventType.RATE_LIMIT_TRIGGERED)
+			.severity(AuditSeverity.WARNING)
+			.denied()
+			.actor(ActorType.STUDENT, studentId.toString(), null)
+			.subject("Submission", submissionId.toString())
+			.course(courseId)
+			.with("limit", limit)
+			.with("decision", "QUEUE_CAP")
+			.with("assignmentId", assignmentId.toString())
+			.build());
+		count(limit, "QUEUE_CAP");
+		logger.warn("Refused to queue submission {}: {} reached", submissionId, limit);
+	}
+
+	private void count(String limit, String decision) {
+		this.meters.counter(THROTTLE_COUNTER, "limit", limit, "decision", decision).increment();
+	}
+
+	/**
+	 * Derives the advisory lock key that serialises enqueues for one student and
+	 * assignment.
+	 *
+	 * <p>
+	 * A collision between two unrelated pairs only makes them take turns, which costs a
+	 * little contention and nothing else: the partial unique index, not this key, is what
+	 * guarantees a student never ends up with two queued runs for one assignment.
+	 * @param studentId the student
+	 * @param assignmentId the assignment
+	 * @return a stable key for {@code pg_advisory_xact_lock}
+	 */
+	private static long lockKey(UUID studentId, UUID assignmentId) {
+		long student = studentId.getMostSignificantBits() ^ studentId.getLeastSignificantBits();
+		long assignment = assignmentId.getMostSignificantBits() ^ assignmentId.getLeastSignificantBits();
+		return student ^ Long.rotateLeft(assignment, KEY_HALF_BITS);
 	}
 
 }

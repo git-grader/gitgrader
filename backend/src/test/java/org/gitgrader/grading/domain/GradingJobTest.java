@@ -27,6 +27,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatIllegalStateException;
 
 /**
  * Tests for the {@link GradingJob} queue lifecycle.
@@ -142,16 +143,67 @@ class GradingJobTest {
 	void keepsItsIdentifiers() {
 		UUID run = UUID.randomUUID();
 		UUID submission = UUID.randomUUID();
+		UUID student = UUID.randomUUID();
+		UUID course = UUID.randomUUID();
+		UUID assignment = UUID.randomUUID();
 
-		GradingJob job = new GradingJob(run, submission, 3, CLOCK);
+		GradingJob job = new GradingJob(run, submission, student, course, assignment, 3, CLOCK);
 
 		assertThat(job.gradingRunId()).isEqualTo(run);
 		assertThat(job.submissionId()).isEqualTo(submission);
+		assertThat(job.studentId()).isEqualTo(student);
+		assertThat(job.courseId()).isEqualTo(course);
+		assertThat(job.assignmentId()).isEqualTo(assignment);
 		assertThat(job.id()).isNotNull();
 	}
 
+	@Test
+	@DisplayName("supersedes a queued job")
+	void cancelsAPendingJob() {
+		GradingJob job = newJob(3);
+
+		job.cancel(CLOCK);
+
+		assertThat(job.status()).isEqualTo(GradingJobStatus.CANCELLED);
+	}
+
+	@Test
+	@DisplayName("refuses to supersede work a worker already claimed")
+	void refusesToCancelClaimedWork() {
+		GradingJob job = newJob(3);
+		job.claim("worker", Duration.ofMinutes(15), CLOCK);
+
+		assertThatIllegalStateException().isThrownBy(() -> job.cancel(CLOCK))
+			.withMessageContaining("Only a pending job can be superseded");
+	}
+
+	@Test
+	@DisplayName("refunds the attempt a claim consumed when the worker shuts down")
+	void requeueAfterShutdownRefundsTheAttempt() {
+		GradingJob job = newJob(3);
+		job.claim("worker", Duration.ofMinutes(15), CLOCK);
+		assertThat(job.attempts()).isOne();
+
+		job.requeueAfterShutdown(CLOCK);
+
+		assertThat(job.status()).isEqualTo(GradingJobStatus.PENDING);
+		assertThat(job.attempts()).isZero();
+	}
+
+	@Test
+	@DisplayName("never drives the attempt count below zero")
+	void requeueAfterShutdownWithoutAClaimIsHarmless() {
+		GradingJob job = newJob(3);
+
+		job.requeueAfterShutdown(CLOCK);
+
+		assertThat(job.attempts()).isZero();
+		assertThat(job.status()).isEqualTo(GradingJobStatus.PENDING);
+	}
+
 	private static GradingJob newJob(int maxAttempts) {
-		return new GradingJob(UUID.randomUUID(), UUID.randomUUID(), maxAttempts, CLOCK);
+		return new GradingJob(UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(),
+				UUID.randomUUID(), maxAttempts, CLOCK);
 	}
 
 }

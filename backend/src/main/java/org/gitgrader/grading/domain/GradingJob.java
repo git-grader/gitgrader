@@ -61,6 +61,24 @@ public class GradingJob {
 	@Column(name = "submission_id", nullable = false, updatable = false)
 	private UUID submissionId;
 
+	/**
+	 * Whose work this is, copied from the submission rather than reached through it.
+	 *
+	 * <p>
+	 * The claim query schedules one job per student inside
+	 * {@code FOR UPDATE SKIP LOCKED}. Joining to {@code submissions} to establish that
+	 * would widen the lock footprint and lose the partial indexes that keep the dispatch
+	 * scan proportional to runnable work.
+	 */
+	@Column(name = "student_id", nullable = false, updatable = false)
+	private UUID studentId;
+
+	@Column(name = "course_id", nullable = false, updatable = false)
+	private UUID courseId;
+
+	@Column(name = "assignment_id", nullable = false, updatable = false)
+	private UUID assignmentId;
+
 	@Enumerated(EnumType.STRING)
 	@Column(nullable = false)
 	private GradingJobStatus status;
@@ -105,11 +123,15 @@ public class GradingJob {
 		// Required by JPA.
 	}
 
-	public GradingJob(UUID gradingRunId, UUID submissionId, int maxAttempts, Clock clock) {
+	public GradingJob(UUID gradingRunId, UUID submissionId, UUID studentId, UUID courseId, UUID assignmentId,
+			int maxAttempts, Clock clock) {
 		Instant now = Instant.now(clock);
 		this.id = UUID.randomUUID();
 		this.gradingRunId = gradingRunId;
 		this.submissionId = submissionId;
+		this.studentId = studentId;
+		this.courseId = courseId;
+		this.assignmentId = assignmentId;
 		this.status = GradingJobStatus.PENDING;
 		this.priority = DEFAULT_PRIORITY;
 		this.maxAttempts = maxAttempts;
@@ -128,6 +150,18 @@ public class GradingJob {
 
 	public UUID submissionId() {
 		return this.submissionId;
+	}
+
+	public UUID studentId() {
+		return this.studentId;
+	}
+
+	public UUID courseId() {
+		return this.courseId;
+	}
+
+	public UUID assignmentId() {
+		return this.assignmentId;
 	}
 
 	public GradingJobStatus status() {
@@ -175,6 +209,48 @@ public class GradingJob {
 		this.status = GradingJobStatus.DONE;
 		this.finishedAt = Instant.now(clock);
 		this.updatedAt = this.finishedAt;
+	}
+
+	/**
+	 * Withdraws unstarted work because a newer submission superseded it.
+	 * @param clock the application clock
+	 * @throws IllegalStateException if the job already left the queue
+	 */
+	public void cancel(Clock clock) {
+		if (this.status != GradingJobStatus.PENDING) {
+			// Cancelling a claimed job would abandon a sandbox that is already running
+			// and
+			// leave its workspace behind. Superseding only ever discards work not
+			// started.
+			throw new IllegalStateException("Only a pending job can be superseded, but this one is " + this.status);
+		}
+		this.status = GradingJobStatus.CANCELLED;
+		this.finishedAt = Instant.now(clock);
+		this.updatedAt = this.finishedAt;
+	}
+
+	/**
+	 * Returns this job to the queue because the worker is shutting down.
+	 *
+	 * <p>
+	 * Refunds the attempt {@link #claim} consumed. A shutdown is the platform's doing,
+	 * and counting it against {@link #maxAttempts} would let three redeploys during a
+	 * long run exhaust a submission and report an infrastructure error the student cannot
+	 * act on. The reaper path deliberately does not refund: a lease that expired without
+	 * an orderly shutdown may be a job that hangs its worker, and that must stay bounded.
+	 * @param clock the application clock
+	 */
+	public void requeueAfterShutdown(Clock clock) {
+		Instant now = Instant.now(clock);
+		this.status = GradingJobStatus.PENDING;
+		this.claimedBy = null;
+		this.claimedAt = null;
+		this.claimExpiresAt = null;
+		this.availableAt = now;
+		if (this.attempts > 0) {
+			this.attempts--;
+		}
+		this.updatedAt = now;
 	}
 
 	/**
