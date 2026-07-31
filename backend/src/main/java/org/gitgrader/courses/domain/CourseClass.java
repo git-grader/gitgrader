@@ -27,6 +27,7 @@ import jakarta.persistence.Table;
 import jakarta.persistence.Version;
 
 import org.gitgrader.courses.CourseClassView;
+import org.gitgrader.courses.CourseIdentityMismatchException;
 
 /** Class grouping owned by one course. */
 @Entity
@@ -76,6 +77,20 @@ public class CourseClass {
 	}
 
 	/**
+	 * Replaces class values while preserving its stable key.
+	 * @param classKey stable course-local key
+	 * @param name replacement display name
+	 * @param clock application clock
+	 */
+	public void update(String classKey, String name, Clock clock) {
+		if (!this.classKey.equals(classKey)) {
+			throw new CourseIdentityMismatchException("classKey cannot be changed");
+		}
+		this.name = name;
+		this.updatedAt = Instant.now(clock);
+	}
+
+	/**
 	 * Determines whether this class belongs to a course.
 	 * @param candidateCourseId course to compare
 	 * @return true when identifiers match
@@ -90,6 +105,14 @@ public class CourseClass {
 	 */
 	public UUID id() {
 		return this.id;
+	}
+
+	/**
+	 * Returns the owning course identifier.
+	 * @return owning course identifier
+	 */
+	public UUID courseId() {
+		return this.courseId;
 	}
 
 	/**
