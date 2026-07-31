@@ -27,6 +27,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.eclipse.jgit.revwalk.RevWalk;
 import org.eclipse.jgit.transport.ReceiveCommand;
+import org.eclipse.jgit.treewalk.TreeWalk;
 import org.gitgrader.configuration.GitProperties;
 import org.gitgrader.git.CommitSignatureResult;
 import org.gitgrader.git.internal.StudentKeyAuthenticator.AuthenticatedStudent;
@@ -59,6 +60,12 @@ public class PushAdmissionRules {
 	 * Signature verification is per-commit, so an enormous push would otherwise be an
 	 * easy way to occupy the server. A student assignment never legitimately approaches
 	 * this number.
+	 *
+	 * <p>
+	 * Exceeding it rejects the whole push. Truncating the walk instead - which is what
+	 * this did until the check below was added - meant the commits past the ceiling were
+	 * never signature checked and were admitted anyway, so a push of more than this many
+	 * commits could carry unsigned history in behind a signed tip.
 	 */
 	private static final int MAX_COMMITS_PER_PUSH = 1_000;
 
@@ -94,8 +101,10 @@ public class PushAdmissionRules {
 		catch (IOException ex) {
 			return PushVerdict.rejected("The pushed objects could not be read: " + ex.getMessage());
 		}
-		if (newCommits.isEmpty()) {
-			return PushVerdict.rejected("The push contained no new commits.");
+
+		PushVerdict oversized = checkShape(repository, newCommits);
+		if (oversized != null) {
+			return oversized;
 		}
 
 		if (!this.gitProperties.requireSignedCommits()) {
@@ -104,6 +113,62 @@ public class PushAdmissionRules {
 				.rejected(CommitSignatureResult.CommitSignatureStatus.UNSIGNED, null, "Signing not required"));
 		}
 		return verifyEveryCommit(repository, newCommits, student);
+	}
+
+	/**
+	 * Refuses a push whose size makes it a burden rather than a submission.
+	 *
+	 * <p>
+	 * Both limits run before any signature is checked, because verification is per-commit
+	 * and materialisation is per-file: paying either cost for a push that was never going
+	 * to be accepted is exactly the denial of service these bound.
+	 * @param repository the repository being pushed to
+	 * @param newCommits the commits this push introduces
+	 * @return a rejection, or {@code null} when the push is within every limit
+	 */
+	private @Nullable PushVerdict checkShape(Repository repository, List<RevCommit> newCommits) {
+		if (newCommits.isEmpty()) {
+			return PushVerdict.rejected("The push contained no new commits.");
+		}
+		if (newCommits.size() > MAX_COMMITS_PER_PUSH) {
+			return PushVerdict.rejected("This push introduces more than " + MAX_COMMITS_PER_PUSH
+					+ " new commits, which is more than an assignment is expected to contain. "
+					+ "Push your work in smaller steps, or start from the assignment template.");
+		}
+		return checkTreeSize(repository, newCommits.getFirst());
+	}
+
+	/**
+	 * Refuses a tip whose tree holds more files than an assignment should.
+	 *
+	 * <p>
+	 * The whole tree is materialised into a workspace before every grading run, so file
+	 * count is a cost the platform pays repeatedly rather than once at push time. Pack
+	 * and object size are bounded during receive; this bounds the shape the pack expands
+	 * into, which a small pack can still make enormous.
+	 * @param repository the repository being pushed to
+	 * @param tip the commit at the branch tip
+	 * @return a rejection, or {@code null} when the tree is within the limit
+	 */
+	private @Nullable PushVerdict checkTreeSize(Repository repository, RevCommit tip) {
+		int limit = this.gitProperties.maxFileCount();
+		try (RevWalk walk = new RevWalk(repository); TreeWalk treeWalk = new TreeWalk(repository)) {
+			treeWalk.addTree(walk.parseCommit(tip).getTree());
+			treeWalk.setRecursive(true);
+			int files = 0;
+			while (treeWalk.next()) {
+				files++;
+				if (files > limit) {
+					return PushVerdict.rejected("This submission contains more than " + limit
+							+ " files, which is more than an assignment is expected to hold. "
+							+ "Remove build output and dependencies, and add them to .gitignore.");
+				}
+			}
+		}
+		catch (IOException ex) {
+			return PushVerdict.rejected("The pushed tree could not be read: " + ex.getMessage());
+		}
+		return null;
 	}
 
 	/**
@@ -213,7 +278,9 @@ public class PushAdmissionRules {
 			}
 			for (RevCommit commit : walk) {
 				commits.add(commit);
-				if (commits.size() >= MAX_COMMITS_PER_PUSH) {
+				// One past the ceiling is all the caller needs to reject the push, and it
+				// keeps the walk bounded on a repository with enormous history.
+				if (commits.size() > MAX_COMMITS_PER_PUSH) {
 					break;
 				}
 			}
