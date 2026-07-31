@@ -132,6 +132,14 @@ public record GradingProperties(
 	 * @param maxAttempts how often an infrastructure failure is retried before the run is
 	 * marked {@code INFRASTRUCTURE_ERROR}
 	 * @param retryBackoff base delay between attempts
+	 * @param maxPendingPerStudentPerCourse how much unstarted work one student may hold
+	 * in one course before the oldest of it is dropped; a student pushing to several
+	 * assignments at once is normal, a student holding a queue of them is not
+	 * @param maxPendingPerCourse safety ceiling on unstarted work in one course, so a
+	 * whole cohort cannot bury the other courses on a shared instance
+	 * @param maxPendingGlobal last-resort ceiling on unstarted work across the instance
+	 * @param drainTimeout how long an orderly shutdown waits for running sandboxes before
+	 * handing their jobs back to the queue
 	 */
 	public record Queue(
 
@@ -141,7 +149,15 @@ public record GradingProperties(
 
 			@DefaultValue("3") @Min(1) int maxAttempts,
 
-			@DefaultValue("30s") Duration retryBackoff) {
+			@DefaultValue("30s") Duration retryBackoff,
+
+			@DefaultValue("3") @Min(1) int maxPendingPerStudentPerCourse,
+
+			@DefaultValue("500") @Min(1) int maxPendingPerCourse,
+
+			@DefaultValue("1000") @Min(1) int maxPendingGlobal,
+
+			@DefaultValue("30s") Duration drainTimeout) {
 	}
 
 }
