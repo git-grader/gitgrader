@@ -44,8 +44,11 @@ import org.springframework.util.unit.DataSize;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /**
@@ -212,10 +215,50 @@ class PushAdmissionRulesTest {
 		assertThat(verdict.message()).contains("is not signed");
 	}
 
+	@Test
+	@DisplayName("refuses a tree holding more files than the configured limit")
+	void refusesTooManyFiles() throws Exception {
+		for (int i = 0; i < 4; i++) {
+			commit("file-" + i + ".txt", "content " + i);
+		}
+		RevCommit tip = commit("file-last.txt", "content");
+		givenSignature(CommitSignatureResult.verified("SHA256:signingkey"));
+
+		PushVerdict verdict = rules(true, 3).evaluate(this.repository, update(tip), STUDENT, true, null);
+
+		assertThat(verdict.accepted()).isFalse();
+		assertThat(verdict.message()).contains("more than 3 files");
+	}
+
+	@Test
+	@DisplayName("verifies every commit a push introduces, not only the ones it walked first")
+	void verifiesEveryIntroducedCommit() throws Exception {
+		RevCommit first = commit("a.txt", "a");
+		RevCommit second = commit("b.txt", "b");
+		RevCommit tip = commit("c.txt", "c");
+
+		// The ceiling used to truncate the walk rather than refuse the push, so commits
+		// past it were admitted without ever being verified. Counting the calls is what
+		// detects a regression to that behaviour: one per introduced commit, plus the
+		// re-verification of the tip that builds the accepted verdict.
+		givenSignature(CommitSignatureResult.verified("SHA256:signingkey"));
+
+		PushVerdict verdict = rules(true, 2000).evaluate(this.repository, update(tip), STUDENT, true, null);
+
+		assertThat(verdict.accepted()).isTrue();
+		verify(this.verifier, times(1)).verify(any(), argThat((c) -> c.name().equals(first.name())), any());
+		verify(this.verifier, times(1)).verify(any(), argThat((c) -> c.name().equals(second.name())), any());
+		verify(this.verifier, times(2)).verify(any(), argThat((c) -> c.name().equals(tip.name())), any());
+	}
+
 	private PushAdmissionRules rules(boolean requireSignedCommits) {
+		return rules(requireSignedCommits, 2000);
+	}
+
+	private PushAdmissionRules rules(boolean requireSignedCommits, int maxFileCount) {
 		GitProperties properties = new GitProperties(true, "localhost", 2222, "0.0.0.0", 2222, "git",
-				"/tmp/hostkey.ser", "/tmp/repositories", DataSize.ofMegabytes(50), DataSize.ofMegabytes(10), 2000,
-				Set.of("ssh-ed25519"), requireSignedCommits, Duration.ofMinutes(10));
+				"/tmp/hostkey.ser", "/tmp/repositories", DataSize.ofMegabytes(50), DataSize.ofMegabytes(10),
+				maxFileCount, Set.of("ssh-ed25519"), requireSignedCommits, Duration.ofMinutes(10));
 		return new PushAdmissionRules(properties, this.verifier);
 	}
 
