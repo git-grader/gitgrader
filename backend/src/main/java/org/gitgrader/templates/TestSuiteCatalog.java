@@ -20,8 +20,25 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+
 /** Provides read-only access to hidden test-suite versions. */
 public interface TestSuiteCatalog {
+
+	/**
+	 * Finds a hidden test-suite summary without content details.
+	 * @param id suite identifier
+	 * @return matching suite, if present
+	 */
+	Optional<TestSuiteView> findTestSuite(UUID id);
+
+	/**
+	 * Lists hidden test suites without exposing their content.
+	 * @param pageable requested page and ordering
+	 * @return matching suites
+	 */
+	Page<TestSuiteView> findAll(Pageable pageable);
 
 	/**
 	 * Finds a test-suite version.

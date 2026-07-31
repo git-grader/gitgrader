@@ -80,7 +80,7 @@ public class TemplateContentGuard {
 	/**
 	 * Scans a template tree and rejects the first suspicious path.
 	 * @param templateDirectory the resolved template directory
-	 * @throws IllegalArgumentException when forbidden material is present
+	 * @throws TemplateContentRejectedException when forbidden material is present
 	 * @throws IllegalStateException when the directory cannot be read
 	 */
 	public void validate(Path templateDirectory) {
@@ -90,7 +90,7 @@ public class TemplateContentGuard {
 				.filter(TemplateContentGuard::isForbidden)
 				.findFirst()
 				.ifPresent((path) -> {
-					throw new IllegalArgumentException(
+					throw new TemplateContentRejectedException(
 							"Template contains forbidden hidden or secret material: " + path);
 				});
 		}

@@ -31,6 +31,8 @@ import org.gitgrader.templates.domain.TestSuite;
 import org.gitgrader.templates.domain.TestSuiteVersion;
 import org.jspecify.annotations.Nullable;
 import org.springframework.stereotype.Service;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.transaction.annotation.Transactional;
 
 /** Default hidden test-suite catalog and administration implementation. */
@@ -52,6 +54,18 @@ public class DefaultTestSuiteService implements TestSuiteCatalog, TestSuiteAdmin
 		this.versions = versions;
 		this.storage = storage;
 		this.clock = clock;
+	}
+
+	@Override
+	@Transactional(readOnly = true)
+	public Optional<org.gitgrader.templates.TestSuiteView> findTestSuite(UUID id) {
+		return this.suites.findById(id).map(TestSuite::toView);
+	}
+
+	@Override
+	@Transactional(readOnly = true)
+	public Page<org.gitgrader.templates.TestSuiteView> findAll(Pageable pageable) {
+		return this.suites.findAll(pageable).map(TestSuite::toView);
 	}
 
 	@Override

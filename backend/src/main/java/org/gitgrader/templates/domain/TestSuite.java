@@ -25,6 +25,7 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import jakarta.persistence.Version;
+import org.gitgrader.templates.TestSuiteView;
 import org.jspecify.annotations.Nullable;
 
 /** A named suite stored exclusively under the hidden-test root. */
@@ -80,6 +81,14 @@ public class TestSuite {
 	 */
 	public UUID id() {
 		return this.id;
+	}
+
+	/**
+	 * Converts this entity to its public summary without content details.
+	 * @return test-suite view
+	 */
+	public TestSuiteView toView() {
+		return new TestSuiteView(this.id, this.suiteKey, this.name, this.description);
 	}
 
 }
