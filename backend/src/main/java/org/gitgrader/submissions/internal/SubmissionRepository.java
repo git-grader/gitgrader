@@ -16,6 +16,7 @@
 
 package org.gitgrader.submissions.internal;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -78,6 +79,50 @@ public interface SubmissionRepository extends JpaRepository<Submission, UUID> {
 	 * @return the number of submissions
 	 */
 	long countByStudentIdAndAssignmentId(UUID studentId, UUID assignmentId);
+
+	/**
+	 * Serialises admission decisions for one student and assignment.
+	 *
+	 * <p>
+	 * The duplicate and rolling-window checks are read-then-write. Two pushes arriving
+	 * together would otherwise both read a count below the limit and both insert, letting
+	 * a burst step straight over the ceiling. The lock is transaction scoped, so it is
+	 * released on commit or rollback with no unlock path to forget.
+	 * @param key identifies the student and assignment pair
+	 */
+	@Query(value = "SELECT pg_advisory_xact_lock(:key)", nativeQuery = true)
+	void lockForAdmission(@Param("key") long key);
+
+	/**
+	 * Reports whether this exact commit was already submitted to this repository.
+	 *
+	 * <p>
+	 * Answered from the leading columns of {@code submissions_unique_commit}, which is a
+	 * btree on (repository_id, commit_sha, received_at). That constraint does not prevent
+	 * a duplicate on its own, because it includes the receive time: the same commit
+	 * pushed twice a second apart produces two distinct keys.
+	 * @param repositoryId the repository pushed to
+	 * @param commitSha the commit at the branch tip
+	 * @return true when an earlier submission already recorded this commit
+	 */
+	boolean existsByRepositoryIdAndCommitSha(UUID repositoryId, String commitSha);
+
+	/**
+	 * Counts a student's recent pushes to one assignment.
+	 * @param studentId the student
+	 * @param assignmentId the assignment
+	 * @param since start of the rolling window
+	 * @return the number of submissions inside the window
+	 */
+	long countByStudentIdAndAssignmentIdAndReceivedAtAfter(UUID studentId, UUID assignmentId, Instant since);
+
+	/**
+	 * Counts a student's recent pushes across every assignment.
+	 * @param studentId the student
+	 * @param since start of the rolling window
+	 * @return the number of submissions inside the window
+	 */
+	long countByStudentIdAndReceivedAtAfter(UUID studentId, Instant since);
 
 	/**
 	 * Counts submissions in a course grouped by status.

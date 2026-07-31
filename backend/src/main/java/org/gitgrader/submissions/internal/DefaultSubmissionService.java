@@ -17,15 +17,25 @@
 package org.gitgrader.submissions.internal;
 
 import java.time.Clock;
+import java.time.Duration;
+import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
+import io.micrometer.core.instrument.MeterRegistry;
+
 import org.gitgrader.audit.AuditEventType;
 import org.gitgrader.audit.AuditRecord;
+import org.gitgrader.audit.AuditRecord.ActorType;
+import org.gitgrader.audit.AuditRecord.AuditSeverity;
 import org.gitgrader.audit.AuditService;
+import org.gitgrader.configuration.SecurityProperties;
+import org.gitgrader.configuration.SecurityProperties.RateLimits;
 import org.gitgrader.submissions.NewSubmission;
 import org.gitgrader.submissions.SubmissionRecorded;
+import org.gitgrader.submissions.SubmissionRefusedException;
+import org.gitgrader.submissions.SubmissionRefusedException.Reason;
 import org.gitgrader.submissions.SubmissionService;
 import org.gitgrader.submissions.SubmissionStatus;
 import org.gitgrader.submissions.SubmissionView;
@@ -47,24 +57,43 @@ public class DefaultSubmissionService implements SubmissionService {
 
 	private static final Logger logger = LoggerFactory.getLogger(DefaultSubmissionService.class);
 
+	/** The rolling window every push allowance is measured over. */
+	private static final Duration WINDOW = Duration.ofHours(1);
+
+	/** Hash characters shown to a student, matching git's default abbreviation. */
+	private static final int SHORT_SHA_LENGTH = 7;
+
+	/** Shared with the grading module; tags stay low cardinality for the same reason. */
+	private static final String THROTTLE_COUNTER = "gitgrader.throttle";
+
+	/** Rotation applied to one half of the lock key so the two ids do not cancel out. */
+	private static final int KEY_HALF_BITS = 32;
+
 	private final SubmissionRepository repository;
 
 	private final ApplicationEventPublisher events;
 
 	private final AuditService auditService;
 
+	private final SecurityProperties securityProperties;
+
+	private final MeterRegistry meters;
+
 	private final Clock clock;
 
 	public DefaultSubmissionService(SubmissionRepository repository, ApplicationEventPublisher events,
-			AuditService auditService, Clock clock) {
+			AuditService auditService, SecurityProperties securityProperties, MeterRegistry meters, Clock clock) {
 		this.repository = repository;
 		this.events = events;
 		this.auditService = auditService;
+		this.securityProperties = securityProperties;
+		this.meters = meters;
 		this.clock = clock;
 	}
 
 	@Override
 	public SubmissionView record(NewSubmission details) {
+		admit(details);
 		Submission saved = this.repository.save(new Submission(details, this.clock));
 		boolean gradable = saved.status() != SubmissionStatus.REJECTED;
 
@@ -89,6 +118,87 @@ public class DefaultSubmissionService implements SubmissionService {
 		logger.info("Recorded submission {} for student {} on assignment {} (commit {}, signature {})", saved.id(),
 				saved.studentId(), saved.assignmentId(), saved.shortCommitSha(), saved.signatureStatus());
 		return toView(saved);
+	}
+
+	/**
+	 * Decides whether a well formed push may become a submission.
+	 *
+	 * <p>
+	 * Runs inside the recording transaction and behind a per-student advisory lock, so
+	 * the count a decision is based on cannot change between reading it and inserting the
+	 * row. Counting in the database rather than in a bucket in memory is what makes the
+	 * limit survive a restart and hold across a second instance.
+	 *
+	 * <p>
+	 * A refused push is not written. That is a deliberate departure from the usual rule
+	 * that every attempt is recorded: the reason a push is refused here is that there are
+	 * already too many rows, so recording the refusal would defeat the limit it enforces.
+	 * The audit trail carries the refusal instead.
+	 * @param details the push being admitted
+	 * @throws SubmissionRefusedException when a rule refuses it
+	 */
+	private void admit(NewSubmission details) {
+		RateLimits limits = this.securityProperties.rateLimits();
+		this.repository.lockForAdmission(admissionKey(details.studentId(), details.assignmentId()));
+
+		if (this.repository.existsByRepositoryIdAndCommitSha(details.repositoryId(), details.commitSha())) {
+			refuse(details, Reason.DUPLICATE_COMMIT, "submissions.duplicate-commit",
+					"Commit " + shortSha(details.commitSha()) + " has already been submitted for this assignment. "
+							+ "Push a new commit to be graded again.");
+		}
+
+		Instant since = Instant.now(this.clock).minus(WINDOW);
+		if (this.repository.countByStudentIdAndAssignmentIdAndReceivedAtAfter(details.studentId(),
+				details.assignmentId(), since) >= limits.submissionsPerHourPerAssignment()) {
+			refuse(details, Reason.ASSIGNMENT_RATE_LIMIT, "security.rate-limits.submissions-per-hour-per-assignment",
+					"You have submitted this assignment " + limits.submissionsPerHourPerAssignment()
+							+ " times in the last hour, which is the limit. Wait before pushing again.");
+		}
+		if (this.repository.countByStudentIdAndReceivedAtAfter(details.studentId(), since) >= limits
+			.submissionsPerHourPerStudent()) {
+			refuse(details, Reason.STUDENT_RATE_LIMIT, "security.rate-limits.submissions-per-hour-per-student",
+					"You have made " + limits.submissionsPerHourPerStudent()
+							+ " submissions in the last hour, which is the limit. Wait before pushing again.");
+		}
+	}
+
+	private void refuse(NewSubmission details, Reason reason, String limit, String message) {
+		this.auditService.record(AuditRecord.of(AuditEventType.RATE_LIMIT_TRIGGERED)
+			.severity(AuditSeverity.WARNING)
+			.denied()
+			.actor(ActorType.STUDENT, details.studentId().toString(), null)
+			.subject("Assignment", details.assignmentId().toString())
+			.course(details.courseId())
+			.with("limit", limit)
+			.with("decision", reason.name())
+			.with("commit", shortSha(details.commitSha()))
+			.build());
+		this.meters.counter(THROTTLE_COUNTER, "limit", limit, "decision", reason.name()).increment();
+		logger.info("Refused push from student {} on assignment {}: {}", details.studentId(), details.assignmentId(),
+				reason);
+		throw new SubmissionRefusedException(reason, message);
+	}
+
+	/**
+	 * Derives the advisory lock key that serialises admission for one student and
+	 * assignment.
+	 *
+	 * <p>
+	 * A collision between two unrelated pairs only makes them take turns. It cannot admit
+	 * a push that should have been refused, because every check runs after the lock is
+	 * held.
+	 * @param studentId the student
+	 * @param assignmentId the assignment
+	 * @return a stable key for {@code pg_advisory_xact_lock}
+	 */
+	private static long admissionKey(UUID studentId, UUID assignmentId) {
+		long student = studentId.getMostSignificantBits() ^ studentId.getLeastSignificantBits();
+		long assignment = assignmentId.getMostSignificantBits() ^ assignmentId.getLeastSignificantBits();
+		return student ^ Long.rotateLeft(assignment, KEY_HALF_BITS);
+	}
+
+	private static String shortSha(String commitSha) {
+		return commitSha.length() > SHORT_SHA_LENGTH ? commitSha.substring(0, SHORT_SHA_LENGTH) : commitSha;
 	}
 
 	@Override
