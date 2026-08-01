@@ -6,11 +6,19 @@ import { useParams } from 'react-router';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '../api';
 import { BrandMark } from '../components/BrandMark';
-import { Box, Typography, Paper, Chip, LinearProgress, Table, TableBody, TableCell, TableHead, TableRow, Alert } from '@mui/material';
+import { Box, Typography, Paper, Chip, CircularProgress, LinearProgress, Table, TableBody, TableCell, TableHead, TableRow, Alert } from '@mui/material';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import CancelIcon from '@mui/icons-material/Cancel';
 import VerifiedUserIcon from '@mui/icons-material/VerifiedUser';
 import WarningAmberIcon from '@mui/icons-material/WarningAmber';
+
+/** Human labels for the outcomes a test result can carry. */
+const TEST_OUTCOME_LABELS: Record<string, string> = {
+  PASSED: 'Passed',
+  FAILED: 'Failed',
+  ERRORED: 'Errored',
+  SKIPPED: 'Skipped'
+};
 
 export function PublicResultPage() {
   const { token } = useParams<{ token: string }>();
@@ -32,10 +40,20 @@ export function PublicResultPage() {
 
   const { data, isLoading, error } = useQuery({
     queryKey: ['result', token],
-    queryFn: () => api.getResult(token || '')
+    queryFn: () => api.getResult(token || ''),
+    // A token that does not resolve will not start resolving. Retrying left a student
+    // who followed a stale link staring at a loading state for eight seconds before
+    // being told the link was invalid.
+    retry: false
   });
 
-  if (isLoading) return <Box sx={{ p: 4 }}>Loading...</Box>;
+  if (isLoading) {
+    return (
+      <Box sx={{ display: 'flex', justifyContent: 'center', p: 8 }}>
+        <CircularProgress aria-label="Loading result" />
+      </Box>
+    );
+  }
   if (error || !data) return <Box sx={{ p: 4 }}><Alert severity="error">Result not found or invalid token.</Alert></Box>;
 
   // Defensively strip hidden tests
@@ -111,7 +129,7 @@ export function PublicResultPage() {
                   {test.outcome === 'PASSED' ? (
                     <Chip size="small" color="success" icon={<CheckCircleIcon />} label="Passed" />
                   ) : (
-                    <Chip size="small" color="error" icon={<CancelIcon />} label={test.outcome} />
+                    <Chip size="small" color="error" icon={<CancelIcon />} label={TEST_OUTCOME_LABELS[test.outcome] ?? test.outcome} />
                   )}
                 </TableCell>
                 <TableCell>
