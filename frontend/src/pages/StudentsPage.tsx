@@ -87,6 +87,9 @@ export function StudentsPage() {
           paginationModel={paginationModel}
           onPaginationModelChange={setPaginationModel}
           pageSizeOptions={[20, 50, 100]}
+          // Only the requested page is in memory, so a client-side sort would silently
+          // reorder that page alone while appearing to sort the whole collection.
+          disableColumnSorting
           disableRowSelectionOnClick
         />
       </Box>

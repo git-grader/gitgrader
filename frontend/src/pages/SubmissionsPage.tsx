@@ -90,7 +90,12 @@ export function SubmissionsPage() {
           <Select
             value={selectedCourseId}
             label="Course Filter"
-            onChange={(e) => setSearchParams(e.target.value ? { courseId: e.target.value } : {})}
+            onChange={(e) => {
+              // A narrower filter has fewer pages, so staying on the current one would
+              // ask for a page that no longer exists and show nothing.
+              setPaginationModel({ ...paginationModel, page: 0 });
+              setSearchParams(e.target.value ? { courseId: e.target.value } : {});
+            }}
           >
             <MenuItem value=""><em>All courses</em></MenuItem>
             {courses?.content.map(c => <MenuItem key={c.id} value={c.id}>{c.name}</MenuItem>)}
@@ -110,6 +115,9 @@ export function SubmissionsPage() {
             rowCount={data?.totalElements ?? 0}
             paginationModel={paginationModel}
             onPaginationModelChange={setPaginationModel}
+            // Only the requested page is in memory, so a client-side sort would silently
+            // reorder that page alone while appearing to sort the whole collection.
+            disableColumnSorting
             pageSizeOptions={[20, 50, 100]}
             disableRowSelectionOnClick
           />

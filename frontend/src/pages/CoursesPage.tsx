@@ -92,6 +92,9 @@ export function CoursesPage() {
               value={statusFilter}
               label="Status Filter"
               onChange={(e) => {
+                // A narrower filter has fewer pages, so staying on the current one would
+                // ask for a page that no longer exists and show nothing.
+                setPaginationModel({ ...paginationModel, page: 0 });
                 const newParams = new URLSearchParams(searchParams);
                 newParams.set('status', e.target.value);
                 setSearchParams(newParams);
