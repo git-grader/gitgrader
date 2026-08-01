@@ -26,7 +26,10 @@ const PRESENTATION: Record<string, StatusPresentation> = {
   ACTIVE: {
     label: 'Active',
     color: 'success',
-    description: 'Running. Students can register and push.'
+    // Deliberately does not promise registration: that is governed separately by the
+    // course's registration flag and its opening window, so an active course can still
+    // be closed to new students.
+    description: 'Running. Whether registration is open is configured separately.'
   },
   CLOSED: {
     label: 'Closed',
