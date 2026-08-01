@@ -5,9 +5,11 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useSearchParams } from 'react-router';
 import { api } from '../api';
+import { useServerPagination } from '../components/useServerPagination';
+import { CourseStatusChip } from '../components/CourseStatusChip';
 import type { CourseDefinition } from '../api';
 import { ApiProblem } from '../api/client';
-import { Typography, CircularProgress, List, ListItem, ListItemText, ListItemButton, Paper, Button, Dialog, DialogTitle, DialogContent, DialogActions, TextField, Alert, FormControlLabel, Switch, FormControl, InputLabel, Select, MenuItem } from '@mui/material';
+import { Box, TablePagination, Typography, CircularProgress, List, ListItem, ListItemText, ListItemButton, Paper, Button, Dialog, DialogTitle, DialogContent, DialogActions, TextField, Alert, FormControlLabel, Switch, FormControl, InputLabel, Select, MenuItem } from '@mui/material';
 import { Link } from 'react-router';
 
 export function CoursesPage() {
@@ -29,9 +31,11 @@ export function CoursesPage() {
     registrationEnabled: false 
   });
 
+  const { paginationModel, setPaginationModel, params } = useServerPagination();
   const { data, isLoading } = useQuery({
-    queryKey: ['courses', statusFilter],
-    queryFn: () => api.getCourses({ status: statusFilter })
+    queryKey: ['courses', statusFilter, params.page, params.size],
+    queryFn: () => api.getCourses({ ...params, status: statusFilter }),
+    placeholderData: (previous) => previous
   });
 
   const createMutation = useMutation({
@@ -79,10 +83,10 @@ export function CoursesPage() {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
         <Typography variant="h4" component="h1">Courses</Typography>
-                <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
-          <FormControl size="small" sx={{ minWidth: 200 }}>
+                <div style={{ display: 'flex', gap: '16px', alignItems: 'center', flexWrap: 'wrap', flex: '1 1 auto', justifyContent: 'flex-end' }}>
+          <FormControl size="small" sx={{ minWidth: { xs: '100%', sm: 200 } }}>
             <InputLabel>Status Filter</InputLabel>
             <Select
               value={statusFilter}
@@ -117,12 +121,29 @@ export function CoursesPage() {
                 <ListItemButton component={Link} to={`/courses/${c.id}`}>
                   <ListItemText 
                     primary={c.name} 
-                    secondary={`Key: ${c.courseKey} | Status: ${c.status}`} 
+                    slotProps={{ secondary: { component: 'div' } }}
+                    secondary={
+                      <Box sx={{ display: 'flex', gap: 1, alignItems: 'center', flexWrap: 'wrap' }}>
+                        <span>Key: {c.courseKey}</span>
+                        <CourseStatusChip status={c.status} />
+                      </Box>
+                    }
                   />
                 </ListItemButton>
               </ListItem>
             ))}
           </List>
+          {/* A List has no pager of its own, and the endpoint returns one page, so
+              without this every course past the first page was unreachable. */}
+          <TablePagination
+            component="div"
+            count={data.totalElements}
+            page={paginationModel.page}
+            onPageChange={(_e, page) => { setPaginationModel({ ...paginationModel, page }); }}
+            rowsPerPage={paginationModel.pageSize}
+            onRowsPerPageChange={(e) => { setPaginationModel({ page: 0, pageSize: Number(e.target.value) }); }}
+            rowsPerPageOptions={[20, 50, 100]}
+          />
         </Paper>
       )}
 
