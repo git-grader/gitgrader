@@ -32,6 +32,11 @@ function ConfigurationForm({ assignment, materials, isDraft, pending, onSave }: 
 
   const disabled = !isDraft || pending;
 
+  // The control is narrow on a phone and disabled once published, so its label is
+  // truncated with no way to open the list and read the rest. The tooltip carries it.
+  const selectedSuiteLabel =
+    materials.publishedSuiteVersions.find((version) => version.id === form.testSuiteVersionId)?.label ?? '';
+
   const handleSave = (event: React.SyntheticEvent) => {
     event.preventDefault();
     const toIso = (value?: string | null) => (value ? new Date(value).toISOString() : null);
@@ -75,18 +80,20 @@ function ConfigurationForm({ assignment, materials, isDraft, pending, onSave }: 
 
       <FormControl fullWidth>
         <InputLabel id="test-suite-version-label">Test Suite Version</InputLabel>
-        <Select
-          labelId="test-suite-version-label"
-          value={form.testSuiteVersionId || ''}
-          label="Test Suite Version"
-          onChange={(event) => setForm({ ...form, testSuiteVersionId: event.target.value })}
-          disabled={disabled}
-        >
-          <MenuItem value=""><em>None</em></MenuItem>
-          {materials.publishedSuiteVersions.map((version) => (
-            <MenuItem key={version.id} value={version.id}>{version.label}</MenuItem>
-          ))}
-        </Select>
+        <Tooltip title={selectedSuiteLabel}>
+          <Select
+            labelId="test-suite-version-label"
+            value={form.testSuiteVersionId || ''}
+            label="Test Suite Version"
+            onChange={(event) => setForm({ ...form, testSuiteVersionId: event.target.value })}
+            disabled={disabled}
+          >
+            <MenuItem value=""><em>None</em></MenuItem>
+            {materials.publishedSuiteVersions.map((version) => (
+              <MenuItem key={version.id} value={version.id}>{version.label}</MenuItem>
+            ))}
+          </Select>
+        </Tooltip>
       </FormControl>
 
       <FormControl fullWidth>
