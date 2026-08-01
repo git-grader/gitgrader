@@ -110,6 +110,52 @@ the complete value. Registration, login, SSH authentication, and token lookup
 use rate limits; audit events use hashed source IPs and must not contain private
 keys, passwords, or complete tokens.
 
+## Push admission and abuse limits
+
+A push is admitted only if it updates a branch under `refs/heads/`, is not a
+deletion, is not a non-fast-forward, arrives while the assignment accepts work,
+introduces at least one and at most 1000 new commits, produces a tree within
+`git.max-file-count`, stays within `git.max-push-size` and `git.max-file-size`,
+carries a commit not already submitted to that repository, and — when signing is
+required — has an acceptable SSHSIG on **every** commit it introduces.
+
+The commit ceiling refuses the push rather than truncating the walk. Truncating
+would leave the commits past the ceiling unverified while still admitting them,
+which would let a large enough push carry unsigned history in behind a signed
+tip. Treat the ceiling as part of the signature guarantee, not just as a load
+control.
+
+Non-fast-forwards are refused. JGit permits them unless told otherwise, and a
+student who rewrites a branch can orphan commits that recorded submissions still
+reference, leaving a re-grade unable to find the tree it is supposed to score.
+The size limits are applied by the receive-pack itself rather than by the
+admission hook, because a pack is fully received and parsed before the hook
+runs: refusing there would happen only after the bytes had already been written.
+
+Sustained load is bounded per student rather than per address, because a student
+is identified by a registered key and an address is not. A student may make
+`security.rate-limits.submissions-per-hour-per-assignment` pushes to one
+assignment and `submissions-per-hour-per-student` in total each rolling hour.
+These are counted in the database, so unlike the in-memory per-address limits
+they survive a restart and hold across instances. Only the newest unstarted
+submission for a student and assignment is graded; an older queued run is
+withdrawn as `CANCELLED`, and the grading dispatcher gives one student at most
+one worker at a time so a single student cannot occupy the queue.
+
+Every refusal and supersession is written to the audit trail as
+`RATE_LIMIT_TRIGGERED` with the limit, the decision, the student, and the course,
+and counted by the `gitgrader.throttle` metric. The metric carries only the limit
+and the decision as tags: tagging it with a student or an assignment would give
+it unbounded cardinality, which is how a metrics backend is brought down by the
+very traffic these limits exist to survive. Look up an individual student in the
+audit trail, not in the metrics.
+
+The SSH transport is bounded independently of any of this: an unauthenticated
+connection is dropped after 30 seconds, an idle one after `git.idle-timeout`, a
+connection may attempt at most six keys, and the endpoint accepts a bounded
+number of concurrent sessions. Because every student connects as the same fixed
+user, that session ceiling is instance-wide rather than per student.
+
 ## LDAP and transport
 
 LDAP authenticates instructor/administrator identities and maps configured group
