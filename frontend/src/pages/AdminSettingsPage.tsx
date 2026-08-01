@@ -1,12 +1,15 @@
 // Copyright the GitGrader contributors.
 // SPDX-License-Identifier: Apache-2.0
 
-import { Box, Typography } from '@mui/material';
+import { NotBuiltYet } from '../components/NotBuiltYet';
 
 export function AdminSettingsPage() {
   return (
-    <Box>
-      <Typography variant="h4" component="h1" gutterBottom>Settings</Typography>
-    </Box>
+    <NotBuiltYet
+      title="Settings"
+      explanation="Runtime settings are not editable from the browser yet. Configure the service through its
+        environment variables or the mounted /config/application.yaml, as described in the configuration
+        documentation."
+    />
   );
 }

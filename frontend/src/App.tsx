@@ -2,10 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { StrictMode, useMemo } from 'react';
-import { createBrowserRouter, RouterProvider, useRouteError, isRouteErrorResponse, Navigate } from 'react-router';
+import { createBrowserRouter, RouterProvider, useRouteError, isRouteErrorResponse, Navigate, Link } from 'react-router';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { CssBaseline, ThemeProvider, useMediaQuery, Box, Typography } from '@mui/material';
+import { CssBaseline, ThemeProvider, useMediaQuery, Box, Button, Typography } from '@mui/material';
 import { createAppTheme } from './theme';
+import PrimaryLogo from './assets/brand/gitgrader-lockup-primary.svg';
 import './styles/fonts.css';
 import { MetaProvider } from './components/MetaProvider';
 import { RegistrationPage } from './pages/RegistrationPage';
@@ -42,10 +43,37 @@ function ErrorBoundary() {
   );
 }
 
+/**
+ * Shown for an address that matches no route.
+ *
+ * Carries the product's own chrome and a way back. The bare heading it replaced gave a
+ * visitor nothing to act on and, with no logo or navigation, read as a broken server
+ * rather than a mistyped address.
+ */
 function NotFound() {
   return (
-    <Box role="alert" sx={{ p: 4 }}>
-      <Typography variant="h4" gutterBottom>404 Not Found</Typography>
+    <Box
+      role="alert"
+      sx={{
+        minHeight: '100vh',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        textAlign: 'center',
+        gap: 2,
+        p: 4
+      }}
+    >
+      <Box component="img" src={PrimaryLogo} alt="GitGrader" sx={{ height: 40, mb: 1 }} />
+      <Typography variant="h4" component="h1">Page not found</Typography>
+      <Typography color="text.secondary" sx={{ maxWidth: 420 }}>
+        The address you opened does not exist. If you followed a result link, it may have
+        been changed or revoked since it was sent to you.
+      </Typography>
+      <Button component={Link} to="/dashboard" variant="contained" sx={{ mt: 1 }}>
+        Go to the dashboard
+      </Button>
     </Box>
   );
 }
