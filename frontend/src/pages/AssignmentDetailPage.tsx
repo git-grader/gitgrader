@@ -5,6 +5,7 @@ import { useState } from 'react';
 import { useParams } from 'react-router';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '../api';
+import { AssignmentStatusChip } from '../components/AssignmentStatusChip';
 import type { AssignmentDefinition, AssignmentDetail } from '../api';
 import { ApiProblem } from '../api/client';
 import { Typography, CircularProgress, Button, Paper, Alert, Tooltip, Box, FormControl, InputLabel, Select, MenuItem, TextField } from '@mui/material';
@@ -180,7 +181,12 @@ export function AssignmentDetailPage() {
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <Box>
           <Typography variant="h4" component="h1">{assignment.title}</Typography>
-          <Typography color="text.secondary">Key: {assignment.assignmentKey} | Status: {assignment.status}</Typography>
+          <Box sx={{ display: 'flex', gap: 1, alignItems: 'center', flexWrap: 'wrap' }}>
+            <Typography color="text.secondary" sx={{ overflowWrap: 'anywhere' }}>
+              Key: {assignment.assignmentKey}
+            </Typography>
+            <AssignmentStatusChip status={assignment.status} />
+          </Box>
         </Box>
         <Tooltip title={publishTooltip}>
           <span>

@@ -92,7 +92,14 @@ export function RegistrationPage() {
           
           <Box sx={{ mt: 2, p: 2, bgcolor: 'background.default', borderRadius: 1 }}>
             <Typography variant="body2" gutterBottom>How to generate an Ed25519 key and enable SSH commit signing:</Typography>
-            <Typography variant="body2" component="pre" sx={{ fontFamily: 'monospace' }}>
+            <Typography
+              variant="body2"
+              component="pre"
+              // A pre keeps its longest line intact, and the git config commands here are
+              // longer than a phone is wide, which pushed the whole registration page
+              // sideways. Students register on phones, so it wraps instead.
+              sx={{ fontFamily: 'monospace', whiteSpace: 'pre-wrap', overflowWrap: 'anywhere', m: 0 }}
+            >
               ssh-keygen -t ed25519 -C "you@example.org"{'\n'}
               git config --global gpg.format ssh{'\n'}
               git config --global user.signingkey ~/.ssh/id_ed25519.pub{'\n'}

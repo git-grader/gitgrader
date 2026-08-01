@@ -5,6 +5,7 @@ import { useState } from 'react';
 import { useParams, Link } from 'react-router';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '../api';
+import { CourseStatusChip } from '../components/CourseStatusChip';
 import type { ClassDefinition, CourseDefinition, CourseView, Class } from '../api';
 import { ApiProblem } from '../api/client';
 import { 
@@ -278,10 +279,15 @@ export function CourseDetailPage() {
 
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 2 }}>
         <Box>
           <Typography variant="h4" component="h1">{course.name}</Typography>
-          <Typography color="text.secondary">Key: {course.courseKey} | Status: {course.status}</Typography>
+          <Box sx={{ display: 'flex', gap: 1, alignItems: 'center', flexWrap: 'wrap' }}>
+            <Typography color="text.secondary" sx={{ overflowWrap: 'anywhere' }}>
+              Key: {course.courseKey}
+            </Typography>
+            <CourseStatusChip status={course.status} />
+          </Box>
         </Box>
         <Box sx={{ display: 'flex', gap: 2 }}>
           <Button variant="outlined" onClick={() => setCourseOpen(true)}>

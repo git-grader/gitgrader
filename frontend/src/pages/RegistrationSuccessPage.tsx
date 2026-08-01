@@ -23,10 +23,23 @@ export function RegistrationSuccessPage() {
               <ListItemText 
                 primary={repo.assignmentTitle} 
                 secondary={
-                  <Box component="span" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                    <code style={{ background: '#eee', padding: '2px 4px', borderRadius: '4px', color: '#000' }}>
+                  <Box component="span" sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
+                    <Box
+                      component="code"
+                      // A clone URL is longer than a phone is wide, and this is the first
+                      // page a student sees after registering.
+                      sx={{
+                        bgcolor: 'action.hover',
+                        px: 0.5,
+                        py: 0.25,
+                        borderRadius: 1,
+                        fontFamily: 'monospace',
+                        overflowWrap: 'anywhere',
+                        minWidth: 0
+                      }}
+                    >
                       git clone {repo.cloneUrl}
-                    </code>
+                    </Box>
                     <Button size="small" onClick={() => { void navigator.clipboard.writeText(`git clone ${repo.cloneUrl}`); }}>Copy</Button>
                   </Box>
                 } 
