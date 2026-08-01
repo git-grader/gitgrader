@@ -7,7 +7,22 @@ export default defineConfig({
   server: {
     proxy: {
       '/api': 'http://localhost:8080',
-      '/actuator': 'http://localhost:8080'
+      '/actuator': 'http://localhost:8080',
+      // Spring Security's form login and logout are served by the backend at the root
+      // rather than under /api, so without them here a sign-in from the dev server is
+      // answered by the SPA fallback and fails with 404.
+      //
+      // Only the POST may be proxied. `/login` is also a client route, and forwarding
+      // its GET would return the backend's built index.html, whose hashed asset paths
+      // do not exist on the dev server - the page then renders nothing at all.
+      '/login': {
+        target: 'http://localhost:8080',
+        bypass: (req) => (req.method === 'POST' ? undefined : '/index.html')
+      },
+      '/logout': {
+        target: 'http://localhost:8080',
+        bypass: (req) => (req.method === 'POST' ? undefined : '/index.html')
+      }
     }
   },
   build: {
