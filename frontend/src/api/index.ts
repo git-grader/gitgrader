@@ -292,8 +292,9 @@ export const SubmissionSummarySchema = z.object({
   assignmentId: z.string(),
   studentId: z.string(),
   commitSha: z.string(),
+  shortCommitSha: z.string(),
+  commitMessage: z.string().optional().nullable(),
   status: z.string(),
-  score: z.number().optional().nullable(),
   receivedAt: z.string()
 });
 export type SubmissionSummary = z.infer<typeof SubmissionSummarySchema>;
@@ -324,9 +325,15 @@ export type CourseReport = z.infer<typeof CourseReportSchema>;
 
 export const AuditEventSchema = z.object({
   id: z.string(),
+  occurredAt: z.string(),
   eventType: z.string(),
+  severity: z.string(),
   actorType: z.string(),
-  timestamp: z.string()
+  actorName: z.string().optional().nullable(),
+  subjectType: z.string().optional().nullable(),
+  subjectId: z.string().optional().nullable(),
+  outcome: z.string().optional().nullable(),
+  detail: z.record(z.string(), z.unknown()).optional().nullable()
 });
 export type AuditEvent = z.infer<typeof AuditEventSchema>;
 
@@ -368,7 +375,11 @@ export const api = {
   }),
   getResult: (token: string) => fetchApi<PublicResult>(`/api/v1/results/${token}`),
   getMe: () => fetchApi<Me>('/api/v1/me'),
-  logout: () => fetchApi<undefined>('/api/v1/auth/logout', { method: 'POST' }),
+  // Spring Security's logout filter, configured in WebSecurityConfig, listens at
+  // /logout rather than under /api. This previously pointed at /api/v1/auth/logout,
+  // which no controller serves: the call failed and the session stayed alive while the
+  // UI behaved as though the user had signed out.
+  logout: () => fetchApi<undefined>('/logout', { method: 'POST' }),
   getDashboard: () => fetchApi<Dashboard>('/api/v1/dashboard'),
   getStudents: (params?: Record<string, string>) => {
     const qs = params ? new URLSearchParams(params).toString() : '';
@@ -458,7 +469,10 @@ export const api = {
     body: JSON.stringify(req)
   }),
 
-  getAuditLog: () => fetchApi<z.infer<ReturnType<typeof PageSchema<typeof AuditEventSchema>>>>('/api/v1/audit'),
+  getAuditLog: (params?: Record<string, string>) => {
+    const qs = new URLSearchParams({ sort: 'occurredAt,desc', ...params }).toString();
+    return fetchApi<z.infer<ReturnType<typeof PageSchema<typeof AuditEventSchema>>>>(`/api/v1/audit?${qs}`);
+  },
   getRuntimes: () => fetchApi<Runtime[]>('/api/v1/runtimes'),
   createRuntime: (req: RuntimeDefinition) => fetchApi<undefined>('/api/v1/runtimes', {
     method: 'POST',
