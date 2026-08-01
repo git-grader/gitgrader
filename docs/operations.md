@@ -49,6 +49,40 @@ change should be recorded as a distinct grading decision. This documentation
 does not assert a particular retry REST endpoint: use the deployed UI/API
 contract to perform an available retry.
 
+## Shutdown and restart
+
+Stopping the application is ordered, and the order is the point. The SSH
+endpoint stops first, so no push is admitted into a queue that is about to
+drain; the grading dispatcher then stops claiming, waits up to
+`grading.queue.drain-timeout` for a sandbox already running to finish, and hands
+back anything still executing. A returned job goes to `PENDING` with the attempt
+it consumed refunded, because a redeploy is the platform's doing and must not
+count against a student. A lease that expires without an orderly shutdown is
+**not** refunded: that job may be one that hangs its worker, and it has to stay
+bounded.
+
+Three timeouts have to stay ordered, each one strictly larger than the one above
+it, and they live in three different files:
+
+| Setting | Default | Where |
+| --- | --- | --- |
+| `grading.queue.drain-timeout` | `30s` | `application.yaml` |
+| `spring.lifecycle.timeout-per-shutdown-phase` | `60s` | `application.yaml` |
+| `stop_grace_period` | `90s` | `compose.yaml` |
+
+Raising the drain window without raising the two below it means the process is
+killed part-way through handing work back. Compose sends `SIGKILL` ten seconds
+after `SIGTERM` unless `stop_grace_period` says otherwise, which is far less
+than a grading run needs, so the value is set explicitly rather than left to the
+default. If you run under Kubernetes or systemd instead, set the equivalent
+termination grace period above the lifecycle timeout.
+
+Nothing is lost if the process is killed outright. Submissions and jobs are
+rows, the event registry replays unfinished publications on restart, and a job
+whose lease expires is returned to the queue by the reaper — it just takes until
+`grading.queue.claim-timeout` instead of happening immediately, and the student
+sees the submission sit in `RUNNING` for that long.
+
 ## Troubleshooting
 
 | Symptom | Checks |
@@ -56,6 +90,8 @@ contract to perform an available retry.
 | App never becomes ready | `docker compose logs app database`; confirm the database health check, credentials, migration state, and writable mounted data directories. |
 | SSH clone/push fails | Confirm TCP reachability to port 2222, advertised `git.ssh-host`/`git.ssh-port`, persisted host key, registered key type, and signature policy. |
 | Grade remains pending | Inspect application and Docker-engine logs, runner image availability, mounted templates/tests, resource limits, and persisted event/job state. |
+| Submission says it was superseded | Expected when a student pushed again before the earlier run started: only the newest unstarted submission for an assignment is graded. The earlier attempt is still recorded. |
+| Student reports a push was refused | Check the audit trail for `RATE_LIMIT_TRIGGERED` against that student; the entry names the limit and the decision. Duplicate commits, the rolling hourly allowances, and the queue ceilings all refuse with an explanation on the Git side band. |
 | Hidden tests appear in output | Stop sharing the affected output, rotate result tokens, inspect logs/artifacts/access controls, and follow the security response process. |
 | Database is full or slow | Inspect PostgreSQL volume capacity, backup retention, artifact retention, long transactions, and worker concurrency before deleting data. |
 
