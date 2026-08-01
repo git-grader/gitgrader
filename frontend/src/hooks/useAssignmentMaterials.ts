@@ -1,15 +1,16 @@
 import { useQuery, useQueries } from '@tanstack/react-query';
 import { api } from '../api';
+import { CHOICE_PAGE_SIZE } from '../components/useServerPagination';
 
 export function useAssignmentMaterials() {
   const { data: templatesData } = useQuery({
     queryKey: ['templates'],
-    queryFn: () => api.getTemplates()
+    queryFn: () => api.getTemplates({ size: CHOICE_PAGE_SIZE })
   });
 
   const { data: suitesData } = useQuery({
     queryKey: ['test-suites'],
-    queryFn: () => api.getTestSuites()
+    queryFn: () => api.getTestSuites({ size: CHOICE_PAGE_SIZE })
   });
 
   const { data: runtimes } = useQuery({

@@ -4,6 +4,7 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '../api';
+import { CHOICE_PAGE_SIZE } from '../components/useServerPagination';
 import type { TemplateDefinition, TestSuiteDefinition } from '../api';
 import { ApiProblem } from '../api/client';
 import { Typography, CircularProgress, Button, Dialog, DialogTitle, DialogContent, DialogActions, TextField, Alert, Tabs, Tab, Paper, Box } from '@mui/material';
@@ -233,8 +234,8 @@ export function MaterialsPage() {
   const [tsOpen, setTsOpen] = useState(false);
   const [tsForm, setTsForm] = useState<TestSuiteDefinition>({ suiteKey: '', name: '', description: '' });
 
-  const { data: templates, isLoading: tLoading } = useQuery({ queryKey: ['templates'], queryFn: () => api.getTemplates() });
-  const { data: testSuites, isLoading: tsLoading } = useQuery({ queryKey: ['testSuites'], queryFn: () => api.getTestSuites() });
+  const { data: templates, isLoading: tLoading } = useQuery({ queryKey: ['templates'], queryFn: () => api.getTemplates({ size: CHOICE_PAGE_SIZE }) });
+  const { data: testSuites, isLoading: tsLoading } = useQuery({ queryKey: ['testSuites'], queryFn: () => api.getTestSuites({ size: CHOICE_PAGE_SIZE }) });
 
   const createTemplateMutation = useMutation({
     mutationFn: (req: TemplateDefinition) => api.createTemplate(req),
@@ -260,7 +261,7 @@ export function MaterialsPage() {
 
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 2 }}>
         <Typography variant="h4" component="h1">Materials</Typography>
         <TextField
           size="small"
