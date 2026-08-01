@@ -8,8 +8,11 @@ import { useAssignmentMaterials } from '../hooks/useAssignmentMaterials';
 import { api } from '../api';
 import type { AssignmentDefinition } from '../api';
 import { ApiProblem } from '../api/client';
-import { Typography, CircularProgress, Button, Dialog, DialogTitle, DialogContent, DialogActions, TextField, Alert, Select, MenuItem, InputLabel, FormControl, FormControlLabel, Checkbox, Switch, FormHelperText } from '@mui/material';
+import { Typography, CircularProgress, Button, Dialog, DialogTitle, DialogContent, DialogActions, TextField, Alert, Select, MenuItem, InputLabel, FormControl, FormControlLabel, Checkbox, Switch, FormHelperText, Tooltip } from '@mui/material';
 import { DataGrid } from '@mui/x-data-grid';
+import { AssignmentStatusChip } from '../components/AssignmentStatusChip';
+import { useNarrowColumns } from '../components/responsiveColumns';
+import { useServerPagination, CHOICE_PAGE_SIZE } from '../components/useServerPagination';
 import type { GridColDef, GridRenderCellParams } from '@mui/x-data-grid';
 
 export function AssignmentsPage() {
@@ -24,12 +27,17 @@ export function AssignmentsPage() {
     networkEnabled: false, timeoutSeconds: null, memoryLimitBytes: null, cpuLimit: null, pidLimit: null, templateVersionId: null, testSuiteVersionId: null, runtimeId: null
   });
 
-  const { data: courses } = useQuery({ queryKey: ['courses'], queryFn: () => api.getCourses() });
+  const { data: courses } = useQuery({
+    queryKey: ['courses', 'choices'],
+    queryFn: () => api.getCourses({ size: CHOICE_PAGE_SIZE })
+  });
   const materials = useAssignmentMaterials();
   
+  const { paginationModel, setPaginationModel, params } = useServerPagination();
   const { data, isLoading } = useQuery({
-    queryKey: ['assignments', selectedCourseId],
-    queryFn: () => api.getAssignments(selectedCourseId ? { courseId: selectedCourseId } : undefined)
+    queryKey: ['assignments', selectedCourseId, params.page, params.size],
+    queryFn: () => api.getAssignments(selectedCourseId ? { ...params, courseId: selectedCourseId } : params),
+    placeholderData: (previous) => previous
   });
 
   const createMutation = useMutation({
@@ -83,26 +91,51 @@ export function AssignmentsPage() {
   const err = createMutation.error as ApiProblem | null;
   const fieldErrors = err?.errors?.reduce((acc, curr) => ({ ...acc, [curr.field]: curr.message }), {} as Record<string, string>) || {};
 
+  const columnVisibilityModel = useNarrowColumns(
+    ['assignmentKey', 'title', 'status', 'dueAt'],
+    ['title', 'status']
+  );
+
   const columns: GridColDef[] = useMemo(() => [
     { 
-      field: 'assignmentKey', 
-      headerName: 'Key', 
-      width: 150,
+      field: 'assignmentKey',
+      headerName: 'Key',
+      width: 230,
       renderCell: (params: GridRenderCellParams) => (
-        <Link to={`/assignments/${params.row.id}`}>{params.value}</Link>
+        <Tooltip title={String(params.value)}>
+          <Link to={`/assignments/${params.row.id}`}>{String(params.value)}</Link>
+        </Tooltip>
       )
     },
-    { field: 'title', headerName: 'Title', width: 250 },
-    { field: 'status', headerName: 'Status', width: 150 },
-    { field: 'dueAt', headerName: 'Due At', width: 200 }
+    {
+      field: 'title',
+      headerName: 'Title',
+      flex: 1,
+      minWidth: 150,
+      renderCell: (params: GridRenderCellParams) => (
+        <Link to={`/assignments/${params.row.id}`}>{String(params.value)}</Link>
+      )
+    },
+    {
+      field: 'status',
+      headerName: 'Status',
+      width: 150,
+      renderCell: (params: GridRenderCellParams) => <AssignmentStatusChip status={String(params.value)} />
+    },
+    {
+      field: 'dueAt',
+      headerName: 'Due At',
+      width: 200,
+      valueGetter: (value: string) => (value ? new Date(value).toLocaleString() : '')
+    }
   ], []);
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
         <Typography variant="h4" component="h1">Assignments</Typography>
-        <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
-          <FormControl size="small" sx={{ minWidth: 200 }}>
+        <div style={{ display: 'flex', gap: '16px', alignItems: 'center', flexWrap: 'wrap', flex: '1 1 auto', justifyContent: 'flex-end' }}>
+          <FormControl size="small" sx={{ minWidth: { xs: '100%', sm: 200 } }}>
             <InputLabel>Course Filter</InputLabel>
             <Select
               value={selectedCourseId}
@@ -129,7 +162,11 @@ export function AssignmentsPage() {
           <DataGrid
             rows={data?.content || []}
             columns={columns}
-            initialState={{ pagination: { paginationModel: { pageSize: 20 } } }}
+            columnVisibilityModel={columnVisibilityModel}
+            paginationMode="server"
+            rowCount={data?.totalElements ?? 0}
+            paginationModel={paginationModel}
+            onPaginationModelChange={setPaginationModel}
             pageSizeOptions={[20, 50, 100]}
             disableRowSelectionOnClick
           />

@@ -6,6 +6,7 @@ import { useQuery } from '@tanstack/react-query';
 import { api } from '../api';
 import { Box, Typography, CircularProgress, Button, Paper, Stack } from '@mui/material';
 import { DataGrid } from '@mui/x-data-grid';
+import { useNarrowColumns } from '../components/responsiveColumns';
 import type { GridColDef } from '@mui/x-data-grid';
 
 export function ReportPage() {
@@ -15,6 +16,12 @@ export function ReportPage() {
     queryKey: ['report', courseId],
     queryFn: () => api.getCourseReport(courseId || '')
   });
+
+  // Declared before the early returns below: a hook must run on every render.
+  const columnVisibilityModel = useNarrowColumns(
+    ['studentNumber', 'fullName', 'fullyCompleted', 'partiallyCompleted', 'notStarted', 'completionRate', 'pointsEarned', 'pointsRate', 'submissionCount'],
+    ['fullName', 'completionRate', 'pointsRate']
+  );
 
   if (isLoading) return <Box sx={{ p: 4 }}><CircularProgress /></Box>;
   if (!data) return null;
@@ -26,13 +33,13 @@ export function ReportPage() {
 
   const columns: GridColDef[] = [
     { field: 'studentNumber', headerName: 'Student No', width: 150 },
-    { field: 'fullName', headerName: 'Name', width: 200 },
+    { field: 'fullName', headerName: 'Name', flex: 1, minWidth: 120 },
     { field: 'fullyCompleted', headerName: 'Fully Completed', width: 150 },
     { field: 'partiallyCompleted', headerName: 'Partially Completed', width: 150 },
     { field: 'notStarted', headerName: 'Not Started', width: 150 },
-    { field: 'completionRate', headerName: 'Completion Rate', width: 150, valueFormatter: (value: number) => `${(value * 100).toFixed(1)}%` },
+    { field: 'completionRate', headerName: 'Completion', width: 110, valueFormatter: (value: number) => `${(value * 100).toFixed(1)}%` },
     { field: 'pointsEarned', headerName: 'Points', width: 100 },
-    { field: 'pointsRate', headerName: 'Points Rate', width: 150, valueFormatter: (value: number) => `${(value * 100).toFixed(1)}%` },
+    { field: 'pointsRate', headerName: 'Points %', width: 100, valueFormatter: (value: number) => `${(value * 100).toFixed(1)}%` },
     { field: 'submissionCount', headerName: 'Submissions', width: 120 }
   ];
 
@@ -67,6 +74,7 @@ export function ReportPage() {
           getRowId={(row: { studentId: string }) => row.studentId}
           rows={data.students}
           columns={columns}
+          columnVisibilityModel={columnVisibilityModel}
           initialState={{
             pagination: { paginationModel: { pageSize: 50 } },
           }}
