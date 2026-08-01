@@ -42,6 +42,11 @@ export function CoursesPage() {
     mutationFn: (req: CourseDefinition) => api.createCourse(req),
     onSuccess: (_data, variables) => {
       const newStatus = variables.status || 'DRAFT';
+      // Creating a course also switches the status filter, so it needs the same page
+      // reset the filter control does. Landing on page 3 of a status that has one page
+      // shows "No courses found" for a course that was just created successfully, and
+      // the empty branch renders no pager to get back with.
+      setPaginationModel({ ...paginationModel, page: 0 });
       const newParams = new URLSearchParams(searchParams);
       newParams.set('status', newStatus);
       setSearchParams(newParams);
