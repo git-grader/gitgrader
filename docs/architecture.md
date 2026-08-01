@@ -127,13 +127,13 @@ sequenceDiagram
     participant Sandbox as Sandbox container
 
     S->>SSH: git push (signed commit)
-    SSH->>SSH: Key registered? Signature valid? Deadline passed?
+    SSH->>SSH: Key registered? Signature valid? Deadline passed?<br/>Size, commit count, duplicate, allowance?
     alt Anything fails
         SSH-->>S: Rejected, with the reason and how to fix it
     else Accepted
-        SSH->>DB: Record submission, queue a job
+        SSH->>DB: Record submission, supersede any unstarted run, queue a job
         SSH-->>S: Accepted, plus a result link
-        W->>DB: Claim the job (SKIP LOCKED)
+        W->>DB: Claim the job (one per student, SKIP LOCKED)
         W->>Sandbox: Start it: student's code, hidden tests read-only, no network
         Sandbox-->>W: Test output and exit code
         W->>DB: Store score and per-test outcomes
@@ -159,6 +159,21 @@ workers claim pending rows using `SELECT … FOR UPDATE SKIP LOCKED`, with
 priority, availability, claim expiry, attempt count, and a partial runnable-job
 index. This provides concurrent-worker semantics without operating RabbitMQ or
 another broker; a narrow runner interface leaves room for a future broker.
+
+The claim is also where fairness lives. A plain FIFO let one student own the
+queue, because a loop of pushes produced a job per push and every one of them
+sat in front of the rest of the course. The claim now reduces the candidates to
+each student's oldest job and skips students who already occupy a worker, so a
+student holds at most one worker however many assignments they have queued and a
+backlog drains in round-robin order rather than in submission order.
+
+Coalescing keeps the queue short in the first place. A partial unique index
+allows one `PENDING` job per student and assignment, so queueing a newer
+submission withdraws the older one as `CANCELLED` rather than adding to it. Work
+a worker already claimed is never withdrawn: cancelling a running sandbox would
+abandon its container and workspace. Every push is still recorded, so the
+attempt history the product promises is unchanged — a superseded submission is
+one that exists and was not graded, not one that was lost.
 
 `GradingRunner` is the only intended path to execute untrusted code. The Docker
 implementation runs a short-lived non-root container with network disabled by
