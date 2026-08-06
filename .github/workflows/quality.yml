@@ -42,7 +42,7 @@ jobs:
       # file invalid, which GitHub reports as a run that fails instantly with no logs.
       # The downloaded vulnerability feed is what the throttling is about, so it is kept
       # between runs. Restoring it is what makes the check survive a bad day at NIST.
-      - uses: actions/cache@v4
+      - uses: actions/cache@v6
         with:
           path: ~/.m2/repository/org/owasp/dependency-check-data
           key: dependency-check-data-${{ github.run_id }}
