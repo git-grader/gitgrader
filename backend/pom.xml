@@ -55,7 +55,7 @@
 		<jgit.version>7.7.1.202607240634-r</jgit.version>
 		<sshd.version>2.19.0</sshd.version>
 		<docker-java.version>3.7.1</docker-java.version>
-		<springdoc.version>3.0.3</springdoc.version>
+		<springdoc.version>3.1.0</springdoc.version>
 		<bucket4j.version>8.10.1</bucket4j.version>
 		<poi.version>5.5.1</poi.version>
 		<taikai.version>1.64.0</taikai.version>
