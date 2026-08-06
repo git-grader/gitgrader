@@ -51,7 +51,7 @@ jobs:
           docker push "${IMAGE}:latest"
           digest=$(docker inspect --format '{{index .RepoDigests 0}}' "${IMAGE}:${version}" | cut -d@ -f2)
           printf 'digest=%s\n' "$digest" >> "$GITHUB_OUTPUT"
-      - uses: actions/attest-build-provenance@v2
+      - uses: actions/attest-build-provenance@v4
         with:
           subject-name: ghcr.io/git-grader/gitgrader
           subject-digest: ${{ steps.push.outputs.digest }}
