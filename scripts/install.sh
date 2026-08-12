@@ -46,16 +46,22 @@ else
   printf '    Keeping the .env you already have.\n'
 fi
 
+# Values that describe this machine or this checkout, not a preference. Each one is
+# wrong as a shipped default, so the installer settles it and says what it chose.
+set_env() {
+  if grep -q "^$1=" .env; then
+    sed -i "s|^$1=.*|$1=$2|" .env
+  else
+    printf '%s=%s\n' "$1" "$2" >> .env
+  fi
+}
+
 # The grading runner talks to the Docker socket and the application runs
 # unprivileged, so it has to join the group that owns the socket. The number
 # differs per machine, which is why it cannot ship as a default.
 socket_gid="$(stat -c '%g' /var/run/docker.sock 2>/dev/null || echo '')"
 [[ -n "$socket_gid" ]] || fail 'Could not read /var/run/docker.sock. Is Docker running?'
-if grep -q '^DOCKER_GID=' .env; then
-  sed -i "s/^DOCKER_GID=.*/DOCKER_GID=${socket_gid}/" .env
-else
-  printf 'DOCKER_GID=%s\n' "$socket_gid" >> .env
-fi
+set_env DOCKER_GID "$socket_gid"
 printf '    Docker socket group is %s.\n' "$socket_gid"
 
 # --demo starts a directory to sign in against, so it has to be switched on. The
@@ -63,32 +69,101 @@ printf '    Docker socket group is %s.\n' "$socket_gid"
 # here: without this the only authentication left is a local account list that is
 # empty, and every sign-in is refused.
 if [[ "$WITH_DEMO" == true ]]; then
-  if grep -q '^SECURITY_LDAP_ENABLED=' .env; then
-    sed -i 's/^SECURITY_LDAP_ENABLED=.*/SECURITY_LDAP_ENABLED=true/' .env
-  else
-    printf 'SECURITY_LDAP_ENABLED=true\n' >> .env
-  fi
+  set_env SECURITY_LDAP_ENABLED true
   printf '    Demo directory enabled for sign-in.\n'
 fi
 
-# Read the version the compose file will ask for, so a rebuild is only done when
-# that exact image is genuinely absent.
-version="$(grep -E '^GITGRADER_VERSION=' .env | cut -d= -f2- || true)"
-version="${version:-0.1.0}"
-image="ghcr.io/git-grader/gitgrader:${version}"
+# The version is the one this checkout builds, read from the POM and written into .env
+# so that compose asks for exactly what was produced here.
+#
+# Taking it from .env instead is what let the two disagree. A source tree is
+# 0.1.0-SNAPSHOT while the example configuration named 0.1.0, so `./mvnw
+# spring-boot:build-image` made an image compose would never start, and this script
+# papered over that by tagging a working-tree build with a released version number -
+# which then shadows the real 0.1.0 for every later pull, on this machine, silently.
+project_version() {
+  # The project's own <version>, which is the one that follows its <artifactId>. The
+  # first <version> in the file belongs to the parent and is Spring Boot's.
+  awk '/<artifactId>gitgrader<\/artifactId>/ { seen = 1; next }
+       seen && match($0, /<version>[^<]+<\/version>/) {
+         print substr($0, RSTART + 9, RLENGTH - 19); exit
+       }' backend/pom.xml
+}
 
-step "Making sure ${image} exists"
-if docker image inspect "$image" >/dev/null 2>&1; then
-  printf '    Already built.\n'
-else
-  command -v java >/dev/null || fail "The image is not built and Java is missing, so it cannot be built here. Install JDK 25, or pull a published image."
-  printf '    Building it. The first build downloads a lot and takes a few minutes.\n'
+version="$(project_version)"
+[[ -n "$version" ]] || fail 'Could not read the project version from backend/pom.xml.'
+set_env GITGRADER_VERSION "$version"
+image="ghcr.io/git-grader/gitgrader:${version}"
+printf '    This checkout is version %s.\n' "$version"
+
+# A tag is not a version of the source: it stays the same while the working tree moves
+# on, so "an image with that name exists" says nothing about whether it holds the code
+# sitting here. Deciding on the name alone is what makes a fix appear not to work - this
+# script reports success, compose starts the image it already had, and the endpoint that
+# was repaired is still a 404. Fingerprinting what goes into the image instead rebuilds
+# exactly when the source moved, and not merely because install was run twice.
+#
+# Not the commit hash: an uncommitted fix is still a fix, and whoever is testing one
+# would otherwise be told the image was current.
+IMAGE_SOURCES=(
+  pom.xml backend/pom.xml backend/src
+  frontend/src frontend/public frontend/index.html
+  frontend/package.json frontend/package-lock.json
+  frontend/tsconfig.json frontend/vite.config.ts
+)
+stamp='backend/target/image-source.sha256'
+
+source_fingerprint() {
+  { find "${IMAGE_SOURCES[@]}" -type f -print0 2>/dev/null || true; } |
+    LC_ALL=C sort -z |
+    xargs -0 sha256sum |
+    sha256sum |
+    cut -d' ' -f1
+}
+
+fingerprint="$(source_fingerprint)"
+
+step "Making sure ${image} matches this checkout"
+if ! docker image inspect "$image" >/dev/null 2>&1; then
+  rebuild='It is not built yet.'
+elif [[ ! -f "$stamp" ]]; then
+  rebuild='It was not built from this checkout.'
+elif [[ "$(cat "$stamp")" != "$fingerprint" ]]; then
+  rebuild='The source has changed since it was built.'
+fi
+
+if [[ -z "${rebuild:-}" ]]; then
+  printf '    Already built from this source.\n'
+elif command -v java >/dev/null; then
+  printf '    %s Building it. The first build downloads a lot and takes a few minutes.\n' "$rebuild"
   # Buildpacks produce the image; there is no Dockerfile to hand to Docker.
   ./mvnw -B spring-boot:build-image -pl backend -DskipTests \
     -Dspring-boot.build-image.imageName="$image"
+  mkdir -p "$(dirname "$stamp")"
+  printf '%s\n' "$fingerprint" > "$stamp"
+elif docker image inspect "$image" >/dev/null 2>&1; then
+  # Refusing to start would be worse than starting: a published image is a supported
+  # way to run this. But saying nothing is what left the last person debugging code
+  # that was never running, so say plainly which one is about to start.
+  printf '    %s Java is missing, so it cannot be rebuilt here.\n' "$rebuild"
+  printf '    Starting the image that is already on this machine. If you are testing a\n'
+  printf '    change, install JDK 25 and run this again, or it will not be included.\n'
+else
+  fail "The image is not built and Java is missing, so it cannot be built here. Install JDK 25, or pull a published image."
 fi
 
 step 'Starting GitGrader'
+# The data volumes are chowned to the uid the application runs as before it starts, and
+# that uid comes from whatever base the image was built on. Reading it back from the
+# image keeps the two in step; a shipped default only holds until a rebuild moves it,
+# and when it moves the application cannot write to its own volumes.
+image_user="$(docker image inspect "$image" --format '{{.Config.User}}')"
+if [[ "$image_user" == *:* ]]; then
+  set_env APP_UID "${image_user%%:*}"
+  set_env APP_GID "${image_user##*:}"
+  printf '    Data volumes will be owned by %s.\n' "$image_user"
+fi
+
 # The sample course needs somebody to sign in as, and the directory that provides
 # that is part of the development overlay.
 COMPOSE=(docker compose -f compose.yaml)
@@ -123,9 +198,8 @@ if [[ "$WITH_DEMO" == true ]]; then
 
   # The template and the hidden tests live on volumes the application reads, and
   # it reads them as the unprivileged user baked into the image, so the files
-  # have to belong to that user. Asking the image avoids a number that goes stale.
-  owner="$(docker image inspect "$image" --format '{{.Config.User}}')"
-  owner="${owner:-1002:1001}"
+  # have to belong to that user, which was read back from the image above.
+  owner="${image_user:-1002:1001}"
 
   app="$("${COMPOSE[@]}" ps -q app)"
   volume_at() {

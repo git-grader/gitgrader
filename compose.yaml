@@ -1,6 +1,6 @@
 services:
   app:
-    image: ghcr.io/git-grader/gitgrader:${GITGRADER_VERSION:-0.1.0}
+    image: ghcr.io/git-grader/gitgrader:${GITGRADER_VERSION:-0.1.0-SNAPSHOT}
     restart: unless-stopped
     depends_on:
       database:
