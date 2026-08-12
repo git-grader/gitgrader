@@ -19,9 +19,9 @@
  *
  * <p>
  * Holds the pieces that would otherwise be duplicated in each module's controllers: the
- * RFC 9457 error mapping, the OpenAPI description, the single-page-application forward,
- * and the public metadata endpoint that tells the frontend what this deployment is
- * called.
+ * RFC 9457 error mapping, the OpenAPI description, the serving of the single-page
+ * application, and the public metadata endpoint that tells the frontend what this
+ * deployment is called.
  *
  * <p>
  * Deliberately thin. Anything with business meaning belongs in the owning module; this
