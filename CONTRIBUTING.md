@@ -7,8 +7,8 @@ commits, or pull requests.
 
 ## Local workflow
 
-Install JDK 25 and use the Maven wrapper. The build installs Node v24.13.0 and
-npm 11.8.0 into `backend/target/frontend-toolchain`; a separately installed
+Install JDK 25 and use the Maven wrapper. The build installs Node v24.18.1 and
+npm 11.16.0 into `backend/target/frontend-toolchain`; a separately installed
 Node is useful only for frontend-only work.
 
 ```sh
