@@ -63,8 +63,11 @@
 
 		<!-- Build tooling versions. -->
 		<frontend-maven-plugin.version>2.0.2</frontend-maven-plugin.version>
-		<node.version>v24.13.0</node.version>
-		<npm.version>11.8.0</npm.version>
+		<!-- At or above the floor jsdom 30 sets (^22.22.2 || ^24.15.0 || >=26.0.0);
+		     below it every build prints an EBADENGINE warning for a toolchain this
+		     project pins itself, so the warning is ours to fix, not npm's to report. -->
+		<node.version>v24.18.1</node.version>
+		<npm.version>11.16.0</npm.version>
 		<spring-javaformat.version>0.0.47</spring-javaformat.version>
 		<checkstyle.version>13.9.0</checkstyle.version>
 		<maven-checkstyle-plugin.version>3.6.0</maven-checkstyle-plugin.version>
