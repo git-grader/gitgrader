@@ -3,7 +3,7 @@
 ## Prerequisites
 
 Use JDK 25 and Maven Wrapper. The build requires Maven 3.9 or newer and
-downloads Node v24.13.0/npm 11.8.0 through `frontend-maven-plugin`; Docker is
+downloads Node v24.18.1/npm 11.16.0 through `frontend-maven-plugin`; Docker is
 required for Testcontainers integration tests and for container-image builds.
 
 ```sh

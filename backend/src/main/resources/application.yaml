@@ -99,11 +99,12 @@ spring:
       include-stacktrace: never
       include-exception: false
     resources:
-      add-mappings: true
-      cache:
-        cachecontrol:
-          max-age: 365d
-          cache-public: true
+      # SpaWebConfiguration registers the static mappings itself, because the shell has
+      # to be served for addresses that have no file behind them. Leaving the automatic
+      # mapping on would register a second handler for the same pattern, and which of
+      # the two answered would depend on bean ordering. The cache policy moved there
+      # with it: it differs per mapping now, and one setting here cannot express that.
+      add-mappings: false
 
 server:
   port: ${SERVER_PORT:8080}
