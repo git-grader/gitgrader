@@ -19,6 +19,7 @@ package org.gitgrader.grading.internal;
 import java.nio.file.Path;
 import java.nio.charset.StandardCharsets;
 import java.time.Clock;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -27,6 +28,7 @@ import java.util.concurrent.TimeUnit;
 import com.github.dockerjava.api.DockerClient;
 import com.github.dockerjava.api.command.CreateContainerCmd;
 import com.github.dockerjava.api.command.CreateContainerResponse;
+import com.github.dockerjava.api.command.WaitContainerResultCallback;
 import com.github.dockerjava.api.model.Bind;
 import com.github.dockerjava.api.model.Capability;
 import com.github.dockerjava.api.model.HostConfig;
@@ -60,6 +62,9 @@ class DockerGradingRunner implements GradingRunner {
 	 */
 	private static final long MINIMUM_CPU_QUOTA_MICROS = 1_000L;
 
+	/** Bounded so a stuck log stream delays one run rather than hanging the worker. */
+	private static final Duration LOG_DRAIN_TIMEOUT = Duration.ofSeconds(10);
+
 	private static final Logger logger = LoggerFactory.getLogger(DockerGradingRunner.class);
 
 	private final DockerClient dockerClient;
@@ -85,24 +90,32 @@ class DockerGradingRunner implements GradingRunner {
 			CreateContainerCmd cmd = createContainerCmd(request);
 			CreateContainerResponse container = cmd.exec();
 			String containerId = container.getId();
-			try {
+			try (LogCaptureCallback callback = new LogCaptureCallback(request.logSizeLimitBytes());
+					WaitContainerResultCallback waitCallback = new WaitContainerResultCallback()) {
+
 				this.dockerClient.startContainerCmd(containerId).exec();
 
-				LogCaptureCallback callback = new LogCaptureCallback(request.logSizeLimitBytes());
 				this.dockerClient.logContainerCmd(containerId)
 					.withStdOut(true)
 					.withStdErr(true)
 					.withFollowStream(true)
 					.exec(callback);
 
-				com.github.dockerjava.api.command.WaitContainerResultCallback waitCallback = new com.github.dockerjava.api.command.WaitContainerResultCallback();
 				this.dockerClient.waitContainerCmd(containerId).exec(waitCallback);
 				boolean completed = waitCallback.awaitCompletion(request.timeout().toMillis(), TimeUnit.MILLISECONDS);
 
 				if (!completed) {
 					this.dockerClient.killContainerCmd(containerId).exec();
+					drain(callback, containerId);
 					return new GradingResult(-1, callback.getStdout(), callback.getStderr(),
 							this.clock.millis() - start, true, false, null);
+				}
+
+				if (!drain(callback, containerId)) {
+					return new GradingResult(-1, callback.getStdout(), callback.getStderr(),
+							this.clock.millis() - start, false, true,
+							"The sandbox exited but its output never finished arriving, "
+									+ "so the test report would have been incomplete");
 				}
 
 				// Taken from the wait result rather than by inspecting the container.
@@ -129,6 +142,37 @@ class DockerGradingRunner implements GradingRunner {
 			logger.error("Infrastructure error during grading execution", e);
 			return new GradingResult(-1, "", "", this.clock.millis() - start, false, true, e.getMessage());
 		}
+	}
+
+	/**
+	 * Waits for the log stream to finish after the sandbox has stopped.
+	 *
+	 * <p>
+	 * Waiting on the container and reading its output are two different connections, and
+	 * the wait returns the moment the process exits, not the moment its last frames have
+	 * been delivered. Reading the buffers straight away therefore truncates the report -
+	 * which does not look like a failure, because a short TAP report is a valid TAP
+	 * report. It simply contains fewer tests than the suite ran, and the student is
+	 * scored on whatever happened to arrive in time.
+	 * @param callback the capture being filled by the log stream
+	 * @param containerId the container being drained, for logging
+	 * @return whether the stream finished within {@link #LOG_DRAIN_TIMEOUT}
+	 */
+	private boolean drain(LogCaptureCallback callback, String containerId) {
+		try {
+			if (callback.awaitCompletion(LOG_DRAIN_TIMEOUT.toMillis(), TimeUnit.MILLISECONDS)) {
+				return true;
+			}
+			logger.warn("Log stream for container {} did not finish within {}", containerId, LOG_DRAIN_TIMEOUT);
+		}
+		catch (InterruptedException ex) {
+			Thread.currentThread().interrupt();
+			logger.warn("Interrupted while reading the log stream for container {}", containerId);
+		}
+		catch (RuntimeException ex) {
+			logger.warn("Log stream for container {} ended in error", containerId, ex);
+		}
+		return false;
 	}
 
 	/**
@@ -210,6 +254,14 @@ class DockerGradingRunner implements GradingRunner {
 		return mountRoot + "/" + this.storage.tests().relativize(tests);
 	}
 
+	/**
+	 * Collects the sandbox output, up to a limit.
+	 *
+	 * <p>
+	 * Frames arrive on a Docker client thread while the worker thread reads the result,
+	 * so every access is synchronised: without it the reader is not merely racing for the
+	 * last few frames, it has no guarantee of seeing any of them.
+	 */
 	@SuppressWarnings("PMD.AvoidStringBufferField") // bounded and per-run; never long
 													// lived
 	private static class LogCaptureCallback extends ResultCallback.Adapter<Frame> {
@@ -227,7 +279,7 @@ class DockerGradingRunner implements GradingRunner {
 		}
 
 		@Override
-		public void onNext(Frame frame) {
+		public synchronized void onNext(Frame frame) {
 			if (currentBytes >= limitBytes) {
 				return;
 			}
@@ -243,11 +295,11 @@ class DockerGradingRunner implements GradingRunner {
 			currentBytes += allowed;
 		}
 
-		String getStdout() {
+		synchronized String getStdout() {
 			return stdout.toString();
 		}
 
-		String getStderr() {
+		synchronized String getStderr() {
 			return stderr.toString();
 		}
 
