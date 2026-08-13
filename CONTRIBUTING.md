@@ -21,8 +21,11 @@ Node is useful only for frontend-only work.
 Run `./mvnw clean verify` before opening a pull request. It runs formatting
 validation, Checkstyle, frontend lint/test/build (unless skipped), unit and
 integration tests, PMD and CPD, SpotBugs with FindSecBugs, forbidden-apis,
-JaCoCo, and module architecture tests. Testcontainers integration tests require
-a reachable Docker engine. The optional native build is:
+JaCoCo, and module architecture tests. The integration tests need a reachable
+Docker engine; without one they are skipped rather than failed, so the command
+still completes. CI sets `CI`, where the same tests run regardless and a missing
+engine fails the build instead of quietly proving nothing. The optional native
+build is:
 
 ```sh
 ./mvnw -Pnative native:compile

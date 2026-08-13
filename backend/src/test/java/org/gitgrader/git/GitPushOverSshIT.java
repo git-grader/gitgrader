@@ -51,6 +51,7 @@ import org.gitgrader.templates.TemplateAdministration;
 import org.gitgrader.templates.TemplateVersionView;
 import org.gitgrader.templates.TestSuiteAdministration;
 import org.gitgrader.templates.TestSuiteVersionView;
+import org.gitgrader.testsupport.EnabledIfDockerAvailable;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -88,6 +89,7 @@ import static org.assertj.core.api.Assumptions.assumeThat;
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @ActiveProfiles("test")
 @Testcontainers
+@EnabledIfDockerAvailable
 class GitPushOverSshIT {
 
 	@Container
