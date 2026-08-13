@@ -110,6 +110,18 @@ the complete value. Registration, login, SSH authentication, and token lookup
 use rate limits; audit events use hashed source IPs and must not contain private
 keys, passwords, or complete tokens.
 
+Those limits count the address the servlet container reports, never an
+`X-Forwarded-For` header read straight off the request. A client sets that header
+itself, so counting it would let one caller land in a new bucket on every attempt
+and spend an unlimited number of sign-ins, registrations or token guesses.
+
+The consequence is operational: behind a reverse proxy, every client arrives as
+the proxy and shares one bucket unless `server.forward-headers-strategy` is set
+to `framework` or `native`, which makes the container resolve the real client
+first. Set it when, and only when, the proxy is trusted to overwrite the header
+it forwards. Leaving it at `none` behind a proxy is safe but blunt: the limits
+then apply to everyone at once.
+
 ## Push admission and abuse limits
 
 A push is admitted only if it updates a branch under `refs/heads/`, is not a

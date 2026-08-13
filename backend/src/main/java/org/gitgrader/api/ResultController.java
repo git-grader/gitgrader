@@ -29,6 +29,7 @@ import org.gitgrader.courses.CourseCatalog;
 import org.gitgrader.grading.GradingResultQuery;
 import org.gitgrader.grading.StudentGradingResult;
 import org.gitgrader.grading.StudentTestResultView;
+import org.gitgrader.security.ClientAddress;
 import org.gitgrader.security.RateLimiter;
 import org.gitgrader.security.ResultTokenService;
 import org.gitgrader.submissions.SubmissionService;
@@ -79,7 +80,7 @@ public class ResultController {
 
 	@GetMapping("/{token}")
 	public PublicResultView result(@PathVariable String token, HttpServletRequest request) {
-		if (!this.rateLimiter.tryConsumeResultLookupPerIp(clientAddress(request))) {
+		if (!this.rateLimiter.tryConsumeResultLookupPerIp(ClientAddress.of(request))) {
 			throw new ResponseStatusException(HttpStatus.TOO_MANY_REQUESTS, "Too many result lookups.");
 		}
 		SubmissionView submission = this.resultTokens.resolve(token)
@@ -101,14 +102,6 @@ public class ResultController {
 
 	private static ResponseStatusException notFound() {
 		return new ResponseStatusException(HttpStatus.NOT_FOUND, "No result for this link.");
-	}
-
-	private static String clientAddress(HttpServletRequest request) {
-		String forwarded = request.getHeader("X-Forwarded-For");
-		if (forwarded == null || forwarded.isBlank()) {
-			return request.getRemoteAddr();
-		}
-		return forwarded.split(",")[0].trim();
 	}
 
 	/**
