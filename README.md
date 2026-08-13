@@ -12,7 +12,14 @@ instructors manage coursework through a web interface.
 
 GitGrader is a grading and submission system, not an authorship detector. A
 verified commit signature proves that the commit was signed by a key registered
-careful runner/host isolation. In particular, the default Docker socket mount is
+to that student, not that the student wrote the work unaided; self-registration
+does not verify identity either. Use assessment policy, supervision, and review
+for authorship claims.
+
+It also runs untrusted student code, which needs careful runner/host isolation.
+In particular, the default Docker socket mount is effectively host root:
+compromising the application compromises the host. Read the
+[security model](docs/security.md) before letting anyone else near an instance.
 
 ## Quick start
 
