@@ -8,6 +8,13 @@ updates:
     directory: "/frontend"
     schedule:
       interval: weekly
+    ignore:
+      # Held at 6 on purpose: this is the copy typescript-eslint resolves, and it
+      # refuses to load against 7, so a major bump breaks `npm ci` outright. Type
+      # checking runs on 7 via the separate "typescript7" alias, which still gets
+      # updates. See docs/development.md.
+      - dependency-name: "typescript"
+        update-types: ["version-update:semver-major"]
   - package-ecosystem: docker
     directory: "/"
     schedule:
