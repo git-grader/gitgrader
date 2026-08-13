@@ -139,6 +139,12 @@ public record AppProperties(
 				throw new IllegalArgumentException("app.result-tokens.entropy-bits must be at least "
 						+ MINIMUM_ENTROPY_BITS + " bits, but was " + entropyBits);
 			}
+			if (entropyBits % Byte.SIZE != 0) {
+				// The token is generated as whole bytes, so anything else is rounded down
+				// and the deployment quietly gets fewer bits than it configured.
+				throw new IllegalArgumentException("app.result-tokens.entropy-bits must be a multiple of " + Byte.SIZE
+						+ ", but was " + entropyBits);
+			}
 		}
 
 		/**

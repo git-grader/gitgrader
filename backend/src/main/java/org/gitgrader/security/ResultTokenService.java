@@ -88,6 +88,14 @@ public class ResultTokenService {
 
 	/**
 	 * Resolves a token to a submission id, if valid.
+	 *
+	 * <p>
+	 * What keeps a token unguessable is that only its SHA-256 is stored and the lookup is
+	 * by that whole hash: a stolen database yields no usable link, and a near miss
+	 * matches nothing. There is deliberately no comparison of the hash afterwards. The
+	 * row was selected by equality on that exact value, so such a check can never fail,
+	 * and calling it a constant-time comparison described a protection that was not
+	 * there.
 	 * @param token plain token
 	 * @return submission id
 	 */
@@ -100,12 +108,6 @@ public class ResultTokenService {
 		}
 
 		ResultToken entity = optionalEntity.get();
-
-		// Use constant time comparison
-		if (!MessageDigest.isEqual(entity.tokenHash().getBytes(StandardCharsets.UTF_8),
-				tokenHash.getBytes(StandardCharsets.UTF_8))) {
-			return Optional.empty();
-		}
 
 		Instant now = Instant.now(this.clock);
 		if (!entity.isValid(now)) {
