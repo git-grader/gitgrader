@@ -35,6 +35,7 @@ import org.gitgrader.configuration.GradingProperties;
 import org.gitgrader.configuration.StorageProperties;
 import org.gitgrader.grading.GradingExecutionRequest;
 import org.gitgrader.grading.GradingResult;
+import org.gitgrader.testsupport.EnabledIfDockerAvailable;
 import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -61,6 +62,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  * ran". A runner that silently executed nothing would report zero failures and pass a
  * weaker assertion.
  */
+@EnabledIfDockerAvailable
 class DockerGradingRunnerIT {
 
 	private static final String IMAGE = "node@sha256:6f7b03f7c2c8e2e784dcf9295400527b9b1270fd37b7e9a7285cf83b6951452d";
@@ -72,7 +74,6 @@ class DockerGradingRunnerIT {
 	void gradesThePartialSolution(@TempDir Path tempDir) throws IOException, InterruptedException {
 		GradingProperties properties = properties();
 		DockerClient client = new DockerClientConfiguration().dockerClient(properties);
-		Assumptions.assumeTrue(daemonReachable(client), "Docker daemon is not reachable");
 		Assumptions.assumeTrue(Files.isDirectory(EXAMPLE), "example assignment is not present");
 		// The runner never pulls: a grading run must use exactly the digest the
 		// assignment
@@ -115,16 +116,6 @@ class DockerGradingRunnerIT {
 		client.pullImageCmd(IMAGE)
 			.exec(new ResultCallback.Adapter<PullResponseItem>())
 			.awaitCompletion(5, TimeUnit.MINUTES);
-	}
-
-	private static boolean daemonReachable(DockerClient client) {
-		try {
-			client.pingCmd().exec();
-			return true;
-		}
-		catch (RuntimeException ex) {
-			return false;
-		}
 	}
 
 	private static GradingProperties properties() {

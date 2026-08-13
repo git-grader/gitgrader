@@ -17,6 +17,7 @@
 package org.gitgrader.security.web;
 
 import jakarta.servlet.http.Cookie;
+import org.gitgrader.testsupport.EnabledIfDockerAvailable;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.testcontainers.junit.jupiter.Container;
@@ -64,6 +65,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @AutoConfigureMockMvc
 @ActiveProfiles("test")
 @Testcontainers
+@EnabledIfDockerAvailable
 class SpaCsrfIT {
 
 	@Container

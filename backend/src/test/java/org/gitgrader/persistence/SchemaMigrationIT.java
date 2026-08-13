@@ -26,6 +26,7 @@ import java.util.UUID;
 
 import javax.sql.DataSource;
 
+import org.gitgrader.testsupport.EnabledIfDockerAvailable;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -61,6 +62,7 @@ import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 @SpringBootTest
 @ActiveProfiles("test")
 @Testcontainers
+@EnabledIfDockerAvailable
 class SchemaMigrationIT {
 
 	@Container
