@@ -67,6 +67,13 @@ grader.example.org { reverse_proxy 127.0.0.1:8080 }
 Forward `2222:2222` at the firewall/NAT and set `GIT_SSH_HOST=grader.example.org`
 and `GIT_SSH_PORT=2222`. Do not expose PostgreSQL.
 
+Behind any of these, set `SERVER_FORWARD_HEADERS_STRATEGY=framework` so the
+application resolves the real client instead of the proxy. Rate limits count
+whatever the container reports as the remote address, so left at the `none`
+default every request appears to come from the proxy and one caller's attempts
+are counted against everybody. Set it only where the proxy overwrites the
+forwarded header rather than passing a client-supplied one through.
+
 ## First-run checklist
 
 - Change generated database passwords and store `.env` as a secret.

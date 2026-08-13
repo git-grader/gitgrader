@@ -34,6 +34,20 @@ import org.springframework.stereotype.Component;
 @Component
 public class RateLimiter {
 
+	/**
+	 * Ceiling on how many distinct addresses are tracked per limit.
+	 *
+	 * <p>
+	 * Every unseen address allocates a bucket, and expiry alone bounds only how long one
+	 * lives, not how many exist at once. A burst from many sources - a botnet, or simply
+	 * a wide IPv6 range - would otherwise grow these maps until the process runs out of
+	 * memory, which is a denial of service reached through the very component meant to
+	 * prevent one. Caffeine evicts least-recently-used entries past this point: a
+	 * displaced attacker gets a fresh allowance, which is a far better failure than the
+	 * application dying.
+	 */
+	private static final long MAX_TRACKED_ADDRESSES = 100_000L;
+
 	private final ClientAddressHasher hasher;
 
 	private final Cache<String, Bucket> registrationPerIp;
@@ -54,11 +68,15 @@ public class RateLimiter {
 
 		Duration duration = this.limits.blockDuration();
 
-		this.registrationPerIp = Caffeine.newBuilder().expireAfterAccess(duration).build();
+		this.registrationPerIp = perAddressCache(duration);
 		this.registrationGlobal = Caffeine.newBuilder().expireAfterAccess(duration).build();
-		this.resultLookupPerIp = Caffeine.newBuilder().expireAfterAccess(duration).build();
-		this.loginPerIp = Caffeine.newBuilder().expireAfterAccess(duration).build();
-		this.sshAuthPerIp = Caffeine.newBuilder().expireAfterAccess(duration).build();
+		this.resultLookupPerIp = perAddressCache(duration);
+		this.loginPerIp = perAddressCache(duration);
+		this.sshAuthPerIp = perAddressCache(duration);
+	}
+
+	private static Cache<String, Bucket> perAddressCache(Duration duration) {
+		return Caffeine.newBuilder().maximumSize(MAX_TRACKED_ADDRESSES).expireAfterAccess(duration).build();
 	}
 
 	public boolean tryConsumeRegistrationPerIp(String clientAddress) {

@@ -19,6 +19,7 @@ package org.gitgrader.registration.web;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 
+import org.gitgrader.security.ClientAddress;
 import org.gitgrader.registration.internal.RegistrationService;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -50,16 +51,7 @@ public class RegistrationController {
 	@ResponseStatus(HttpStatus.CREATED)
 	public RegistrationResponse register(@Valid @RequestBody RegistrationRequest request,
 			HttpServletRequest httpRequest) {
-		// Uses X-Forwarded-For if available, or direct remote addr
-		String remoteAddr = httpRequest.getHeader("X-Forwarded-For");
-		if (remoteAddr == null || remoteAddr.isBlank()) {
-			remoteAddr = httpRequest.getRemoteAddr();
-		}
-		else {
-			remoteAddr = remoteAddr.split(",")[0].trim();
-		}
-
-		return this.registrationService.register(request, remoteAddr);
+		return this.registrationService.register(request, ClientAddress.of(httpRequest));
 	}
 
 }

@@ -23,6 +23,7 @@ import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 
+import org.gitgrader.security.ClientAddress;
 import org.gitgrader.security.RateLimiter;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.filter.OncePerRequestFilter;
@@ -60,29 +61,11 @@ class LoginRateLimitFilter extends OncePerRequestFilter {
 	@Override
 	protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
 			throws ServletException, IOException {
-		if (!this.rateLimiter.tryConsumeLoginPerIp(clientAddress(request))) {
+		if (!this.rateLimiter.tryConsumeLoginPerIp(ClientAddress.of(request))) {
 			response.setStatus(HttpStatus.TOO_MANY_REQUESTS.value());
 			return;
 		}
 		filterChain.doFilter(request, response);
-	}
-
-	/**
-	 * Resolves the address an attempt is counted against.
-	 *
-	 * <p>
-	 * {@code X-Forwarded-For} is only meaningful when a trusted proxy sets it, which is
-	 * the same condition {@code server.forward-headers-strategy} governs for the rest of
-	 * the application. The limiter hashes whatever this returns before using it as a key.
-	 * @param request the sign-in request
-	 * @return the address to count against
-	 */
-	private static String clientAddress(HttpServletRequest request) {
-		String forwarded = request.getHeader("X-Forwarded-For");
-		if (forwarded == null || forwarded.isBlank()) {
-			return request.getRemoteAddr();
-		}
-		return forwarded.split(",")[0].trim();
 	}
 
 }
