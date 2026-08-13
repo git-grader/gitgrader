@@ -106,9 +106,19 @@ public class GradingExecutor {
 			throw new IllegalStateException("Could not materialise the submitted commit", ex);
 		}
 
-		GradingResult result = this.runner
-			.execute(buildRequest(run, plan.assignment(), plan.runtime(), workspace, plan.hiddenTests()));
-		return interpret(run, plan.assignment(), result, workspace, plan.hiddenTests());
+		try {
+			GradingResult result = this.runner
+				.execute(buildRequest(run, plan.assignment(), plan.runtime(), workspace, plan.hiddenTests()));
+			return interpret(run, plan.assignment(), result, workspace, plan.hiddenTests());
+		}
+		catch (RuntimeException ex) {
+			// The workspace reaches the caller only inside a returned Outcome, so
+			// anything thrown between here and the return strands a full copy of the
+			// student's repository on disk. An unreadable hidden manifest does it, and
+			// then does it again for every submission to that assignment.
+			discardWorkspace(workspace);
+			throw ex;
+		}
 	}
 
 	/**
