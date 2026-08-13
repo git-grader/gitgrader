@@ -74,6 +74,23 @@ public class GradingWorkspaceFactory {
 		Files.createDirectories(this.storage.temp());
 		Path workspace = Files.createTempDirectory(this.storage.temp(), "gitgrader-run-");
 
+		try {
+			exportInto(bare, repositoryPath, commitSha, workspace);
+		}
+		catch (IOException | RuntimeException ex) {
+			// A workspace that failed to build is never returned, so the caller has no
+			// path to clean up and the half-written copy would sit in the temp directory
+			// until someone noticed. A commit that is simply gone is enough to reach
+			// here, and it repeats on every retry.
+			discard(workspace);
+			throw ex;
+		}
+
+		logger.debug("Materialised {}@{} into {}", repositoryPath, commitSha, workspace);
+		return workspace;
+	}
+
+	private void exportInto(Path bare, String repositoryPath, String commitSha, Path workspace) throws IOException {
 		try (Repository repository = FileRepositoryBuilder.create(bare.toFile());
 				RevWalk walk = new RevWalk(repository);
 				TreeWalk treeWalk = new TreeWalk(repository)) {
@@ -96,8 +113,6 @@ public class GradingWorkspaceFactory {
 			}
 		}
 		openToTheSandboxUser(workspace);
-		logger.debug("Materialised {}@{} into {}", repositoryPath, commitSha, workspace);
-		return workspace;
 	}
 
 	/**

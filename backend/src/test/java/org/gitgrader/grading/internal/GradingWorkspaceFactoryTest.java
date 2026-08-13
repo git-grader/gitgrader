@@ -20,6 +20,8 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.List;
+import java.util.stream.Stream;
 
 import org.eclipse.jgit.api.Git;
 import org.eclipse.jgit.api.errors.GitAPIException;
@@ -51,13 +53,15 @@ class GradingWorkspaceFactoryTest {
 
 	private Path repositories;
 
+	private Path temp;
+
 	@BeforeEach
 	void setUp() throws IOException {
 		this.repositories = Files.createDirectories(this.root.resolve("repositories"));
-		Path temp = Files.createDirectories(this.root.resolve("tmp"));
+		this.temp = Files.createDirectories(this.root.resolve("tmp"));
 		StorageProperties storage = new StorageProperties(this.repositories.toString(),
 				this.root.resolve("templates").toString(), this.root.resolve("tests").toString(),
-				this.root.resolve("artifacts").toString(), temp.toString());
+				this.root.resolve("artifacts").toString(), this.temp.toString());
 		this.factory = new GradingWorkspaceFactory(storage);
 	}
 
@@ -105,6 +109,26 @@ class GradingWorkspaceFactoryTest {
 		assertThatExceptionOfType(IOException.class)
 			.isThrownBy(() -> this.factory.materialise("course/assignment/missing", "0".repeat(40)))
 			.withMessageContaining("not found");
+	}
+
+	@Test
+	@DisplayName("leaves nothing behind when a commit cannot be exported")
+	void discardsTheWorkspaceWhenExportFails() throws Exception {
+		// A failed export never returns a path, so nothing downstream can clean up after
+		// it. A commit that has since been garbage collected is enough to reach here,
+		// and every retry of that submission would add another copy.
+		seedRepository("course/assignment/leak", "export const answer = 42;");
+
+		assertThatExceptionOfType(IOException.class)
+			.isThrownBy(() -> this.factory.materialise("course/assignment/leak", "0".repeat(40)));
+
+		assertThat(workspacesUnder(this.temp)).isEmpty();
+	}
+
+	private static List<Path> workspacesUnder(Path directory) throws IOException {
+		try (Stream<Path> entries = Files.list(directory)) {
+			return entries.filter((path) -> path.getFileName().toString().startsWith("gitgrader-run-")).toList();
+		}
 	}
 
 	@Test
