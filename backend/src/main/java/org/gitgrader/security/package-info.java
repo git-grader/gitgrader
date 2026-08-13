@@ -24,7 +24,7 @@
  *
  * <p>
  * Also owns the unguessable result token: issued once in plain text, stored only as a
- * hash, and resolved with a constant-time comparison.
+ * hash, and resolved by looking that whole hash up.
  *
  * <p>
  * Every authorization decision is enforced server side. The frontend hides controls for
