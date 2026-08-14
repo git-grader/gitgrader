@@ -20,6 +20,7 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.attribute.PosixFilePermissions;
 import java.util.List;
 import java.util.stream.Stream;
 
@@ -141,6 +142,27 @@ class GradingWorkspaceFactoryTest {
 		this.factory.discard(workspace);
 
 		assertThat(workspace).doesNotExist();
+	}
+
+	@Test
+	@DisplayName("removes the rest of the workspace even when the sandbox left a directory it cannot enter")
+	void removesWhatItCanWhenADirectoryCannotBeEntered() throws Exception {
+		Path workspace = Files.createDirectories(this.temp.resolve("gitgrader-run-trap"));
+		Files.writeString(workspace.resolve("solution.js"), "code", StandardCharsets.UTF_8);
+		Path nested = Files.createDirectories(workspace.resolve("src"));
+		Files.writeString(nested.resolve("nested.js"), "code", StandardCharsets.UTF_8);
+
+		// What a submission leaves behind when its test command runs `mkdir trap` then
+		// `chmod 000 trap`. A single walk gave up here before deleting anything at all,
+		// stranding the whole copy of the student's repository on every run.
+		Path trap = Files.createDirectory(workspace.resolve("trap"));
+		Files.writeString(trap.resolve("hidden"), "x", StandardCharsets.UTF_8);
+		Files.setPosixFilePermissions(trap, PosixFilePermissions.fromString("---------"));
+
+		this.factory.discard(workspace);
+
+		assertThat(workspace.resolve("solution.js")).doesNotExist();
+		assertThat(nested).doesNotExist();
 	}
 
 	private String seedRepository(String repositoryPath, String content) throws Exception {
