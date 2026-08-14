@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Security
 
+- Refuse a student number, course key or assignment key that could name a directory
+  other than its own. A registration carrying `../` in its student number produced a
+  repository path that normalised onto another student's bare repository: the two stored
+  paths differed, so both satisfied the unique index, and each student then authenticated
+  with their own key against a repository they shared.
 - Reject a push that introduces more than 1000 new commits instead of silently
   truncating the walk at that number. Commits past the ceiling were never
   signature checked and were admitted anyway, so a large enough push could carry
@@ -24,6 +29,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   consulted.
 - Bound the SSH transport: authentication timeout, idle timeout, maximum
   authentication requests per connection, and maximum concurrent sessions.
+- Publish a container image only from a semantic-version release tag, and move `:latest`
+  only for a stable one. A manual run from a branch previously published that branch as
+  an image tag and repointed `:latest` at it.
 
 ### Added
 
@@ -39,6 +47,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Queue ceilings per student, per course and per instance.
 - `gitgrader.throttle` counter, tagged only with the limit and the decision, and
   a `RATE_LIMIT_TRIGGERED` audit record for every throttling decision.
+- Initial self-hostable GitGrader release: Git-over-SSH submission admission,
+  assignment grading, instructor and student web interfaces, and PostgreSQL
+  persistence.
+- Container deployment assets, operational documentation, CI workflows, and
+  community policies.
 
 ### Changed
 
@@ -48,6 +61,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   back whatever is still executing. `spring.lifecycle.timeout-per-shutdown-phase`
   and the Compose `stop_grace_period` were raised above that window; previously
   Compose sent `SIGKILL` ten seconds after `SIGTERM`.
+- Submission listings filter in the database. Every filter was previously applied to a
+  page that had already been read, so matches on other pages were dropped and the
+  reported total counted only the matches on the page in hand.
+- The Compose project is named explicitly, so the volume names the grading sandbox is
+  bind-mounted from no longer depend on what the checkout directory is called.
+- Production bundles no longer carry source maps, which were 5.6 MB of the 7.4 MB the
+  application served.
 
 ### Fixed
 
@@ -55,16 +75,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Three restarts while a run was in flight used to exhaust `max-attempts` and
   permanently mark the submission `INFRASTRUCTURE_ERROR`. An expired lease still
   consumes an attempt, which is what keeps a job that hangs its worker bounded.
+- Requesting a regrade queues one. The endpoint answered `202 Accepted` and created no
+  grading run, so a submission was never regraded.
+- Course reports record the score a run actually earned. A submission's status was used
+  as the score, so every attempt below its assignment's pass threshold was reported as
+  zero points rather than the percentage it achieved.
+- Editing an assignment or a course no longer moves its dates. The form seeded its
+  date-time controls with UTC digits and read them back as local time, so saving an
+  unchanged form shifted the deadline by the editor's offset, and each further save
+  shifted it again.
+- A failed request for the deployment's settings no longer renders a blank page, and an
+  expired session returns to the sign-in page instead of an empty one.
+- The assignment page reports that its templates, test suites or runtimes could not be
+  loaded instead of showing a spinner that never resolves.
+- Backups no longer archive the running PostgreSQL data directory, and restores no longer
+  empty it underneath the server. The database is captured and restored through the
+  logical dump alone.
 
-## [0.1.0] - 2026-07-29
-
-### Added
-
-- Initial self-hostable GitGrader release: Git-over-SSH submission admission,
-  assignment grading, instructor and student web interfaces, and PostgreSQL
-  persistence.
-- Container deployment assets, operational documentation, CI workflows, and
-  community policies.
-
-[Unreleased]: https://github.com/git-grader/gitgrader/compare/v0.1.0...HEAD
-[0.1.0]: https://github.com/git-grader/gitgrader/releases/tag/v0.1.0
+[Unreleased]: https://github.com/git-grader/gitgrader/commits/main
