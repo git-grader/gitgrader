@@ -89,10 +89,11 @@ public class DefaultAssignmentService implements AssignmentCatalog, AssignmentAd
 	@Transactional(readOnly = true)
 	public AdmissionDecision canAccept(UUID assignmentId, UUID studentId, Instant serverReceivedAt) {
 		Assignment assignment = requireAssignment(assignmentId);
-		Instant dueAt = this.extensions.findByAssignmentIdAndStudentIdAndRevokedAtIsNull(assignmentId, studentId)
+		Instant extendedDueAt = this.extensions
+			.findByAssignmentIdAndStudentIdAndRevokedAtIsNull(assignmentId, studentId)
 			.map(DeadlineExtension::extendedDueAt)
-			.orElseGet(assignment::dueAt);
-		return assignment.canAccept(serverReceivedAt, dueAt);
+			.orElse(null);
+		return assignment.canAccept(serverReceivedAt, extendedDueAt);
 	}
 
 	@Override

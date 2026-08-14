@@ -177,15 +177,26 @@ public class Assignment {
 
 	/**
 	 * Evaluates a server receive timestamp against assignment state and due time.
+	 *
+	 * <p>
+	 * The state is settled first, and only then is a due date required. A draft has no
+	 * due date and needs none to be refused, so resolving one before this point turned a
+	 * push to an unpublished assignment into a failure rather than into the plain answer
+	 * that it is not published yet - reachable by taking a published assignment back to
+	 * draft, which leaves every provisioned repository in place.
 	 * @param serverReceivedAt server-controlled receive timestamp
-	 * @param effectiveDueAt student-specific due timestamp
+	 * @param extendedDueAt this student's extended deadline, or {@code null} to use the
+	 * assignment's own
 	 * @return distinct admission decision
 	 */
-	public AdmissionDecision canAccept(Instant serverReceivedAt, Instant effectiveDueAt) {
+	public AdmissionDecision canAccept(Instant serverReceivedAt, @Nullable Instant extendedDueAt) {
 		AdmissionDecision.Outcome stateOutcome = stateOutcome(serverReceivedAt);
 		if (stateOutcome != AdmissionDecision.Outcome.ACCEPTED) {
-			return new AdmissionDecision(stateOutcome, false, effectiveDueAt);
+			return new AdmissionDecision(stateOutcome, false, extendedDueAt);
 		}
+		// Reaching here means the assignment is published, which the lifecycle only
+		// permits with a due date, so this cannot be the draft case.
+		Instant effectiveDueAt = (extendedDueAt != null) ? extendedDueAt : dueAt();
 		boolean late = serverReceivedAt.isAfter(effectiveDueAt);
 		AdmissionDecision.Outcome deadlineOutcome = late && !this.allowLate ? AdmissionDecision.Outcome.PAST_DEADLINE
 				: AdmissionDecision.Outcome.ACCEPTED;
