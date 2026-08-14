@@ -2,7 +2,8 @@
 
 Environment variables override external `/config/application.yaml`, which
 overrides packaged defaults. The product properties below are exhaustive for
-`app`, `git`, `grading`, `storage`, and `security`; framework keys in the second
+`app`, `git`, `grading`, `storage`, `security`, and `audit`; framework keys are
+listed in the second table.
 
 | YAML path | Environment variable | Default | Purpose |
 | --- | --- | --- | --- |
@@ -40,6 +41,7 @@ overrides packaged defaults. The product properties below are exhaustive for
 | `grading.retain-workspaces` | `GRADING_RETAIN_WORKSPACES` | `false` | Retain workspaces for diagnosis. |
 | `grading.docker.host` | `GRADING_DOCKER_HOST` | `unix:///var/run/docker.sock` | Docker API endpoint. |
 | `grading.docker.workspace-mount-root` | `GRADING_DOCKER_WORKSPACE_MOUNT_ROOT` | empty | Host-visible workspace root. |
+| `grading.docker.tests-mount-root` | `GRADING_DOCKER_TESTS_MOUNT_ROOT` | empty | Host-visible hidden-test root. Required whenever the application itself runs in a container: the Docker daemon resolves sandbox mounts on the host, so leaving this empty passes the application's own path through, the daemon creates it empty rather than failing, and every submission is graded against no tests and scored zero. |
 | `grading.docker.user` | `GRADING_DOCKER_USER` | `65534:65534` | Sandbox UID:GID. |
 | `grading.docker.pull-timeout` | — | `5m` | Image-pull timeout. |
 | `grading.docker.read-only-root-filesystem` / `tmpfs-size` / `drop-all-capabilities` / `no-new-privileges` | — | `true` / `64MB` / `true` / `true` | Docker hardening defaults. |
@@ -52,6 +54,10 @@ overrides packaged defaults. The product properties below are exhaustive for
 | `security.rate-limits.*` | `SECURITY_RATE_REGISTRATION_IP`, `SECURITY_RATE_REGISTRATION_GLOBAL`, `SECURITY_RATE_RESULT_IP`, `SECURITY_RATE_LOGIN_IP`, `SECURITY_RATE_SSH_IP` | `5`, `200`, `60`, `10`, `30` | Per-address abuse limits, held in memory. They reset on restart and are counted per instance. Block duration is `15m`. |
 | `security.rate-limits.submissions-per-hour-per-assignment` / `submissions-per-hour-per-student` | `SECURITY_RATE_SUBMISSIONS_ASSIGNMENT` / `SECURITY_RATE_SUBMISSIONS_STUDENT` | `20` / `60` | Rolling hourly push allowances. Counted in the database, so unlike the limits above they survive a restart and hold across instances. Exceeding one refuses the push with an explanation on the Git side band. |
 | `security.session.timeout` / `cookie-name` / `secure-cookie` / `same-site` | `SECURITY_SESSION_TIMEOUT` / `SECURITY_SESSION_COOKIE_NAME` / `SECURITY_SESSION_SECURE_COOKIE` | `8h` / `GITGRADER_SESSION` / `true` / `Lax` | Session behavior. |
+| `security.content-security-policy` | — | See packaged YAML | CSP sent with the application shell. Loosen only deliberately; the SPA is served from the same origin as the API. |
+| `security.result-content-security-policy` | — | See packaged YAML | Stricter CSP sent with the public result page, which is reachable without signing in. |
+| `audit.ip-hash-key` | `AUDIT_IP_HASH_KEY` | empty | HMAC key for client-address hashes in audit records. Leaving it empty generates a fresh key at every startup, which is safe but makes address hashes incomparable across restarts, so an address cannot be followed through one. Set a long random value and treat it as a secret; changing it invalidates correlation with existing records. |
+| `audit.retention` | `AUDIT_RETENTION` | `P365D` | How long audit events are retained. |
 
 | Framework YAML path | Environment variable | Default |
 | --- | --- | --- |

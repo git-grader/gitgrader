@@ -10,7 +10,9 @@ number means something is wrong, which is more useful than a pass/fail.
 
 ## Start
 
-Needs Docker, and JDK 25 the first time so the image can be built.
+Needs Docker, and JDK 25 the first time so the image can be built. The commands below
+also use `git`, `ssh-keygen`, `curl`, `awk` and `python3`, which a minimal container host
+does not necessarily have.
 
 ```sh
 ./scripts/install.sh --demo
@@ -65,6 +67,7 @@ docker compose -f compose.yaml -f compose.dev.yaml exec -T database \
 
 ```sh
 export GIT_SSH_COMMAND="ssh -i /tmp/student -o StrictHostKeyChecking=no -o IdentitiesOnly=yes"
+gitgrader="$PWD"
 git clone ssh://git@localhost:2222/example-programming/assignment-01-string-utils/s2001.git /tmp/work
 ```
 
@@ -76,7 +79,7 @@ Copy in the reference solution that scores 70 %, then sign and push:
 
 ```sh
 cd /tmp/work
-cp ../../examples/assignments/assignment-01-string-utils/reference-solution/partial-70/string-utils.js src/string-utils.js
+cp "$gitgrader/examples/assignments/assignment-01-string-utils/reference-solution/partial-70/string-utils.js" src/string-utils.js
 
 git config user.name "Alan Turing"
 git config user.email alan@example.org
