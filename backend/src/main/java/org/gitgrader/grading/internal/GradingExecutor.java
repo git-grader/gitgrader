@@ -61,6 +61,9 @@ public class GradingExecutor {
 	/** Where the hidden suite is mounted, deliberately outside the student workspace. */
 	private static final String HIDDEN_TESTS_MOUNT = "/opt/hidden-tests";
 
+	/** Kept back from the lease for everything around the sandbox run itself. */
+	private static final Duration LEASE_RESERVE = Duration.ofMinutes(1);
+
 	private final GradingRunner runner;
 
 	private final GradingWorkspaceFactory workspaces;
@@ -170,6 +173,47 @@ public class GradingExecutor {
 	}
 
 	/**
+	 * Holds a sandbox to a run shorter than the lease its job is held under.
+	 *
+	 * <p>
+	 * A claim is a lease with a fixed expiry, taken once and never renewed, and the
+	 * reaper returns any job whose lease has run out without asking whether its worker is
+	 * still alive - that is what makes a crashed worker recoverable. A run allowed to
+	 * outlast its lease is therefore requeued from underneath itself: a second worker
+	 * takes the same submission, a second sandbox runs it, and both finish and write. The
+	 * results table has no key to refuse the duplicate, so the student's page ends up
+	 * listing every check twice.
+	 *
+	 * <p>
+	 * Nothing bounded the two against each other. The sandbox default is well inside the
+	 * lease, but an assignment may override the timeout with any value at all, and one
+	 * heavy assignment set past the lease is enough. Cut short, the run is recorded as a
+	 * timeout, which is a true and visible answer; the alternative is graded twice and
+	 * silently.
+	 * @param requested the timeout the assignment or the deployment asked for
+	 * @return that timeout, or as much of the lease as can safely be spent
+	 */
+	private Duration boundedByLease(Duration requested) {
+		Duration lease = this.properties.queue().claimTimeout();
+		// The remainder covers starting the sandbox, draining its output and writing the
+		// result, all of which happen while the same lease is running down. Never more
+		// than half, so that a deployment with a short lease still gets a usable run.
+		Duration usable = lease.minus(LEASE_RESERVE);
+		Duration floor = lease.dividedBy(2);
+		if (usable.compareTo(floor) < 0) {
+			usable = floor;
+		}
+		if (requested.compareTo(usable) <= 0) {
+			return requested;
+		}
+		logger.warn(
+				"Sandbox timeout of {} exceeds what the {} claim lease allows; running for {} instead. "
+						+ "Raise grading.queue.claim-timeout to grade this assignment for longer.",
+				requested, lease, usable);
+		return usable;
+	}
+
+	/**
 	 * Builds the sandbox request, letting the assignment override the global limits.
 	 *
 	 * <p>
@@ -193,8 +237,8 @@ public class GradingExecutor {
 		java.math.BigDecimal cpuOverride = assignment.cpuLimit();
 		Integer pidOverride = assignment.pidLimit();
 
-		Duration timeout = (timeoutOverride != null) ? Duration.ofSeconds(timeoutOverride)
-				: this.properties.defaultTimeout();
+		Duration timeout = boundedByLease(
+				(timeoutOverride != null) ? Duration.ofSeconds(timeoutOverride) : this.properties.defaultTimeout());
 		long memory = (memoryOverride != null) ? memoryOverride : this.properties.defaultMemoryLimit().toBytes();
 		double cpu = (cpuOverride != null) ? cpuOverride.doubleValue() : this.properties.defaultCpuLimit();
 		int pids = (pidOverride != null) ? pidOverride : this.properties.defaultPidLimit();
