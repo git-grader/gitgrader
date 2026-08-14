@@ -21,10 +21,19 @@ if [[ $# -gt 1 ]]; then
 fi
 
 mkdir -p "$(dirname "$target")"
-if [[ -e "$target" ]]; then
-  printf 'Refusing to overwrite existing host key: %s\n' "$target" >&2
-  exit 1
-fi
+# Every path this run would write, not just the private key. Guarding the key alone
+# left the public half unprotected: with the key gone and `hostkey.ser.pub` still
+# there, the `mv` below replaced it with the public half of a different key, so the
+# fingerprint an operator had published no longer matched the server and every student
+# clone stopped with a host key warning. The scratch paths ssh-keygen writes to are
+# checked as well, because it answers an existing one with an interactive overwrite
+# prompt that a non-interactive run cannot get past.
+for path in "$target" "$target.pub" "${target%.ser}" "${target%.ser}.pub"; do
+  if [[ -e "$path" ]]; then
+    printf 'Refusing to overwrite existing file: %s\n' "$path" >&2
+    exit 1
+  fi
+done
 
 ssh-keygen -t ed25519 -N '' -f "${target%.ser}"
 mv "${target%.ser}" "$target"
