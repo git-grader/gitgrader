@@ -6,6 +6,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '../api';
 import type { RuntimeDefinition } from '../api';
 import { ApiProblem } from '../api/client';
+import { QueryErrorNotice } from '../components/QueryErrorNotice';
 import { Box, Typography, CircularProgress, List, ListItem, ListItemText, Button, Dialog, DialogTitle, DialogContent, TextField, FormControlLabel, Checkbox, Alert } from '@mui/material';
 
 export function AdminRuntimesPage() {
@@ -17,12 +18,12 @@ export function AdminRuntimesPage() {
   });
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
-  const { data: me, isLoading: meLoading } = useQuery({
+  const { data: me, isLoading: meLoading, isError: meFailed, refetch: refetchMe } = useQuery({
     queryKey: ['me'],
     queryFn: () => api.getMe()
   });
 
-  const { data: runtimes, isLoading: runtimesLoading } = useQuery({
+  const { data: runtimes, isLoading: runtimesLoading, isError: runtimesFailed, refetch: refetchRuntimes } = useQuery({
     queryKey: ['runtimes'],
     queryFn: () => api.getRuntimes()
   });
@@ -38,6 +39,19 @@ export function AdminRuntimesPage() {
   });
 
   if (runtimesLoading || meLoading) return <Box sx={{ p: 4 }}><CircularProgress /></Box>;
+  // Who is signed in decides whether the create control appears at all, so a failed
+  // `me` call would quietly present a read-only page to an administrator.
+  if (runtimesFailed || meFailed) {
+    return (
+      <QueryErrorNotice
+        message="The runtimes could not be loaded."
+        onRetry={() => {
+          void refetchRuntimes();
+          void refetchMe();
+        }}
+      />
+    );
+  }
   if (!runtimes) return null;
 
   const isAdmin = me?.roles.includes('ROLE_ADMIN');
