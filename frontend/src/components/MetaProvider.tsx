@@ -1,32 +1,61 @@
 // Copyright the GitGrader contributors.
 // SPDX-License-Identifier: Apache-2.0
 
-import { createContext, useContext, useEffect, useState } from 'react';
+import { createContext, useContext, useEffect } from 'react';
 import type { ReactNode } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { Alert, Box, Button, CircularProgress } from '@mui/material';
 import { api } from '../api';
 import type { Meta } from '../api';
 
 const MetaContext = createContext<Meta | undefined>(undefined);
 
+/**
+ * Loads the deployment's identity before the router renders.
+ *
+ * This gates the whole application, so the failure path has to be a real one. Holding an
+ * undefined value and rendering nothing turned any failed or slow `/api/v1/meta` call —
+ * a restart, a proxy hiccup, a 500 — into a blank white page with no spinner, no message
+ * and no way back, including for the two routes anyone can reach without signing in.
+ */
 export function MetaProvider({ children }: { children: ReactNode }) {
-  const [meta, setMeta] = useState<Meta | undefined>(undefined);
+  const { data: meta, isPending, isError, refetch } = useQuery({
+    queryKey: ['meta'],
+    queryFn: () => api.getMeta()
+  });
 
   useEffect(() => {
-    api.getMeta().then(data => {
-      setMeta(data);
-      document.title = data.name || 'GitGrader';
-    }).catch((err: unknown) => {
-      console.error('Failed to load meta', err);
-    });
-  }, []);
+    if (meta) {
+      document.title = meta.name || 'GitGrader';
+    }
+  }, [meta]);
 
-  if (!meta) return null; // or a loading spinner
+  if (isPending) {
+    return (
+      <Box sx={{ display: 'flex', justifyContent: 'center', p: 8 }}>
+        <CircularProgress aria-label="Loading" />
+      </Box>
+    );
+  }
 
-  return (
-    <MetaContext.Provider value={meta}>
-      {children}
-    </MetaContext.Provider>
-  );
+  if (isError) {
+    return (
+      <Box sx={{ display: 'flex', justifyContent: 'center', p: 8 }}>
+        <Alert
+          severity="error"
+          action={
+            <Button color="inherit" size="small" onClick={() => void refetch()}>
+              Retry
+            </Button>
+          }
+        >
+          GitGrader could not be reached. Check that the service is running, then retry.
+        </Alert>
+      </Box>
+    );
+  }
+
+  return <MetaContext.Provider value={meta}>{children}</MetaContext.Provider>;
 }
 
 export function useMeta() {

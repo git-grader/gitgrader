@@ -6,6 +6,7 @@ import { useParams, Link } from 'react-router';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '../api';
 import { CourseStatusChip } from '../components/CourseStatusChip';
+import { fromLocalInputValue, toLocalInputValue } from '../components/localDateTime';
 import type { ClassDefinition, CourseDefinition, CourseView, Class } from '../api';
 import { ApiProblem } from '../api/client';
 import { 
@@ -19,8 +20,8 @@ function EditCourseForm({ course, open, onClose }: { course: CourseView; open: b
   const queryClient = useQueryClient();
   const [form, setForm] = useState<Partial<CourseDefinition>>(() => ({
     ...course,
-    registrationOpensAt: course.registrationOpensAt ? course.registrationOpensAt.slice(0, 16) : '',
-    registrationClosesAt: course.registrationClosesAt ? course.registrationClosesAt.slice(0, 16) : ''
+    registrationOpensAt: toLocalInputValue(course.registrationOpensAt),
+    registrationClosesAt: toLocalInputValue(course.registrationClosesAt)
   }));
 
   const updateMutation = useMutation({
@@ -33,7 +34,6 @@ function EditCourseForm({ course, open, onClose }: { course: CourseView; open: b
 
   const handleSubmit = (e: React.SyntheticEvent) => {
     e.preventDefault();
-    const toIso = (value?: string | null) => (value ? new Date(value).toISOString() : null);
     updateMutation.mutate({
       courseKey: course.courseKey,
       name: form.name || course.name,
@@ -43,8 +43,8 @@ function EditCourseForm({ course, open, onClose }: { course: CourseView; open: b
       endsOn: form.endsOn || null,
       timezone: form.timezone || course.timezone,
       status: form.status || course.status,
-      registrationOpensAt: toIso(form.registrationOpensAt),
-      registrationClosesAt: toIso(form.registrationClosesAt),
+      registrationOpensAt: fromLocalInputValue(form.registrationOpensAt),
+      registrationClosesAt: fromLocalInputValue(form.registrationClosesAt),
       registrationEnabled: form.registrationEnabled ?? course.registrationEnabled
     });
   };
