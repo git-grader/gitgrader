@@ -32,7 +32,12 @@ project="${COMPOSE_PROJECT_NAME:-$(basename "$(pwd)")}"
 docker compose exec -T database pg_dump -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Fc \
   >"$destination/postgresql.dump"
 
-for volume in database git-data grading-data templates tests artifacts; do
+# The database is captured by the logical dump above and by nothing else. Tarring
+# its volume as well would copy a data directory out from under a running
+# postmaster: the archive is torn across checkpoints, `pg_restore` cannot use it,
+# and restoring it is what corrupts a cluster. Every other volume is a plain file
+# tree that a live copy represents accurately.
+for volume in git-data grading-data templates tests artifacts; do
   resolved_volume="${project}_${volume}"
   docker run --rm -v "${resolved_volume}:/source:ro" -v "$(realpath "$destination"):/backup" \
     alpine:3.21 tar -C /source -czf "/backup/${volume}.tar.gz" .

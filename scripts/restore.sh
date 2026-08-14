@@ -20,7 +20,7 @@ if [[ $# -ne 1 || ! -d "$1" ]]; then
 fi
 
 backup="$(realpath "$1")"
-for required in postgresql.dump database.tar.gz git-data.tar.gz grading-data.tar.gz templates.tar.gz tests.tar.gz artifacts.tar.gz SHA256SUMS; do
+for required in postgresql.dump git-data.tar.gz grading-data.tar.gz templates.tar.gz tests.tar.gz artifacts.tar.gz SHA256SUMS; do
   [[ -f "$backup/$required" ]] || { printf 'Missing backup file: %s\n' "$required" >&2; exit 1; }
 done
 (cd "$backup" && sha256sum --check SHA256SUMS)
@@ -32,7 +32,11 @@ project="${COMPOSE_PROJECT_NAME:-$(basename "$(pwd)")}"
 docker compose up -d database
 until docker compose exec -T database pg_isready -U "$POSTGRES_USER" -d "$POSTGRES_DB" >/dev/null; do sleep 1; done
 
-for volume in database git-data grading-data templates tests artifacts; do
+# The database is restored below through pg_restore, against the server started
+# above, and is deliberately absent here. Emptying and re-extracting its volume in
+# this loop would delete a data directory while that same postmaster is running on
+# it, which corrupts the cluster rather than restoring it.
+for volume in git-data grading-data templates tests artifacts; do
   resolved_volume="${project}_${volume}"
   docker volume create "$resolved_volume" >/dev/null
   docker run --rm -v "${resolved_volume}:/target" -v "$backup:/backup:ro" alpine:3.21 \
