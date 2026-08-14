@@ -1,8 +1,9 @@
 # Backup and restore
 
 Back up before every upgrade and test restores regularly. A database dump alone
-is insufficient: Git repositories, templates, hidden test suites, runner/runtime
-grade.
+is insufficient: Git repositories, templates, hidden test suites, and retained
+artifacts live in volumes of their own, and a result cannot be reproduced without
+the runtime images that produced it.
 
 ## What to back up
 
@@ -16,9 +17,12 @@ grade.
   configuration, and the application image version/digest.
 
 `scripts/backup.sh` writes a PostgreSQL custom-format dump plus compressed
-archives of every named Compose volume and SHA-256 checksums. It does not copy
-files outside named volumes; archive the configuration and runtime definitions
-separately with the same protected backup system.
+archives of every named Compose volume except the database's own, and SHA-256
+checksums. PostgreSQL is captured by the dump alone: a tar of a data directory
+that a running server is writing to is torn across checkpoints and cannot be
+restored from. The script does not copy files outside named volumes; archive the
+configuration and runtime definitions separately with the same protected backup
+system.
 
 ## Create a backup
 
@@ -55,8 +59,8 @@ destroys the current database and volume contents.
    ```
 
 3. Restore the application data. The script checks `SHA256SUMS`, empties and
-   extracts all six volumes, recreates the PostgreSQL database, then executes
-   `pg_restore --clean --if-exists`:
+   extracts the five non-database volumes, recreates the PostgreSQL database,
+   then executes `pg_restore --clean --if-exists`:
 
    ```sh
    POSTGRES_DB=gitgrader POSTGRES_USER=gitgrader \
