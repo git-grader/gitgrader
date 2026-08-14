@@ -16,7 +16,11 @@ updates:
       - dependency-name: "typescript"
         update-types: ["version-update:semver-major"]
   - package-ecosystem: docker
-    directory: "/"
+    # The only Dockerfile is the grading runtime's. Pointed at "/" this found nothing
+    # and aborted with "No Dockerfiles nor Kubernetes YAML found in /" on every weekly
+    # run, so the one base image that untrusted student code executes inside was the
+    # single image nothing was watching for updates.
+    directory: "/deployment/runtimes/node-24"
     schedule:
       interval: weekly
   - package-ecosystem: github-actions
