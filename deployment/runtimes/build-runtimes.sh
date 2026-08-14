@@ -1,8 +1,7 @@
 #!/bin/sh
 set -eu
 
-root=$(CDPATH= cd -- "$(dirname -- "$0")/../.." && pwd)
-runtime_dir="$root/runtimes/node-24"
+runtime_dir=$(CDPATH= cd -- "$(dirname -- "$0")/node-24" && pwd)
 image=${IMAGE_NAME:-gitgrader-node-24:local}
 
 docker build --tag "$image" "$runtime_dir"

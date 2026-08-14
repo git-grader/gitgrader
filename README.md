@@ -80,8 +80,8 @@ For example, 7 of 10 tests is **70.0 %**.
   LDAP instructor/admin authentication, audit events, and rate limits.
 - Java 25, Spring Boot 4.1.0, Spring Modulith 2.1.0, Spring Security 7.1,
   JGit 7.7.1, Apache MINA SSHD 2.19.0, docker-java 3.7.1, Flyway 12.4,
-  PostgreSQL, Testcontainers 2.0.5; Vite, React 19, TypeScript, MUI v7,
-  TanStack Query, and React Router.
+  PostgreSQL, Testcontainers 2.0.5; Vite 8, React 19, TypeScript, MUI v9,
+  TanStack Query, and React Router 8.
 
 ## Documentation
 
