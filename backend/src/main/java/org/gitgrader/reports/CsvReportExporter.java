@@ -30,6 +30,16 @@ public class CsvReportExporter implements ReportExporter {
 
 	private static final String LINE_ENDING = "\r\n";
 
+	/**
+	 * Leading characters a spreadsheet reads as the start of a formula.
+	 *
+	 * <p>
+	 * The tab and carriage return are here because Excel skips leading whitespace before
+	 * deciding, so they smuggle any of the others past a check that looks only at the
+	 * first character.
+	 */
+	private static final String FORMULA_LEADS = "=+-@\t\r";
+
 	@Override
 	public ReportFormat format() {
 		return ReportFormat.CSV;
@@ -73,9 +83,37 @@ public class CsvReportExporter implements ReportExporter {
 			if (index > 0) {
 				csv.append(',');
 			}
-			csv.append(quote(values.get(index)));
+			csv.append(quote(neutraliseFormula(values.get(index))));
 		}
 		csv.append(LINE_ENDING);
+	}
+
+	/**
+	 * Keeps a cell from being read as a formula by the spreadsheet that opens it.
+	 *
+	 * <p>
+	 * A student's name reaches this file exactly as they typed it at registration, which
+	 * is a public endpoint that constrains a name's length and nothing else. A name
+	 * beginning {@code =}, {@code +}, {@code -} or {@code @} is a formula to Excel,
+	 * LibreOffice and Sheets, and an export exists to be opened: {@code HYPERLINK} and
+	 * {@code WEBSERVICE} send the row's contents to whoever wrote the name, and DDE has
+	 * historically reached the shell.
+	 *
+	 * <p>
+	 * The RFC quoting below does not help, because the spreadsheet removes those quotes
+	 * before deciding what the cell is. A leading apostrophe is what forces text, and it
+	 * is not displayed. Applied to every cell rather than to the names alone: the numeric
+	 * columns are all counts and non-negative ratios this class formats itself, so none
+	 * can legitimately begin with one of these characters, and a guard that has to be
+	 * remembered per column is one that will eventually be forgotten.
+	 * @param value the cell content
+	 * @return the content, prefixed so that it stays text
+	 */
+	private static String neutraliseFormula(String value) {
+		if (value.isEmpty() || FORMULA_LEADS.indexOf(value.charAt(0)) < 0) {
+			return value;
+		}
+		return "'" + value;
 	}
 
 	private static String quote(String value) {
