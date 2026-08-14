@@ -18,6 +18,7 @@ package org.gitgrader.api;
 
 import java.util.List;
 
+import jakarta.persistence.EntityNotFoundException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -76,11 +77,18 @@ public class GlobalExceptionHandler {
 
 	/**
 	 * Renders a reference to something that does not exist.
+	 *
+	 * <p>
+	 * {@link EntityNotFoundException} is handled here rather than falling through to the
+	 * catch-all. The services raise it for exactly the case this method describes, and
+	 * without it every one of them answered a missing runtime, template, course, student
+	 * or extension with a 500 and an ERROR in the log - reporting a caller's typo as a
+	 * fault of the server, and burying real incidents among them.
 	 * @param ex the failure
 	 * @return a 404 problem document
 	 */
-	@ExceptionHandler(IllegalArgumentException.class)
-	public ProblemDetail handleNotFound(IllegalArgumentException ex) {
+	@ExceptionHandler({ IllegalArgumentException.class, EntityNotFoundException.class })
+	public ProblemDetail handleNotFound(RuntimeException ex) {
 		ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND,
 				"The requested resource does not exist.");
 		problem.setTitle("Not found");
