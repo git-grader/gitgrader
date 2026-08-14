@@ -23,15 +23,19 @@ import org.gitgrader.assignments.AssignmentAdministration;
 import org.gitgrader.assignments.AssignmentCatalog;
 import org.gitgrader.assignments.web.AssignmentController;
 import org.gitgrader.identity.ActorProvider;
+import org.gitgrader.submissions.SubmissionSearch;
 import org.gitgrader.submissions.SubmissionService;
+import org.gitgrader.submissions.SubmissionStatus;
 import org.gitgrader.submissions.web.SubmissionController;
 import org.junit.jupiter.api.Test;
 import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.web.PageableHandlerMethodArgumentResolver;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -62,8 +66,7 @@ class ListControllerTest {
 	@Test
 	void submissionsListWorksWithAndWithoutCourseId() throws Exception {
 		SubmissionService submissions = mock(SubmissionService.class);
-		when(submissions.findAll(any())).thenReturn(new PageImpl<>(List.of()));
-		when(submissions.findByCourse(any(), any())).thenReturn(new PageImpl<>(List.of()));
+		when(submissions.search(any(), any())).thenReturn(new PageImpl<>(List.of(), PageRequest.of(0, 20), 0));
 		MockMvc mockMvc = MockMvcBuilders.standaloneSetup(new SubmissionController(submissions))
 			.setCustomArgumentResolvers(new PageableHandlerMethodArgumentResolver())
 			.build();
@@ -72,8 +75,39 @@ class ListControllerTest {
 		mockMvc.perform(get("/api/v1/submissions")).andExpect(status().isOk());
 		mockMvc.perform(get("/api/v1/submissions").param("courseId", courseId.toString())).andExpect(status().isOk());
 
-		verify(submissions).findAll(any());
-		verify(submissions).findByCourse(org.mockito.ArgumentMatchers.eq(courseId), any());
+		verify(submissions).search(eq(new SubmissionSearch(null, null, null, null)), any());
+		verify(submissions).search(eq(new SubmissionSearch(courseId, null, null, null)), any());
+	}
+
+	/**
+	 * Every filter has to reach the query rather than be applied to a page already read.
+	 *
+	 * <p>
+	 * Filtering after pagination dropped matches that sat on other pages and reported the
+	 * matches on the current page as the total, so a filtered list could answer with an
+	 * empty first page and a count that contradicted it.
+	 * @throws Exception when the request cannot be performed
+	 */
+	@Test
+	void submissionFiltersReachTheQueryRatherThanThePage() throws Exception {
+		SubmissionService submissions = mock(SubmissionService.class);
+		when(submissions.search(any(), any())).thenReturn(new PageImpl<>(List.of(), PageRequest.of(0, 20), 0));
+		MockMvc mockMvc = MockMvcBuilders.standaloneSetup(new SubmissionController(submissions))
+			.setCustomArgumentResolvers(new PageableHandlerMethodArgumentResolver())
+			.build();
+		UUID courseId = UUID.randomUUID();
+		UUID assignmentId = UUID.randomUUID();
+		UUID studentId = UUID.randomUUID();
+
+		mockMvc
+			.perform(get("/api/v1/submissions").param("courseId", courseId.toString())
+				.param("assignmentId", assignmentId.toString())
+				.param("studentId", studentId.toString())
+				.param("status", "PASSED"))
+			.andExpect(status().isOk());
+
+		verify(submissions).search(eq(new SubmissionSearch(courseId, assignmentId, studentId, SubmissionStatus.PASSED)),
+				any());
 	}
 
 }

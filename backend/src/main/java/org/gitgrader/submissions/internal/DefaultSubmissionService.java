@@ -19,11 +19,15 @@ package org.gitgrader.submissions.internal;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
 import io.micrometer.core.instrument.MeterRegistry;
+import jakarta.persistence.criteria.CriteriaBuilder;
+import jakarta.persistence.criteria.Path;
+import jakarta.persistence.criteria.Predicate;
 
 import org.gitgrader.audit.AuditEventType;
 import org.gitgrader.audit.AuditRecord;
@@ -36,15 +40,18 @@ import org.gitgrader.submissions.NewSubmission;
 import org.gitgrader.submissions.SubmissionRecorded;
 import org.gitgrader.submissions.SubmissionRefusedException;
 import org.gitgrader.submissions.SubmissionRefusedException.Reason;
+import org.gitgrader.submissions.SubmissionSearch;
 import org.gitgrader.submissions.SubmissionService;
 import org.gitgrader.submissions.SubmissionStatus;
 import org.gitgrader.submissions.SubmissionView;
 import org.gitgrader.submissions.domain.Submission;
+import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -248,6 +255,30 @@ public class DefaultSubmissionService implements SubmissionService {
 	@Transactional(readOnly = true)
 	public Page<SubmissionView> findAll(Pageable pageable) {
 		return this.repository.findAll(pageable).map(DefaultSubmissionService::toView);
+	}
+
+	@Override
+	@Transactional(readOnly = true)
+	public Page<SubmissionView> search(SubmissionSearch search, Pageable pageable) {
+		return this.repository.findAll(specification(search), pageable).map(DefaultSubmissionService::toView);
+	}
+
+	private static Specification<Submission> specification(SubmissionSearch search) {
+		return (root, query, builder) -> {
+			List<Predicate> predicates = new ArrayList<>();
+			equalIfPresent(builder, predicates, root.get("courseId"), search.courseId());
+			equalIfPresent(builder, predicates, root.get("assignmentId"), search.assignmentId());
+			equalIfPresent(builder, predicates, root.get("studentId"), search.studentId());
+			equalIfPresent(builder, predicates, root.get("status"), search.status());
+			return builder.and(predicates.toArray(Predicate[]::new));
+		};
+	}
+
+	private static void equalIfPresent(CriteriaBuilder builder, List<Predicate> predicates, Path<?> attribute,
+			@Nullable Object value) {
+		if (value != null) {
+			predicates.add(builder.equal(attribute, value));
+		}
 	}
 
 	@Override
