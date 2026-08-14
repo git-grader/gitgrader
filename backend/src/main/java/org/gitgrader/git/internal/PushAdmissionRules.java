@@ -258,14 +258,21 @@ public class PushAdmissionRules {
 	}
 
 	/**
-	 * Enumerates the commits a push introduces, newest first.
+	 * Enumerates the commits a push introduces, the ref's tip first.
+	 *
+	 * <p>
+	 * Callers take the first element as the tip, and it is one because the walk is
+	 * started from that single commit and pops it before anything it leads to - not
+	 * because of its date. The order among the rest is by commit time, which is whatever
+	 * the author's clock said, so adding a second start point or an explicit sort here
+	 * would quietly hand grading an ancestor while the ref pointed elsewhere.
 	 *
 	 * <p>
 	 * Everything already reachable from another ref is excluded, so a student who merges
 	 * an existing branch is not asked to re-sign history they did not write.
-	 * @param repository the repository being pushed to
+	 * @param repository the bare repository being pushed to
 	 * @param command the ref update
-	 * @return the new commits
+	 * @return the new commits, beginning with the one the ref will point at
 	 * @throws IOException if the object database cannot be read
 	 */
 	private List<RevCommit> newCommitsIn(Repository repository, ReceiveCommand command) throws IOException {

@@ -27,6 +27,7 @@ import java.util.UUID;
 import org.eclipse.jgit.api.Git;
 import org.eclipse.jgit.api.errors.GitAPIException;
 import org.eclipse.jgit.lib.ObjectId;
+import org.eclipse.jgit.lib.PersonIdent;
 import org.eclipse.jgit.lib.Repository;
 import org.eclipse.jgit.revwalk.RevCommit;
 import org.eclipse.jgit.transport.ReceiveCommand;
@@ -249,6 +250,40 @@ class PushAdmissionRulesTest {
 		verify(this.verifier, times(1)).verify(any(), argThat((c) -> c.name().equals(first.name())), any());
 		verify(this.verifier, times(1)).verify(any(), argThat((c) -> c.name().equals(second.name())), any());
 		verify(this.verifier, times(2)).verify(any(), argThat((c) -> c.name().equals(tip.name())), any());
+	}
+
+	@Test
+	@DisplayName("grades the ref's tip even when an ancestor carries a later timestamp")
+	void takesTheTipFromTheWalkNotFromTheDates() throws Exception {
+		// The tip is taken as the first commit the walk yields, which is only the tip
+		// because a walk started from one commit pops that commit before anything it
+		// leads to. Dates do not decide it, and they must not: a commit's date is
+		// whatever its author's clock said, so a second start point or an explicit sort
+		// would hand grading an ancestor while refs/heads/main pointed elsewhere.
+		RevCommit ancestor = commitDated("start.js", "export const answer = 0;", Duration.ofDays(365));
+		RevCommit tip = commitDated("solution.js", "export const answer = 42;", Duration.ZERO);
+		assertThat(tip.getCommitTime()).isLessThan(ancestor.getCommitTime());
+		givenSignature(CommitSignatureResult.verified("SHA256:signingkey"));
+
+		PushVerdict verdict = rules(true).evaluate(this.repository, update(tip), STUDENT, true, null);
+
+		assertThat(verdict.accepted()).isTrue();
+		assertThat(verdict.tip()).isNotNull();
+		assertThat(verdict.tip().name()).isEqualTo(tip.name());
+	}
+
+	private RevCommit commitDated(String fileName, String content, Duration ahead) throws GitAPIException, IOException {
+		Files.writeString(this.workspace.resolve(fileName), content, StandardCharsets.UTF_8);
+		this.git.add().addFilepattern(fileName).call();
+		PersonIdent when = new PersonIdent("Max Muster", "max@example.org",
+				java.util.Date.from(java.time.Instant.parse("2026-03-01T10:00:00Z").plus(ahead)),
+				java.util.TimeZone.getTimeZone("UTC"));
+		return this.git.commit()
+			.setMessage("Add " + fileName)
+			.setSign(Boolean.FALSE)
+			.setAuthor(when)
+			.setCommitter(when)
+			.call();
 	}
 
 	private PushAdmissionRules rules(boolean requireSignedCommits) {
