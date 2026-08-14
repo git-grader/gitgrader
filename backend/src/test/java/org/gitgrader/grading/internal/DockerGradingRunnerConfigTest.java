@@ -31,6 +31,7 @@ import com.github.dockerjava.api.model.HostConfig;
 import org.gitgrader.configuration.GradingProperties;
 import org.gitgrader.configuration.StorageProperties;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.springframework.util.unit.DataSize;
@@ -97,6 +98,10 @@ class DockerGradingRunnerConfigTest {
 		assertThat(hostConfig.getAutoRemove()).isTrue();
 		assertThat(hostConfig.getTmpFs()).containsEntry("/tmp", "size=" + DataSize.ofMegabytes(64).toBytes());
 		assertThat(hostConfig.getMemory()).isEqualTo(1024L * 1024 * 256);
+		// Equal to the memory limit, so the sandbox has no swap. Docker reads an unset
+		// swap limit as twice the memory limit, which would hand a submission double the
+		// memory the assignment allowed.
+		assertThat(hostConfig.getMemorySwap()).isEqualTo(1024L * 1024 * 256);
 		assertThat(hostConfig.getCpuQuota()).isEqualTo(150000L); // 1.5 * 100000
 		assertThat(hostConfig.getPidsLimit()).isEqualTo(128L);
 		assertThat(hostConfig.getSecurityOpts()).contains("no-new-privileges=true");
@@ -112,6 +117,46 @@ class DockerGradingRunnerConfigTest {
 		assertThat(binds[1].getPath()).isEqualTo(Path.of("/data/tests/suite1").toAbsolutePath().toString());
 		assertThat(binds[1].getVolume().getPath()).isEqualTo("/opt/hidden-tests");
 		assertThat(binds[1].getAccessMode()).isEqualTo(AccessMode.ro);
+	}
+
+	@Test
+	@DisplayName("leaves the no-new-privileges option off when the deployment turns it off")
+	void honoursTheNoNewPrivilegesSwitch() {
+		GradingProperties relaxed = withDocker(new GradingProperties.Docker("unix:///var/run/docker.sock", "", "",
+				"65534:65534", Duration.ofMinutes(5), true, DataSize.ofMegabytes(64), true, false));
+
+		HostConfig hostConfig = hostConfigFor(relaxed);
+
+		assertThat(hostConfig.getSecurityOpts()).isNullOrEmpty();
+	}
+
+	@Test
+	@DisplayName("keeps every capability when the deployment turns the capability drop off")
+	void honoursTheCapabilityDropSwitch() {
+		GradingProperties relaxed = withDocker(new GradingProperties.Docker("unix:///var/run/docker.sock", "", "",
+				"65534:65534", Duration.ofMinutes(5), true, DataSize.ofMegabytes(64), false, true));
+
+		HostConfig hostConfig = hostConfigFor(relaxed);
+
+		assertThat(hostConfig.getCapDrop()).isNullOrEmpty();
+	}
+
+	private GradingProperties withDocker(GradingProperties.Docker docker) {
+		return new GradingProperties("docker", "/data/grading", 2, Duration.ofSeconds(120), DataSize.ofMegabytes(512),
+				1.0, 256, false, DataSize.ofMegabytes(1), Duration.ofSeconds(20), false, docker,
+				new GradingProperties.Queue(Duration.ofSeconds(2), Duration.ofMinutes(15), 3, Duration.ofSeconds(30), 3,
+						500, 1000, Duration.ofSeconds(30)));
+	}
+
+	private HostConfig hostConfigFor(GradingProperties properties) {
+		DockerGradingRunner runner = new DockerGradingRunner(this.dockerClient, properties, this.clock,
+				new StorageProperties("/data/git/repositories", "/data/templates", "/data/tests", "/data/artifacts",
+						"/data/tmp"));
+		runner.createContainerCmd(this.request);
+
+		ArgumentCaptor<HostConfig> captor = ArgumentCaptor.forClass(HostConfig.class);
+		verify(this.cmd).withHostConfig(captor.capture());
+		return captor.getValue();
 	}
 
 }
