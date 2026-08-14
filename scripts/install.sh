@@ -45,6 +45,10 @@ if [[ ! -f .env ]]; then
 else
   printf '    Keeping the .env you already have.\n'
 fi
+# .env holds the database and directory passwords, and both `cp` and an editor
+# create it readable by every account on the host. Narrowed whether this run wrote
+# it or an earlier one did, because the earlier one left it at 0644 too.
+chmod 600 .env
 
 # Values that describe this machine or this checkout, not a preference. Each one is
 # wrong as a shipped default, so the installer settles it and says what it chose.

@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Security
 
+- Create `.env` readable only by its owner. It holds the database and directory
+  passwords, and both `cp` and an editor leave it readable by every account on the host.
 - Score a submission only against the tests its hidden manifest declares. The sandbox
   runs the reporter and the submission in one container, so both write to the same
   standard output, and every line matching TAP's status syntax was recorded as a test
@@ -80,6 +82,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Restore can verify the backup it is given. `scripts/backup.sh` recorded each checksum
+  against the path it was told to write to, so a backup taken to the default `./backups`
+  listed `./backups/gitgrader-.../postgresql.dump`, and the restore - which verifies from
+  inside the backup directory - looked for that path beneath it and found nothing. Every
+  such restore failed its own checksum check before touching anything.
+- Backup and restore act on the volumes the application actually uses. Both derived the
+  Compose project name from the checkout directory, but `compose.yaml` pins it and `-p`
+  and `COMPOSE_PROJECT_NAME` override it. A checkout named anything else addressed
+  volumes that did not exist, which Docker answers by creating them empty: backup wrote
+  well-formed archives of nothing, and the loss surfaced only at restore. The name now
+  comes from Compose, a missing volume fails the backup, and restore stops the
+  application before emptying the volumes mounted into it.
 - A shutdown during grading no longer consumes one of a submission's attempts.
   Three restarts while a run was in flight used to exhaust `max-attempts` and
   permanently mark the submission `INFRASTRUCTURE_ERROR`. An expired lease still

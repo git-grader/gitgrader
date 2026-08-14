@@ -51,23 +51,17 @@ destroys the current database and volume contents.
 1. Verify the backup checksums and unpack the separately archived configuration
    and runtime definitions. Review `.env`; use restored secrets only in a
    protected environment.
-2. Stop the application but leave or start the database service:
-
-   ```sh
-   docker compose stop app
-   docker compose up -d database
-   ```
-
-3. Restore the application data. The script checks `SHA256SUMS`, empties and
-   extracts the five non-database volumes, recreates the PostgreSQL database,
-   then executes `pg_restore --clean --if-exists`:
+2. Restore the application data. The script stops the application, starts the
+   database, checks `SHA256SUMS`, empties and extracts the five non-database
+   volumes, recreates the PostgreSQL database, then executes
+   `pg_restore --clean --if-exists`:
 
    ```sh
    POSTGRES_DB=gitgrader POSTGRES_USER=gitgrader \
      scripts/restore.sh ./backups/gitgrader-YYYYMMDDTHHMMSSZ
    ```
 
-4. Start the exact application image version used for the backup, then verify
+3. Start the exact application image version used for the backup, then verify
    health and service reachability:
 
    ```sh
@@ -75,7 +69,7 @@ destroys the current database and volume contents.
    scripts/verify-install.sh
    ```
 
-5. Compare database counts with the source environment, inspect a representative
+4. Compare database counts with the source environment, inspect a representative
    assignment, registered key, repository, template, hidden suite, submission,
    and grading result. Run a non-destructive sample grading only if course
    policy permits it.
