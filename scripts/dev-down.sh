@@ -1,6 +1,10 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# The compose files are named relatively, so this has to run from the repository root
+# the way its counterpart does.
+cd "$(dirname "$0")/.."
+
 usage() {
   cat <<'EOF'
 Usage: scripts/dev-down.sh [docker-compose arguments...]
