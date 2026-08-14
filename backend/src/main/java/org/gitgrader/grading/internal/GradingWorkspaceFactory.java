@@ -18,10 +18,13 @@ package org.gitgrader.grading.internal;
 
 import java.io.IOException;
 import java.io.OutputStream;
+import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
+import java.nio.file.LinkOption;
 import java.nio.file.Path;
 import java.nio.file.attribute.PosixFilePermissions;
-import java.util.Comparator;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.stream.Stream;
 
 import org.eclipse.jgit.errors.MissingObjectException;
@@ -146,18 +149,72 @@ public class GradingWorkspaceFactory {
 
 	/**
 	 * Removes a workspace once the run is finished.
+	 *
+	 * <p>
+	 * The sandbox mounts this directory writable and runs as its own user, so it can
+	 * leave behind a directory this process is not permitted to enter - one {@code mkdir}
+	 * and {@code chmod 000} is enough. A single walk over the tree gives up at the first
+	 * such directory <em>before</em> deleting anything, so what leaked was not the
+	 * offending directory but the whole workspace, including the full copy of the
+	 * student's repository, on every run of that submission.
+	 *
+	 * <p>
+	 * Deleting depth-first and carrying on past a subtree that cannot be read bounds that
+	 * to the directory actually responsible. Symbolic links are removed rather than
+	 * followed, so a link the sandbox pointed outside the workspace deletes the link and
+	 * nothing else.
 	 * @param workspace the directory to remove
 	 */
 	public void discard(Path workspace) {
-		try (Stream<Path> paths = Files.walk(workspace)) {
-			for (Path path : paths.sorted(Comparator.reverseOrder()).toList()) {
-				Files.deleteIfExists(path);
+		List<Path> unremovable = new ArrayList<>();
+		deleteTree(workspace, unremovable, true);
+		if (!unremovable.isEmpty()) {
+			// Student content is untrusted, so a leftover is worth a warning, but failing
+			// the run over it would turn a cleanup problem into a bad grade.
+			logger.warn("Could not fully remove grading workspace {}; {} path(s) remain, starting with {}", workspace,
+					unremovable.size(), unremovable.getFirst());
+		}
+	}
+
+	/**
+	 * Deletes one path, and everything below it when it is a real directory.
+	 * @param path the path to remove
+	 * @param unremovable collects whatever could not be removed
+	 * @param mayWiden whether a directory that cannot be listed may be reopened by
+	 * widening its permissions, which succeeds only where this process owns it
+	 */
+	private static void deleteTree(Path path, List<Path> unremovable, boolean mayWiden) {
+		if (Files.isDirectory(path, LinkOption.NOFOLLOW_LINKS)) {
+			try (DirectoryStream<Path> children = Files.newDirectoryStream(path)) {
+				for (Path child : children) {
+					deleteTree(child, unremovable, true);
+				}
+			}
+			catch (IOException ex) {
+				if (mayWiden && widen(path)) {
+					deleteTree(path, unremovable, false);
+				}
+				else {
+					unremovable.add(path);
+				}
+				return;
 			}
 		}
+		try {
+			Files.deleteIfExists(path);
+		}
 		catch (IOException ex) {
-			// Student content is untrusted, so a leftover workspace is worth a warning,
-			// but failing the run over it would turn a cleanup problem into a bad grade.
-			logger.warn("Could not remove grading workspace {}", workspace, ex);
+			unremovable.add(path);
+		}
+	}
+
+	private static boolean widen(Path directory) {
+		try {
+			Files.setPosixFilePermissions(directory, PosixFilePermissions.fromString("rwx------"));
+			return true;
+		}
+		catch (IOException | UnsupportedOperationException ex) {
+			return false;
 		}
 	}
 
