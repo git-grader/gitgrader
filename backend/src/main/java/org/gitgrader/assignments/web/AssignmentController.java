@@ -114,8 +114,7 @@ public class AssignmentController {
 
 	@GetMapping("/{id}/extensions")
 	public List<DeadlineExtensionView> extensions(@PathVariable UUID id) {
-		detail(id);
-		return List.of();
+		return this.catalog.findExtensions(id);
 	}
 
 	@PostMapping("/{id}/extensions")

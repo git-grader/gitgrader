@@ -45,6 +45,13 @@ public interface AssignmentCatalog {
 	List<AssignmentView> findAll();
 
 	/**
+	 * Lists every extension granted on an assignment, newest first.
+	 * @param assignmentId assignment identifier
+	 * @return granted extensions, revoked ones included and marked as such
+	 */
+	List<DeadlineExtensionView> findExtensions(UUID assignmentId);
+
+	/**
 	 * Returns the student's live extended deadline or the assignment deadline.
 	 * @param assignmentId assignment identifier
 	 * @param studentId student identifier

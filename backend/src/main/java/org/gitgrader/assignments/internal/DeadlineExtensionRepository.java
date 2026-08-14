@@ -16,6 +16,7 @@
 
 package org.gitgrader.assignments.internal;
 
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -24,6 +25,13 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 /** Persists deadline extensions including revoked history. */
 interface DeadlineExtensionRepository extends JpaRepository<DeadlineExtension, UUID> {
+
+	/**
+	 * Lists every extension ever granted on an assignment, newest first.
+	 * @param assignmentId assignment identifier
+	 * @return granted extensions, revoked ones included
+	 */
+	List<DeadlineExtension> findByAssignmentIdOrderByGrantedAtDesc(UUID assignmentId);
 
 	/**
 	 * Finds the sole live extension for a student and assignment.

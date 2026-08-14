@@ -78,6 +78,16 @@ public class DefaultAssignmentService implements AssignmentCatalog, AssignmentAd
 
 	@Override
 	@Transactional(readOnly = true)
+	public List<DeadlineExtensionView> findExtensions(UUID assignmentId) {
+		requireAssignment(assignmentId);
+		return this.extensions.findByAssignmentIdOrderByGrantedAtDesc(assignmentId)
+			.stream()
+			.map(DeadlineExtension::toView)
+			.toList();
+	}
+
+	@Override
+	@Transactional(readOnly = true)
 	public Instant effectiveDueAt(UUID assignmentId, UUID studentId) {
 		Assignment assignment = requireAssignment(assignmentId);
 		return this.extensions.findByAssignmentIdAndStudentIdAndRevokedAtIsNull(assignmentId, studentId)
