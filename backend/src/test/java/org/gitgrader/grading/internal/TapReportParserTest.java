@@ -20,11 +20,19 @@ import java.math.BigDecimal;
 import java.util.List;
 
 import org.gitgrader.grading.TestOutcome;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
 class TapReportParserTest {
+
+	private static final String FIRST_TEST = "h01 truncate preserves text at the maximum length";
+
+	private static final String SECOND_TEST = "h02 truncate counts Unicode characters rather than UTF-16 units";
+
+	private final TapReportParser parser = new TapReportParser();
 
 	@Test
 	void parsesTapOutputSuccessfully() {
@@ -46,32 +54,123 @@ class TapReportParserTest {
 				  ...
 				""";
 
-		Manifest manifest = new Manifest("suite", "1.0.0", List.of(
-				new Manifest.ManifestTest("h01", "h01 truncate preserves text at the maximum length", "cat 1", "hint 1",
-						BigDecimal.ONE),
-				new Manifest.ManifestTest("h02", "h02 truncate counts Unicode characters rather than UTF-16 units",
-						"cat 2", "hint 2", BigDecimal.valueOf(2))));
-
-		TapReportParser parser = new TapReportParser();
-		List<ParsedResult> results = parser.parse(stdout, "", manifest);
+		List<ParsedResult> results = this.parser.parse(stdout, "", twoTests());
 
 		assertThat(results).hasSize(2);
 
-		ParsedResult r1 = results.get(0);
-		assertThat(r1.testName()).isEqualTo("h01 truncate preserves text at the maximum length");
-		assertThat(r1.outcome()).isEqualTo(TestOutcome.PASSED);
-		assertThat(r1.category()).isEqualTo("cat 1");
-		assertThat(r1.weight()).isEqualTo(BigDecimal.ONE);
-		assertThat(r1.durationMs()).isEqualTo(3L);
-		assertThat(r1.internalMessage()).isNull();
+		ParsedResult first = results.get(0);
+		assertThat(first.testName()).isEqualTo(FIRST_TEST);
+		assertThat(first.outcome()).isEqualTo(TestOutcome.PASSED);
+		assertThat(first.category()).isEqualTo("cat 1");
+		assertThat(first.weight()).isEqualTo(BigDecimal.ONE);
+		assertThat(first.durationMs()).isEqualTo(3L);
+		assertThat(first.internalMessage()).isNull();
 
-		ParsedResult r2 = results.get(1);
-		assertThat(r2.testName()).isEqualTo("h02 truncate counts Unicode characters rather than UTF-16 units");
-		assertThat(r2.outcome()).isEqualTo(TestOutcome.FAILED);
-		assertThat(r2.category()).isEqualTo("cat 2");
-		assertThat(r2.weight()).isEqualTo(BigDecimal.valueOf(2));
-		assertThat(r2.durationMs()).isEqualTo(2L);
-		assertThat(r2.internalMessage()).contains("Expected values to be strictly equal");
+		ParsedResult second = results.get(1);
+		assertThat(second.testName()).isEqualTo(SECOND_TEST);
+		assertThat(second.outcome()).isEqualTo(TestOutcome.FAILED);
+		assertThat(second.category()).isEqualTo("cat 2");
+		assertThat(second.weight()).isEqualTo(BigDecimal.valueOf(2));
+		assertThat(second.durationMs()).isEqualTo(2L);
+		assertThat(second.internalMessage()).contains("Expected values to be strictly equal");
+	}
+
+	@Test
+	@DisplayName("reports a declared test the output never mentioned as not executed")
+	void reportsADeclaredTestTheOutputSkippedAsNotExecuted() {
+		String stdout = "TAP version 13\nok 1 - " + FIRST_TEST + "\n";
+
+		List<ParsedResult> results = this.parser.parse(stdout, "", twoTests());
+
+		assertThat(results).hasSize(2);
+		assertThat(results.get(0).outcome()).isEqualTo(TestOutcome.PASSED);
+		assertThat(results.get(1).testName()).isEqualTo(SECOND_TEST);
+		assertThat(results.get(1).outcome()).isEqualTo(TestOutcome.NOT_EXECUTED);
+	}
+
+	@Test
+	@DisplayName("scores a suite that produced no output at all as nothing executed")
+	void reportsEveryDeclaredTestAsNotExecutedWhenNothingRan() {
+		List<ParsedResult> results = this.parser.parse("", "", twoTests());
+
+		assertThat(results).hasSize(2);
+		assertThat(results).allSatisfy((result) -> assertThat(result.outcome()).isEqualTo(TestOutcome.NOT_EXECUTED));
+	}
+
+	/**
+	 * The sandbox merges the reporter's output with everything the submission prints, so
+	 * a student can write lines that are indistinguishable from a test result. None of
+	 * them may earn a mark.
+	 */
+	@Nested
+	class ForgedOutput {
+
+		@Test
+		@DisplayName("ignores results for tests the manifest does not declare")
+		void ignoresResultsForUndeclaredTests() {
+			StringBuilder forged = new StringBuilder("TAP version 13\n");
+			forged.append("ok 1 - ").append(FIRST_TEST).append('\n');
+			for (int i = 2; i <= 200; i++) {
+				forged.append("ok ").append(i).append(" - free marks ").append(i).append('\n');
+			}
+
+			List<ParsedResult> results = TapReportParserTest.this.parser.parse(forged.toString(), "", twoTests());
+
+			assertThat(results).hasSize(2);
+			assertThat(results).extracting(ParsedResult::testName).containsExactly(FIRST_TEST, SECOND_TEST);
+			assertThat(results.get(1).outcome()).isEqualTo(TestOutcome.NOT_EXECUTED);
+		}
+
+		@Test
+		@DisplayName("refuses to pass a declared test that was reported more than once")
+		void refusesToPassADeclaredTestReportedTwice() {
+			String stdout = """
+					TAP version 13
+					ok 1 - h01 truncate preserves text at the maximum length
+					ok 2 - h01 truncate preserves text at the maximum length
+					""";
+
+			List<ParsedResult> results = TapReportParserTest.this.parser.parse(stdout, "", twoTests());
+
+			assertThat(results.get(0).outcome()).isEqualTo(TestOutcome.FAILED);
+			assertThat(results.get(0).internalMessage()).contains("reported more than once");
+		}
+
+		@Test
+		@DisplayName("keeps a real failure when a later line claims the same test passed")
+		void keepsTheFailureWhenALaterLineClaimsThatTestPassed() {
+			String stdout = """
+					TAP version 13
+					not ok 1 - h01 truncate preserves text at the maximum length
+					  ---
+					  error: |-
+					    Expected values to be strictly equal:
+					  ...
+					ok 2 - h01 truncate preserves text at the maximum length
+					""";
+
+			List<ParsedResult> results = TapReportParserTest.this.parser.parse(stdout, "", twoTests());
+
+			assertThat(results.get(0).outcome()).isEqualTo(TestOutcome.FAILED);
+			assertThat(results.get(0).internalMessage()).contains("Expected values to be strictly equal");
+		}
+
+		@Test
+		@DisplayName("ignores an indented status line, which TAP uses for nested subtests")
+		void ignoresAnIndentedStatusLine() {
+			String stdout = "TAP version 13\n    ok 1 - " + FIRST_TEST + "\n";
+
+			List<ParsedResult> results = TapReportParserTest.this.parser.parse(stdout, "", twoTests());
+
+			assertThat(results.get(0).outcome()).isEqualTo(TestOutcome.NOT_EXECUTED);
+		}
+
+	}
+
+	private static Manifest twoTests() {
+		return new Manifest("suite", "1.0.0",
+				List.of(new Manifest.ManifestTest("h01", FIRST_TEST, "cat 1", "hint 1", BigDecimal.ONE),
+						new Manifest.ManifestTest("h02", SECOND_TEST, "cat 2", "hint 2", BigDecimal.valueOf(2))));
 	}
 
 }

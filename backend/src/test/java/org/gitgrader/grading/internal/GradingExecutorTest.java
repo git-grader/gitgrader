@@ -17,6 +17,8 @@
 package org.gitgrader.grading.internal;
 
 import java.math.BigDecimal;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Clock;
 import java.time.Duration;
@@ -39,6 +41,7 @@ import org.gitgrader.submissions.SubmissionView;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 import org.springframework.util.unit.DataSize;
 
@@ -62,6 +65,14 @@ class GradingExecutorTest {
 
 	private static final Path WORKSPACE = Path.of("/data/tmp/gitgrader-run-1");
 
+	private static final String ONE_TEST_MANIFEST = """
+			{"suiteKey":"suite-a","version":"1.0.0",
+			 "tests":[{"id":"h01","name":"first","category":"cat","hint":"hint","weight":1}]}
+			""";
+
+	@TempDir
+	private Path hiddenTests;
+
 	private GradingRunner runner;
 
 	private GradingWorkspaceFactory workspaces;
@@ -74,6 +85,7 @@ class GradingExecutorTest {
 
 	@BeforeEach
 	void setUp() throws Exception {
+		writeManifest(ONE_TEST_MANIFEST);
 		this.runner = mock(GradingRunner.class);
 		this.workspaces = mock(GradingWorkspaceFactory.class);
 		this.reportParser = mock(ReportParser.class);
@@ -144,6 +156,34 @@ class GradingExecutorTest {
 		verify(this.workspaces, never()).discard(any());
 	}
 
+	@Test
+	@DisplayName("refuses to grade a suite whose manifest is missing, rather than scoring unverifiable output")
+	void refusesToGradeWhenTheManifestIsMissing() throws Exception {
+		Files.delete(this.hiddenTests.resolve("manifest.json"));
+		when(this.runner.execute(any()))
+			.thenReturn(new GradingResult(0, "1..1\nok 1 - first\n", "", 10, false, false, null));
+
+		assertThatExceptionOfType(IllegalStateException.class).isThrownBy(() -> this.executor.execute(this.run))
+			.withMessageContaining("manifest.json");
+
+		verify(this.workspaces).discard(WORKSPACE);
+	}
+
+	@Test
+	@DisplayName("refuses to grade a manifest that declares no tests")
+	void refusesToGradeWhenTheManifestDeclaresNoTests() throws Exception {
+		writeManifest("{\"suiteKey\":\"suite-a\",\"version\":\"1.0.0\",\"tests\":[]}");
+		when(this.runner.execute(any()))
+			.thenReturn(new GradingResult(0, "1..1\nok 1 - first\n", "", 10, false, false, null));
+
+		assertThatExceptionOfType(IllegalStateException.class).isThrownBy(() -> this.executor.execute(this.run))
+			.withMessageContaining("declares no tests");
+	}
+
+	private void writeManifest(String json) throws Exception {
+		Files.writeString(this.hiddenTests.resolve("manifest.json"), json, StandardCharsets.UTF_8);
+	}
+
 	private GradingExecutor executorRetainingWorkspaces() {
 		GradingPlanResolver plans = mock(GradingPlanResolver.class);
 		when(plans.resolve(any())).thenReturn(plan());
@@ -158,7 +198,7 @@ class GradingExecutorTest {
 				Clock.fixed(Instant.parse("2026-04-01T10:00:00Z"), ZoneOffset.UTC));
 	}
 
-	private static GradingPlan plan() {
+	private GradingPlan plan() {
 		UUID assignmentId = UUID.randomUUID();
 		SubmissionView submission = new SubmissionView(UUID.randomUUID(), UUID.randomUUID(),
 				"course-a/assignment-01/12345", UUID.randomUUID(), UUID.randomUUID(), assignmentId, "a".repeat(40),
@@ -171,8 +211,7 @@ class GradingExecutorTest {
 		RuntimeView runtime = new RuntimeView(UUID.randomUUID(), "node-24", "Node.js 24",
 				"registry.example.org/runtime-node", "24.13.0", "sha256:" + "a".repeat(64), "npm ci", "npm test",
 				ReportFormat.TAP, true, Instant.parse("2026-01-01T00:00:00Z"), Instant.parse("2026-01-01T00:00:00Z"));
-		return new GradingPlan(submission, "course-a/assignment-01/12345", assignment, runtime,
-				Path.of("/data/tests/suite-a/1.0.0"));
+		return new GradingPlan(submission, "course-a/assignment-01/12345", assignment, runtime, this.hiddenTests);
 	}
 
 }

@@ -205,20 +205,42 @@ public class GradingExecutor {
 				run.correlationId(), Map.of("HIDDEN_TESTS", HIDDEN_TESTS_MOUNT));
 	}
 
+	/**
+	 * Reads the operator's declaration of what the hidden suite contains.
+	 *
+	 * <p>
+	 * Required, not optional. The manifest is what tells the parser which of the lines on
+	 * standard output are test results, and the sandbox merges the reporter's output with
+	 * everything the student's own code prints. Without the manifest there is no way to
+	 * tell one from the other, so grading without it would score a submission on output
+	 * that submission was free to write. Refusing is the same rule the rest of the module
+	 * follows: a run that cannot produce a defensible grade is an infrastructure error,
+	 * never a mark.
+	 * @param hiddenTests the mounted hidden suite directory
+	 * @return the parsed manifest, with at least one declared test
+	 * @throws IllegalStateException when it is missing, unreadable or declares nothing
+	 */
 	private Manifest readManifest(Path hiddenTests) {
 		Path manifest = hiddenTests.resolve("manifest.json");
 		if (!Files.isRegularFile(manifest)) {
-			logger.warn("No manifest.json at {}; hidden tests will be reported without categories", hiddenTests);
-			return new Manifest("unknown", "0", List.of());
+			throw new IllegalStateException("The hidden test suite at " + hiddenTests
+					+ " has no manifest.json. Publish the suite with a manifest declaring every test "
+					+ "it runs; without one a submission's own output cannot be told from the report.");
 		}
+		Manifest parsed;
 		try {
-			return this.objectMapper.readValue(manifest.toFile(), Manifest.class);
+			parsed = this.objectMapper.readValue(manifest.toFile(), Manifest.class);
 		}
 		catch (RuntimeException ex) {
 			// Jackson 3 reports parse problems as unchecked JacksonException, so this
 			// cannot be narrowed to IOException the way the Jackson 2 API allowed.
 			throw new IllegalStateException("Could not read the hidden test manifest", ex);
 		}
+		if (parsed.tests() == null || parsed.tests().isEmpty()) {
+			throw new IllegalStateException("The hidden test manifest at " + manifest
+					+ " declares no tests, so nothing could be scored against it.");
+		}
+		return parsed;
 	}
 
 	private static TestResultRecord toRecord(GradingRun run, ParsedResult parsed, int order) {
