@@ -3,6 +3,7 @@
 
 import { useQuery } from '@tanstack/react-query';
 import { api } from '../api';
+import { QueryErrorNotice } from '../components/QueryErrorNotice';
 import { Box, Typography, CircularProgress } from '@mui/material';
 import { DataGrid } from '@mui/x-data-grid';
 import { StudentStatusChip } from '../components/StudentStatusChip';
@@ -20,7 +21,7 @@ interface StudentRow {
 
 export function StudentsPage() {
   const { paginationModel, setPaginationModel, params } = useServerPagination();
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ['students', params.page, params.size],
     queryFn: () => api.getStudents(params),
     // Keeps the current rows on screen while the next page loads; without it the row
@@ -32,6 +33,7 @@ export function StudentsPage() {
   const isNarrow = useIsNarrow();
 
   if (isLoading) return <Box sx={{ p: 4 }}><CircularProgress /></Box>;
+  if (isError) return <QueryErrorNotice message="The student list could not be loaded." onRetry={() => void refetch()} />;
   if (!data) return null;
 
   const wideColumns: GridColDef[] = [

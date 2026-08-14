@@ -4,6 +4,7 @@
 import { useParams } from 'react-router';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '../api';
+import { QueryErrorNotice } from '../components/QueryErrorNotice';
 import { Box, Typography, CircularProgress, Button, Paper, Stack } from '@mui/material';
 import { DataGrid } from '@mui/x-data-grid';
 import { useNarrowColumns } from '../components/responsiveColumns';
@@ -12,7 +13,7 @@ import type { GridColDef } from '@mui/x-data-grid';
 export function ReportPage() {
   const { courseId } = useParams<{ courseId: string }>();
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ['report', courseId],
     queryFn: () => api.getCourseReport(courseId || '')
   });
@@ -24,6 +25,7 @@ export function ReportPage() {
   );
 
   if (isLoading) return <Box sx={{ p: 4 }}><CircularProgress /></Box>;
+  if (isError) return <QueryErrorNotice message="The course report could not be loaded." onRetry={() => void refetch()} />;
   if (!data) return null;
 
   const totalStudents = data.students.length;

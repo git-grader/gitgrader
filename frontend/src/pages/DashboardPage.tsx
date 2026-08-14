@@ -3,15 +3,17 @@
 
 import { useQuery } from '@tanstack/react-query';
 import { api } from '../api';
+import { QueryErrorNotice } from '../components/QueryErrorNotice';
 import { Box, Typography, Grid, Paper, CircularProgress } from '@mui/material';
 
 export function DashboardPage() {
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ['dashboard'],
     queryFn: api.getDashboard
   });
 
   if (isLoading) return <Box sx={{ p: 4 }}><CircularProgress /></Box>;
+  if (isError) return <QueryErrorNotice message="The dashboard could not be loaded." onRetry={() => void refetch()} />;
   if (!data) return null;
 
   return (
