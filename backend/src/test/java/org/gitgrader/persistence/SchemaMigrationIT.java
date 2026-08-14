@@ -16,12 +16,16 @@
 
 package org.gitgrader.persistence;
 
+import java.io.IOException;
 import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Comparator;
 import java.util.List;
+import java.util.Objects;
 import java.util.UUID;
 
 import javax.sql.DataSource;
@@ -36,6 +40,8 @@ import org.testcontainers.postgresql.PostgreSQLContainer;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.core.io.Resource;
+import org.springframework.core.io.support.PathMatchingResourcePatternResolver;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
@@ -84,11 +90,27 @@ class SchemaMigrationIT {
 
 	@Test
 	@DisplayName("applies every migration and records them in flyway_schema_history")
-	void appliesAllMigrations() throws SQLException {
+	void appliesAllMigrations() throws SQLException, IOException {
 		List<String> applied = queryColumn(
 				"SELECT version FROM flyway_schema_history WHERE success = true ORDER BY installed_rank");
 
-		assertThat(applied).contains("1", "2");
+		// Compared against the migrations actually on the classpath, not a list written
+		// out here. A hardcoded list stops being a check the moment someone adds a
+		// migration without remembering to extend it, which is exactly what happened:
+		// this asserted "1" and "2" while V3 to V5 had been shipped and would have
+		// passed had all three gone missing.
+		assertThat(applied).containsExactlyElementsOf(migrationVersionsOnClasspath());
+	}
+
+	private static List<String> migrationVersionsOnClasspath() throws IOException {
+		Resource[] migrations = new PathMatchingResourcePatternResolver()
+			.getResources("classpath:db/migration/V*__*.sql");
+		return Arrays.stream(migrations)
+			.map(Resource::getFilename)
+			.filter(Objects::nonNull)
+			.map((name) -> name.substring(1, name.indexOf("__")))
+			.sorted(Comparator.comparingInt(Integer::parseInt))
+			.toList();
 	}
 
 	@Test

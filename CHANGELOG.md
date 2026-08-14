@@ -82,6 +82,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- A push is graded once. Spring Modulith replays an event publication it never saw
+  marked complete, which is what a process dying between the listener's commit and that
+  mark produces. The replay ran the whole queueing path again, so one push superseded the
+  job its own first delivery had queued, took a second sandbox, and replaced the result
+  the student had already been shown. A regrade is still a deliberate second attempt.
+- A commit is recorded against a repository once, enforced by the schema and not only by
+  the admission check. `submissions_unique_commit` included `received_at`, so the same
+  commit pushed twice a second apart produced two distinct keys and the constraint
+  accepted precisely the duplicate it is named for.
 - Restore can verify the backup it is given. `scripts/backup.sh` recorded each checksum
   against the path it was told to write to, so a backup taken to the default `./backups`
   listed `./backups/gitgrader-.../postgresql.dump`, and the restore - which verifies from
