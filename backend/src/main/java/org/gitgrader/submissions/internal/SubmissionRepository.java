@@ -26,13 +26,14 @@ import org.gitgrader.submissions.domain.Submission;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 /**
  * Persistence access for submissions.
  */
-public interface SubmissionRepository extends JpaRepository<Submission, UUID> {
+public interface SubmissionRepository extends JpaRepository<Submission, UUID>, JpaSpecificationExecutor<Submission> {
 
 	/**
 	 * Lists a student's submissions for one assignment, newest first.

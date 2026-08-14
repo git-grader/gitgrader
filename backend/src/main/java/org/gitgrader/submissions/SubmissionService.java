@@ -105,6 +105,18 @@ public interface SubmissionService {
 	Page<SubmissionView> findAll(Pageable pageable);
 
 	/**
+	 * Lists submissions matching every supplied filter, newest first.
+	 *
+	 * <p>
+	 * The filters reach the database, so the returned page and its total describe the
+	 * filtered set rather than a filtered slice of an unfiltered page.
+	 * @param search the filters to apply
+	 * @param pageable the requested page
+	 * @return the matching page
+	 */
+	Page<SubmissionView> search(SubmissionSearch search, Pageable pageable);
+
+	/**
 	 * Counts submissions in one lifecycle state.
 	 * @param status lifecycle state
 	 * @return number of matching submissions
