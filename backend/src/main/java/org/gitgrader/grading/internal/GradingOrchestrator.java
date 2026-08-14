@@ -66,6 +66,9 @@ public class GradingOrchestrator {
 	/** Rotation applied to one half of the lock key so the two ids do not cancel out. */
 	private static final int KEY_HALF_BITS = 32;
 
+	/** The trigger recorded for the run a push itself queues. */
+	private static final String PUSH_TRIGGER = "PUSH";
+
 	/**
 	 * Counter for every decision that withheld grading.
 	 *
@@ -118,7 +121,7 @@ public class GradingOrchestrator {
 			logger.debug("Submission {} is not gradable; no grading run queued", event.submissionId());
 			return;
 		}
-		enqueue(event.submissionId(), event.studentId(), event.courseId(), event.assignmentId(), "PUSH");
+		enqueue(event.submissionId(), event.studentId(), event.courseId(), event.assignmentId(), PUSH_TRIGGER);
 	}
 
 	/**
@@ -146,6 +149,22 @@ public class GradingOrchestrator {
 	public Optional<GradingRun> enqueue(UUID submissionId, UUID studentId, UUID courseId, UUID assignmentId,
 			String trigger) {
 		this.jobs.lockForEnqueue(lockKey(studentId, assignmentId));
+
+		if (PUSH_TRIGGER.equals(trigger)) {
+			// Spring Modulith replays a publication it never saw marked complete, which
+			// is what happens when the process dies between the listener committing and
+			// that mark being written. Without this the replay ran the whole path again:
+			// the push it had already graded superseded its own queued job, took a second
+			// sandbox, and replaced the result the student had been shown. The partial
+			// unique index behind this lookup is the guarantee; the lock above is what
+			// makes checking before inserting safe.
+			Optional<GradingRun> alreadyQueued = this.runs.findBySubmissionIdAndTrigger(submissionId, PUSH_TRIGGER);
+			if (alreadyQueued.isPresent()) {
+				logger.debug("Submission {} already has a run for its push; not queueing another", submissionId);
+				return alreadyQueued;
+			}
+		}
+
 		supersedePending(studentId, assignmentId, submissionId);
 
 		String exceeded = firstExceededCeiling(studentId, courseId);

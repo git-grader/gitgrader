@@ -59,4 +59,17 @@ public interface GradingRunRepository extends JpaRepository<GradingRun, UUID> {
 	@Query("SELECT coalesce(max(r.attempt), 0) + 1 FROM GradingRun r WHERE r.submissionId = :submissionId")
 	int nextAttempt(@Param("submissionId") UUID submissionId);
 
+	/**
+	 * Finds the run a given trigger already produced for a submission.
+	 *
+	 * <p>
+	 * Asked before queueing a push, because Spring Modulith replays a publication that
+	 * was never marked complete and the replay would otherwise queue the same push twice.
+	 * Backed by {@code grading_runs_one_push_per_submission_idx}.
+	 * @param submissionId the submission
+	 * @param trigger what caused the run
+	 * @return the existing run, if there is one
+	 */
+	Optional<GradingRun> findBySubmissionIdAndTrigger(UUID submissionId, String trigger);
+
 }
