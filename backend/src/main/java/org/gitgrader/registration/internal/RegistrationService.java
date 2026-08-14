@@ -20,7 +20,6 @@ import java.time.Clock;
 import java.time.Instant;
 import java.util.Collections;
 import java.util.List;
-import java.util.UUID;
 
 import org.gitgrader.audit.AuditEventType;
 import org.gitgrader.audit.AuditRecord;
@@ -34,7 +33,6 @@ import org.gitgrader.identity.StudentDirectory;
 import org.gitgrader.identity.StudentRegistration;
 import org.gitgrader.identity.StudentRegistry;
 import org.gitgrader.identity.StudentView;
-import org.gitgrader.registration.domain.RegistrationAttempt;
 import org.gitgrader.registration.web.AvailabilityResponse;
 import org.gitgrader.registration.StudentRegistered;
 import org.gitgrader.registration.web.RegistrationRequest;
@@ -71,7 +69,7 @@ public class RegistrationService {
 
 	private final SshKeyRegistry sshKeyRegistry;
 
-	private final RegistrationAttemptRepository attemptRepository;
+	private final RegistrationAttemptLog attemptLog;
 
 	private final ClientAddressHasher hasher;
 
@@ -83,15 +81,15 @@ public class RegistrationService {
 
 	public RegistrationService(AppProperties appProperties, RateLimiter rateLimiter, CourseCatalog courseCatalog,
 			StudentDirectory studentDirectory, StudentRegistry studentRegistry, SshKeyRegistry sshKeyRegistry,
-			RegistrationAttemptRepository attemptRepository, ClientAddressHasher hasher, AuditService auditService,
-			Clock clock, ApplicationEventPublisher events) {
+			RegistrationAttemptLog attemptLog, ClientAddressHasher hasher, AuditService auditService, Clock clock,
+			ApplicationEventPublisher events) {
 		this.appProperties = appProperties;
 		this.rateLimiter = rateLimiter;
 		this.courseCatalog = courseCatalog;
 		this.studentDirectory = studentDirectory;
 		this.studentRegistry = studentRegistry;
 		this.sshKeyRegistry = sshKeyRegistry;
-		this.attemptRepository = attemptRepository;
+		this.attemptLog = attemptLog;
 		this.hasher = hasher;
 		this.auditService = auditService;
 		this.clock = clock;
@@ -234,8 +232,7 @@ public class RegistrationService {
 
 	private void recordAttempt(Instant now, String ipHash, String outcome, String reason, String studentNumberHash,
 			String emailHash) {
-		this.attemptRepository.save(
-				new RegistrationAttempt(UUID.randomUUID(), now, ipHash, outcome, reason, studentNumberHash, emailHash));
+		this.attemptLog.record(now, ipHash, outcome, reason, studentNumberHash, emailHash);
 	}
 
 }
