@@ -8,9 +8,16 @@ on:
 permissions:
   contents: read
 
+# Runs on release tags, so it is never cancelled for the same reason the image build is
+# not: the SBOM is part of what the release publishes.
+concurrency:
+  group: sbom-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
   cyclonedx:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-java@v5

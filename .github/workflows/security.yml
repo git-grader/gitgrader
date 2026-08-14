@@ -14,6 +14,10 @@ permissions:
   # "Resource not accessible by integration" before any result is reported.
   actions: read
 
+concurrency:
+  group: security-${{ github.ref }}
+  cancel-in-progress: ${{ !startsWith(github.ref, 'refs/tags/') }}
+
 jobs:
   codeql:
     strategy:
@@ -22,6 +26,7 @@ jobs:
       matrix:
         language: [java-kotlin, javascript-typescript]
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v7
       - uses: github/codeql-action/init@v3
@@ -38,6 +43,7 @@ jobs:
       - uses: github/codeql-action/analyze@v3
   trivy-filesystem:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v7
       - uses: aquasecurity/trivy-action@v0.36.0
@@ -50,3 +56,16 @@ jobs:
         if: always()
         with:
           sarif_file: trivy-fs.sarif
+      # The SARIF run above cannot fail the job: the action writes its report and exits 0,
+      # so a high or critical finding only ever appeared as a code-scanning alert while the
+      # workflow stayed green. This second pass re-reads the cached results and is what
+      # actually gates the build. It runs after the upload so the alert is recorded either
+      # way, and the findings are printed here so the failure is readable in the log.
+      - name: Fail on high or critical findings
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          scan-type: fs
+          format: table
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          exit-code: '1'
