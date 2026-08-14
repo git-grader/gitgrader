@@ -24,6 +24,7 @@ import java.time.Instant;
 import java.time.ZoneOffset;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.regex.Pattern;
 import java.util.stream.Stream;
 
 import org.eclipse.jgit.dircache.DirCache;
@@ -57,8 +58,13 @@ import org.springframework.transaction.annotation.Transactional;
  * the configured repository root through {@link StorageProperties#resolveInside}. The
  * path an SSH client asks for is never turned into a filesystem path directly: it is
  * looked up in the {@code repositories} table first, and only the stored value is
- * resolved. That ordering is what makes a crafted request unable to escape the root or
- * reach another student's work.
+ * resolved. That ordering is what makes a crafted request unable to escape the root.
+ *
+ * <p>
+ * Staying inside the root is not on its own enough to keep students apart, because two
+ * different stored values can denote one directory. {@link #repositoryPathFor} is
+ * therefore the second half of the guarantee: it admits only segments that survive
+ * normalisation unchanged, so one stored path means one repository and one student.
  */
 @Service
 @Transactional
@@ -74,6 +80,9 @@ public class GitRepositoryService {
 
 	/** Address recorded on the generated initial commit; never used for mail. */
 	private static final String TEMPLATE_AUTHOR_EMAIL = "noreply@localhost";
+
+	/** One path segment that normalisation cannot turn into a different directory. */
+	private static final Pattern SAFE_PATH_SEGMENT = Pattern.compile("[A-Za-z0-9._-]+");
 
 	private final RepositoryRecordRepository repositories;
 
@@ -99,7 +108,38 @@ public class GitRepositoryService {
 	 * @return path relative to the repository root, without a {@code .git} suffix
 	 */
 	public static String repositoryPathFor(String courseKey, String assignmentKey, String studentNumber) {
+		requireSafeSegment(courseKey, "course key");
+		requireSafeSegment(assignmentKey, "assignment key");
+		requireSafeSegment(studentNumber, "student number");
 		return courseKey + "/" + assignmentKey + "/" + studentNumber;
+	}
+
+	/**
+	 * Rejects a value that would denote anything other than one directory of its own.
+	 *
+	 * <p>
+	 * The student number arrives from the public registration form, which constrains only
+	 * its length, and is concatenated into a path that is normalised later, when it is
+	 * resolved on disk. A number carrying a separator therefore used to be able to name
+	 * another student's repository: under assignment {@code a1}, the number
+	 * {@code ../a1/victim} normalises to the same directory as the plain number
+	 * {@code victim}, while the two stored strings differ and so both satisfy the unique
+	 * index. Each student then authenticated with their own key against their own row and
+	 * arrived at one shared bare repository.
+	 *
+	 * <p>
+	 * Containment alone cannot catch that, because such a path never leaves the
+	 * repository root. Excluding the separators is what makes a segment unable to denote
+	 * anything but itself, and {@code .} and {@code ..} are excluded outright because
+	 * they denote a directory that already exists.
+	 * @param value the segment to check
+	 * @param description what the segment is, for the rejection message
+	 */
+	private static void requireSafeSegment(String value, String description) {
+		if (!SAFE_PATH_SEGMENT.matcher(value).matches() || ".".equals(value) || "..".equals(value)) {
+			throw new IllegalArgumentException(
+					"Unusable " + description + ": only letters, digits, '.', '_' and '-' are allowed");
+		}
 	}
 
 	/**
