@@ -186,10 +186,18 @@ class DockerGradingRunner implements GradingRunner {
 			.withReadonlyRootfs(this.properties.docker().readOnlyRootFilesystem())
 			.withTmpFs(Map.of("/tmp", "size=" + this.properties.docker().tmpfsSize().toBytes()))
 			.withMemory(request.memoryLimitBytes())
+			// Docker reads an unset swap limit as twice the memory limit, so a memory
+			// ceiling on its own is not one: a submission that allocates past it is
+			// swapped rather than killed, and gets double what the assignment allowed at
+			// the cost of the host's disk. Equal values leave the container no swap.
+			.withMemorySwap(request.memoryLimitBytes())
 			.withCpuQuota(Math.max(MINIMUM_CPU_QUOTA_MICROS, (long) (request.cpuLimit() * CPU_PERIOD_MICROS)))
 			.withCpuPeriod(CPU_PERIOD_MICROS)
-			.withPidsLimit((long) request.pidLimit())
-			.withSecurityOpts(List.of("no-new-privileges=true"));
+			.withPidsLimit((long) request.pidLimit());
+
+		if (this.properties.docker().noNewPrivileges()) {
+			hostConfig.withSecurityOpts(List.of("no-new-privileges=true"));
+		}
 
 		if (this.properties.docker().dropAllCapabilities()) {
 			hostConfig.withCapDrop(Capability.ALL);
