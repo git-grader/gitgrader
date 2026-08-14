@@ -29,6 +29,7 @@ import java.util.stream.Stream;
 
 import org.eclipse.jgit.errors.MissingObjectException;
 import org.eclipse.jgit.lib.Constants;
+import org.eclipse.jgit.lib.FileMode;
 import org.eclipse.jgit.lib.ObjectId;
 import org.eclipse.jgit.lib.ObjectLoader;
 import org.eclipse.jgit.lib.Repository;
@@ -119,7 +120,7 @@ public class GradingWorkspaceFactory {
 	}
 
 	/**
-	 * Widens the workspace so the grading sandbox can read and write it.
+	 * Widens the workspace directories so the grading sandbox can work inside them.
 	 *
 	 * <p>
 	 * The sandbox deliberately runs as an unprivileged user unrelated to this process,
@@ -130,19 +131,20 @@ public class GradingWorkspaceFactory {
 	 *
 	 * <p>
 	 * The application cannot chown to the sandbox user, having no privilege to give files
-	 * away, so access is granted by mode instead. Read and traverse only: the sandbox has
-	 * to load the submission, not modify it, and the content is the student's own work
-	 * inside a per-run directory on a private volume. A runtime whose install or test
-	 * command needs to write should be given a writable mount of its own rather than
-	 * having this opened up.
+	 * away, so access is granted by mode instead. Directories are opened for writing
+	 * because the workspace is bound read-write and a runtime's install command builds
+	 * inside it - {@code npm ci} writes {@code node_modules} there. The files themselves
+	 * stay read-only to the sandbox, with each keeping the mode its commit recorded, so a
+	 * script the submission committed as executable still is one.
 	 * @param workspace the populated workspace
 	 * @throws IOException if the permissions cannot be applied
 	 */
 	private static void openToTheSandboxUser(Path workspace) throws IOException {
 		try (Stream<Path> paths = Files.walk(workspace)) {
 			for (Path path : paths.toList()) {
-				Files.setPosixFilePermissions(path, Files.isDirectory(path)
-						? PosixFilePermissions.fromString("rwxrwxrwx") : PosixFilePermissions.fromString("rw-r--r--"));
+				if (Files.isDirectory(path, LinkOption.NOFOLLOW_LINKS)) {
+					Files.setPosixFilePermissions(path, PosixFilePermissions.fromString("rwxrwxrwx"));
+				}
 			}
 		}
 	}
@@ -218,7 +220,26 @@ public class GradingWorkspaceFactory {
 		}
 	}
 
+	/**
+	 * Writes one tree entry into the workspace, keeping the mode the commit recorded.
+	 *
+	 * <p>
+	 * A gitlink is skipped rather than exported. It names a commit in another repository,
+	 * and a push carries that pointer without the submodule's objects, so there is
+	 * nothing here to write. Reading it as a blob failed the whole run as an
+	 * infrastructure error, which told a student their submission had broken the grader
+	 * when the rest of it was perfectly gradable.
+	 * @param repository the bare repository being exported
+	 * @param treeWalk positioned on the entry to write
+	 * @param workspace the directory being populated
+	 * @throws IOException if the entry cannot be read or written
+	 */
 	private void writeEntry(Repository repository, TreeWalk treeWalk, Path workspace) throws IOException {
+		FileMode mode = treeWalk.getFileMode(0);
+		if (mode == FileMode.GITLINK) {
+			logger.debug("Skipping submodule {}; its objects are not in this repository", treeWalk.getPathString());
+			return;
+		}
 		Path target = StorageProperties.resolveInside(workspace, treeWalk.getPathString());
 		Path parent = target.getParent();
 		if (parent != null) {
@@ -228,6 +249,11 @@ public class GradingWorkspaceFactory {
 		try (OutputStream out = Files.newOutputStream(target)) {
 			loader.copyTo(out);
 		}
+		// The sandbox runs as another user, so a script committed executable has to stay
+		// executable for it too: a runtime whose test command invokes one otherwise dies
+		// with "permission denied", which is scored as a failed submission.
+		Files.setPosixFilePermissions(target, (mode == FileMode.EXECUTABLE_FILE)
+				? PosixFilePermissions.fromString("rwxr-xr-x") : PosixFilePermissions.fromString("rw-r--r--"));
 	}
 
 }

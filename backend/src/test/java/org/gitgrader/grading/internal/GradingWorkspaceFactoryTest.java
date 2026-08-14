@@ -26,7 +26,17 @@ import java.util.stream.Stream;
 
 import org.eclipse.jgit.api.Git;
 import org.eclipse.jgit.api.errors.GitAPIException;
+import org.eclipse.jgit.lib.CommitBuilder;
+import org.eclipse.jgit.lib.Constants;
+import org.eclipse.jgit.lib.FileMode;
+import org.eclipse.jgit.lib.ObjectId;
+import org.eclipse.jgit.lib.ObjectInserter;
+import org.eclipse.jgit.lib.PersonIdent;
+import org.eclipse.jgit.lib.Repository;
+import org.eclipse.jgit.lib.TreeFormatter;
 import org.eclipse.jgit.revwalk.RevCommit;
+import org.eclipse.jgit.storage.file.FileRepositoryBuilder;
+import org.eclipse.jgit.transport.RefSpec;
 import org.gitgrader.configuration.StorageProperties;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -165,28 +175,86 @@ class GradingWorkspaceFactoryTest {
 		assertThat(nested).doesNotExist();
 	}
 
+	@Test
+	@DisplayName("keeps a committed script executable")
+	void preservesTheExecutableBit() throws Exception {
+		String commit = seedRepository("course/assignment/script", "export const answer = 42;");
+
+		Path workspace = this.factory.materialise("course/assignment/script", commit);
+
+		assertThat(Files.isExecutable(workspace.resolve("build.sh"))).isTrue();
+		assertThat(Files.isExecutable(workspace.resolve("src").resolve("solution.js"))).isFalse();
+	}
+
+	@Test
+	@DisplayName("grades a submission that contains a submodule rather than failing the run")
+	void exportsAroundASubmodule() throws Exception {
+		String commit = seedRepositoryWithSubmodule("course/assignment/submodule");
+
+		Path workspace = this.factory.materialise("course/assignment/submodule", commit);
+
+		// The submodule's own commit was never pushed here, so there is nothing to
+		// export. Grading the rest is right: the alternative told the student their
+		// submission had broken the grader.
+		assertThat(workspace.resolve("src").resolve("solution.js")).hasContent("export const answer = 42;");
+		assertThat(workspace.resolve("vendor")).doesNotExist();
+	}
+
+	private String seedRepositoryWithSubmodule(String repositoryPath) throws Exception {
+		Path bare = this.repositories.resolve(repositoryPath + ".git");
+		Files.createDirectories(bare.getParent());
+		Git.init().setBare(true).setDirectory(bare.toFile()).setInitialBranch("main").call().close();
+		try (Repository repository = FileRepositoryBuilder.create(bare.toFile());
+				ObjectInserter inserter = repository.newObjectInserter()) {
+			ObjectId blob = inserter.insert(Constants.OBJ_BLOB,
+					"export const answer = 42;".getBytes(StandardCharsets.UTF_8));
+			TreeFormatter source = new TreeFormatter();
+			source.append("solution.js", FileMode.REGULAR_FILE, blob);
+			ObjectId sourceTree = inserter.insert(source);
+
+			TreeFormatter root = new TreeFormatter();
+			root.append("src", FileMode.TREE, sourceTree);
+			// A gitlink names a commit in another repository, which this one does not
+			// have and never receives: a push carries the pointer, not the submodule.
+			root.append("vendor", FileMode.GITLINK, ObjectId.fromString("1".repeat(40)));
+			ObjectId rootTree = inserter.insert(root);
+
+			CommitBuilder commit = new CommitBuilder();
+			commit.setTreeId(rootTree);
+			PersonIdent author = new PersonIdent("Student", "student@example.org");
+			commit.setAuthor(author);
+			commit.setCommitter(author);
+			commit.setMessage("with submodule");
+			ObjectId commitId = inserter.insert(commit);
+			inserter.flush();
+			return commitId.name();
+		}
+	}
+
 	private String seedRepository(String repositoryPath, String content) throws Exception {
 		Path bare = this.repositories.resolve(repositoryPath + ".git");
 		Files.createDirectories(bare.getParent());
 		// The bare repository only needs to exist; content arrives via the clone below.
 		Git.init().setBare(true).setDirectory(bare.toFile()).setInitialBranch("main").call().close();
-		return commitInto(bare, repositoryPath, content, false);
+		return commitInto(bare, content, false);
 	}
 
 	private void amend(String repositoryPath, String content) throws Exception {
-		commitInto(this.repositories.resolve(repositoryPath + ".git"), repositoryPath, content, true);
+		commitInto(this.repositories.resolve(repositoryPath + ".git"), content, true);
 	}
 
-	private String commitInto(Path bare, String repositoryPath, String content, boolean second)
-			throws GitAPIException, IOException {
+	private String commitInto(Path bare, String content, boolean second) throws GitAPIException, IOException {
 		Path work = Files.createTempDirectory(this.root, "work-");
 		try (Git git = Git.cloneRepository().setURI(bare.toUri().toString()).setDirectory(work.toFile()).call()) {
 			Files.createDirectories(work.resolve("src"));
 			Files.writeString(work.resolve("README.md"), "# Assignment\n", StandardCharsets.UTF_8);
 			Files.writeString(work.resolve("src").resolve("solution.js"), content, StandardCharsets.UTF_8);
+			Path script = work.resolve("build.sh");
+			Files.writeString(script, "#!/bin/sh\nexit 0\n", StandardCharsets.UTF_8);
+			Files.setPosixFilePermissions(script, PosixFilePermissions.fromString("rwxr-xr-x"));
 			git.add().addFilepattern(".").call();
 			RevCommit commit = git.commit().setMessage(second ? "update" : "initial").setSign(Boolean.FALSE).call();
-			git.push().setRefSpecs(new org.eclipse.jgit.transport.RefSpec("HEAD:refs/heads/main")).call();
+			git.push().setRefSpecs(new RefSpec("HEAD:refs/heads/main")).call();
 			return commit.name();
 		}
 	}
