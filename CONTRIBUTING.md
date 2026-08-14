@@ -46,9 +46,14 @@ excluding frontend work; do not use `-DskipQuality` for a pull request.
 
 Checkstyle runs during `validate` for production and test Java. PMD and CPD run
 at `verify` (CPD minimum token count 120), as do SpotBugs/FindSecBugs and
-forbidden-apis. JaCoCo requires 50% bundle line and 40% branch coverage. The
-`security` profile runs OWASP Dependency-Check and fails at CVSS 7 or above;
-set an NVD API key in CI for reliable scans:
+forbidden-apis. JaCoCo requires 55% bundle line and 45% branch coverage, which
+is the floor for the unit tests alone. Where `CI` is set the integration tests
+are guaranteed to have run and the floor is 75% line and 60% branch, so a change
+that passes locally without Docker can still be short in CI. The `license`
+profile checks the SPDX headers and is not part of a plain `verify`; CI runs it,
+so add the header to every new file. The `security` profile runs OWASP
+Dependency-Check and fails at CVSS 7 or above; set an NVD API key in CI for
+reliable scans:
 
 ```sh
 ./mvnw -Psecurity verify
