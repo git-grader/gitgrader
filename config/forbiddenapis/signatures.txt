@@ -9,8 +9,8 @@
 
 @defaultMessage Use an explicit Charset (almost always StandardCharsets.UTF_8)
 java.lang.String#getBytes()
-java.lang.String#String(byte[])
-java.lang.String#String(byte[],int,int)
+java.lang.String#<init>(byte[])
+java.lang.String#<init>(byte[],int,int)
 java.io.FileReader#<init>(java.io.File)
 java.io.FileReader#<init>(java.lang.String)
 java.io.FileWriter#<init>(java.io.File)
