@@ -67,7 +67,11 @@ export default defineConfig({
       // whole tree is what makes the number mean "how much of the app is covered".
       include: ['src/**'],
       // A ratchet set just under today's real numbers, not a target being missed.
-      thresholds: { statements: 18, branches: 11, functions: 8, lines: 19 }
+      // It only does that job while it is kept there: left at 18/11/8/19 while the
+      // suite grew to 29/21/15/30, it had ten points of slack, and every test the
+      // frontend has for the result and registration pages could have been deleted
+      // without the build noticing.
+      thresholds: { statements: 29, branches: 21, functions: 15, lines: 30 }
     }
   }
 });
