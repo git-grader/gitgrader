@@ -9,6 +9,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Security
 
+- Score a submission only against the tests its hidden manifest declares. The sandbox
+  runs the reporter and the submission in one container, so both write to the same
+  standard output, and every line matching TAP's status syntax was recorded as a test
+  result. A submission that printed `ok 1 - anything` therefore minted passing tests and
+  diluted the suite until the percentage said whatever it wanted. The manifest now
+  decides which tests exist: one result per declared test, output naming anything else
+  discarded, a test the output never reported recorded as not executed, and a test
+  reported twice never counted as passed. A suite published without a manifest is
+  refused as an infrastructure error rather than graded on output it cannot verify.
 - Refuse a student number, course key or assignment key that could name a directory
   other than its own. A registration carrying `../` in its student number produced a
   repository path that normalised onto another student's bare repository: the two stored

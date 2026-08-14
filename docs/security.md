@@ -71,6 +71,28 @@ OpenAPI examples; or diagnostic/support logs. Store them only below the separate
 tests directory and mount them read-only for a single grading run. Raw hidden
 test names, assertion output, and grading logs are instructor-only.
 
+## Grading integrity: the manifest decides what exists
+
+A sandbox runs the reporter and the submission in one container, so both write
+to the same standard output. Nothing distinguishes a line the test reporter
+emitted from one the submission printed itself, and a submission containing
+`process.stdout.write("ok 1 - anything\n")` produces output that reads exactly
+like a passing test.
+
+`manifest.json` is therefore the authority on which tests exist, not the output.
+Exactly one result is recorded per declared test, in manifest order; a line
+naming anything else is discarded; a declared test the output never reported is
+`NOT_EXECUTED`; and a declared test reported twice is not counted as passed,
+because a suite reports each test once. A suite published without a manifest, or
+with one declaring no tests, is refused as an infrastructure error rather than
+graded — a run that cannot produce a defensible grade must never produce a mark.
+
+What this does not close is a submission that guesses a hidden test's exact name
+and forges a pass for a test that never ran. That is why hidden names are secret:
+the result page shows a category and a hint, never a name. Closing it entirely
+requires running the reporter and the submission in separate containers, which
+the current single-sandbox design does not do.
+
 ## Docker socket: effective host root
 
 Mounting `/var/run/docker.sock` into the application container is effectively
