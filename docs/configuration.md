@@ -49,7 +49,15 @@ listed in the second table.
 | `grading.queue.max-pending-per-student-per-course` / `max-pending-per-course` / `max-pending-global` | `GRADING_QUEUE_MAX_PENDING_STUDENT` / `GRADING_QUEUE_MAX_PENDING_COURSE` / `GRADING_QUEUE_MAX_PENDING_GLOBAL` | `3` / `500` / `1000` | Ceilings on unstarted grading work. Coalescing already keeps a student to one queued run per assignment, so these are safety nets. |
 | `grading.queue.drain-timeout` | `GRADING_QUEUE_DRAIN_TIMEOUT` | `30s` | How long shutdown waits for a running sandbox before returning its job to the queue. Must stay below `spring.lifecycle.timeout-per-shutdown-phase`, which must stay below the container runtime's stop grace period. |
 | `storage.repositories-directory` / `templates-directory` / `tests-directory` / `artifacts-directory` / `temp-directory` | `STORAGE_REPOSITORIES_DIRECTORY` / `STORAGE_TEMPLATES_DIRECTORY` / `STORAGE_TESTS_DIRECTORY` / `STORAGE_ARTIFACTS_DIRECTORY` / `STORAGE_TEMP_DIRECTORY` | `/data/git/repositories` / `/data/templates` / `/data/tests` / `/data/artifacts` / `/data/tmp` | Persistent data locations. |
-| `security.ldap.*` | `SECURITY_LDAP_*` | See packaged YAML | LDAP URL, bind/search bases and filters, role groups, certificate validation, referral. |
+| `security.ldap.enabled` | `SECURITY_LDAP_ENABLED` | `false` | Authenticate instructors and administrators against a directory. With this off and local accounts off, nothing can sign in. |
+| `security.ldap.url` | `SECURITY_LDAP_URL` | `ldap://localhost:389` | Directory endpoint. Use `ldaps://`, or StartTLS, for anything but a throwaway. |
+| `security.ldap.base-dn` | `SECURITY_LDAP_BASE_DN` | empty | Root the searches below are relative to. |
+| `security.ldap.manager-dn` / `manager-password` | `SECURITY_LDAP_MANAGER_DN` / `SECURITY_LDAP_MANAGER_PASSWORD` | empty / empty | Account used to search the directory. Treat the password as a secret; give the account read access and nothing more. |
+| `security.ldap.user-search-base` / `user-search-filter` | `SECURITY_LDAP_USER_SEARCH_BASE` / `SECURITY_LDAP_USER_SEARCH_FILTER` | `ou=people` / `(uid={0})` | Where and how a sign-in name is resolved; `{0}` is the submitted name. |
+| `security.ldap.group-search-base` / `group-search-filter` | `SECURITY_LDAP_GROUP_SEARCH_BASE` / `SECURITY_LDAP_GROUP_SEARCH_FILTER` | `ou=groups` / `(member={0})` | Where and how the groups of a resolved user are found; `{0}` is their DN. |
+| `security.ldap.instructor-group` / `admin-group` | `SECURITY_LDAP_INSTRUCTOR_GROUP` / `SECURITY_LDAP_ADMIN_GROUP` | `gitgrader-instructors` / `gitgrader-admins` | Group names granting each role. Membership of neither means a valid directory account still cannot sign in. |
+| `security.ldap.verify-certificate` | `SECURITY_LDAP_VERIFY_CERTIFICATE` | `true` | Validate the directory's TLS certificate. Turning this off makes the encrypted connection impersonatable, which costs the credentials that cross it. |
+| `security.ldap.referral` | — | `follow` | How directory referrals are handled. |
 | `security.local-accounts.enabled` | `SECURITY_LOCAL_ACCOUNTS_ENABLED` | `false` | Development accounts; forbidden in production. |
 | `security.rate-limits.*` | `SECURITY_RATE_REGISTRATION_IP`, `SECURITY_RATE_REGISTRATION_GLOBAL`, `SECURITY_RATE_RESULT_IP`, `SECURITY_RATE_LOGIN_IP`, `SECURITY_RATE_SSH_IP` | `5`, `200`, `60`, `10`, `30` | Per-address abuse limits, held in memory. They reset on restart and are counted per instance. Block duration is `15m`. |
 | `security.rate-limits.submissions-per-hour-per-assignment` / `submissions-per-hour-per-student` | `SECURITY_RATE_SUBMISSIONS_ASSIGNMENT` / `SECURITY_RATE_SUBMISSIONS_STUDENT` | `20` / `60` | Rolling hourly push allowances. Counted in the database, so unlike the limits above they survive a restart and hold across instances. Exceeding one refuses the push with an explanation on the Git side band. |
@@ -62,6 +70,7 @@ listed in the second table.
 | Framework YAML path | Environment variable | Default |
 | --- | --- | --- |
 | `spring.datasource.url/username/password` | `SPRING_DATASOURCE_URL`, `SPRING_DATASOURCE_USERNAME`, `SPRING_DATASOURCE_PASSWORD` | localhost PostgreSQL / `gitgrader` / `gitgrader` |
+| `spring.datasource.hikari.maximum-pool-size` | `DB_POOL_SIZE` | `10` |
 | `spring.lifecycle.timeout-per-shutdown-phase` | `SPRING_SHUTDOWN_PHASE_TIMEOUT` | `60s` |
 | `server.port` | `SERVER_PORT` | `8080` |
 | `server.forward-headers-strategy` | `SERVER_FORWARD_HEADERS_STRATEGY` | `none` |
