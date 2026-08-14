@@ -20,9 +20,6 @@
 	<!-- ==================== Best practices ==================== -->
 	<rule ref="category/java/bestpractices.xml">
 		<exclude name="GuardLogStatement" />
-		<exclude name="JUnitAssertionsShouldIncludeMessage" />
-		<exclude name="JUnitTestsShouldIncludeAssert" />
-		<exclude name="JUnitTestContainsTooManyAsserts" />
 		<exclude name="AvoidReassigningParameters" />
 		<exclude name="UnitTestShouldUseTestAnnotation" />
 		<exclude name="UnitTestAssertionsShouldIncludeMessage" />
@@ -82,11 +79,25 @@
 	</rule>
 	<rule ref="category/java/errorprone.xml/CloseResource">
 		<properties>
-			<!-- Spring manages EntityManager, DataSource and JGit Repository lifecycles. -->
-			<property name="closeTargets"
+			<!--
+			  `types`, not `closeTargets`: closeTargets names the METHODS that count as
+			  closing a resource, so putting type names there configured nothing.
+
+			  Dropping java.lang.AutoCloseable from the affected types is what keeps the
+			  rule off resources this application never closes itself: Spring manages the
+			  EntityManager and the DataSource, and JGit hands back a Repository whose
+			  lifecycle belongs to its own cache. What is left is exactly what a leak here
+			  looks like in practice, an unclosed stream - above all the docker-java
+			  response streams the grading runner reads a sandbox report from.
+
+			  allowedResourceTypes is deliberately not overridden: PMD's default already
+			  lists every in-memory type this project used to name, plus the primitive
+			  stream variants, and the override spelled its list with '|' separators where
+			  PMD 7 splits on commas. The whole value was therefore read as one class name,
+			  which threw on every file the rule reached and silently skipped it.
+			-->
+			<property name="types"
 					  value="java.sql.Connection,java.io.InputStream,java.io.OutputStream" />
-			<property name="allowedResourceTypes"
-					  value="java.io.ByteArrayInputStream|java.io.ByteArrayOutputStream|java.io.StringWriter|java.io.CharArrayWriter|java.util.stream.Stream" />
 		</properties>
 	</rule>
 
