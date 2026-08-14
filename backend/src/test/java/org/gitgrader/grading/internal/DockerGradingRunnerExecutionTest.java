@@ -20,6 +20,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.time.Clock;
 import java.time.Duration;
+import java.util.Arrays;
 import java.util.Map;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
@@ -175,6 +176,30 @@ class DockerGradingRunnerExecutionTest {
 
 		assertThat(result.infrastructureFailure()).isTrue();
 		verify(this.dockerClient).removeContainerCmd(CONTAINER_ID);
+	}
+
+	@Test
+	@DisplayName("decodes a character whose UTF-8 bytes arrive in two different frames")
+	void decodesACharacterSplitAcrossTwoFrames() throws Exception {
+		// Where the engine chunks the stream has nothing to do with character
+		// boundaries, so decoding each frame on its own turned both halves of this
+		// e-acute into replacement characters.
+		byte[] line = "ok 1 - café\n".getBytes(StandardCharsets.UTF_8);
+		int insideTheAccentedCharacter = "ok 1 - caf".length() + 1;
+
+		stubLogStream((callback) -> {
+			callback.onNext(new Frame(StreamType.STDOUT, Arrays.copyOfRange(line, 0, insideTheAccentedCharacter)));
+			callback.onNext(
+					new Frame(StreamType.STDOUT, Arrays.copyOfRange(line, insideTheAccentedCharacter, line.length)));
+			callback.onComplete();
+			this.logsDelivered.countDown();
+		});
+		completeWaitWith(0);
+
+		GradingResult result = this.runner.execute(this.request);
+
+		assertThat(this.logsDelivered.await(5, TimeUnit.SECONDS)).isTrue();
+		assertThat(result.stdout()).isEqualTo("ok 1 - café\n");
 	}
 
 	private void stubContainerLifecycle() {

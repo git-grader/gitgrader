@@ -16,6 +16,8 @@
 
 package org.gitgrader.grading.internal;
 
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
 import java.nio.file.Path;
 import java.nio.charset.StandardCharsets;
 import java.time.Clock;
@@ -133,14 +135,24 @@ class DockerGradingRunner implements GradingRunner {
 				try {
 					this.dockerClient.removeContainerCmd(containerId).withForce(true).exec();
 				}
-				catch (Exception e) {
-					logger.warn("Failed to remove container {}", containerId, e);
+				catch (RuntimeException ex) {
+					logger.warn("Failed to remove container {}", containerId, ex);
 				}
 			}
 		}
-		catch (Exception e) {
-			logger.error("Infrastructure error during grading execution", e);
-			return new GradingResult(-1, "", "", this.clock.millis() - start, false, true, e.getMessage());
+		catch (InterruptedException ex) {
+			// Raised when the worker is interrupted mid-run, which is how an orderly
+			// shutdown asks it to stop. Swallowing it left the flag clear and the thread
+			// carrying on as though nothing had been asked of it, so the drain waited out
+			// its whole timeout before giving up on a worker that had already been told.
+			Thread.currentThread().interrupt();
+			logger.warn("Grading run interrupted; the job returns to the queue");
+			return new GradingResult(-1, "", "", this.clock.millis() - start, false, true,
+					"The grading worker was interrupted before the sandbox finished");
+		}
+		catch (IOException | RuntimeException ex) {
+			logger.error("Infrastructure error during grading execution", ex);
+			return new GradingResult(-1, "", "", this.clock.millis() - start, false, true, ex.getMessage());
 		}
 	}
 
@@ -269,16 +281,22 @@ class DockerGradingRunner implements GradingRunner {
 	 * Frames arrive on a Docker client thread while the worker thread reads the result,
 	 * so every access is synchronised: without it the reader is not merely racing for the
 	 * last few frames, it has no guarantee of seeing any of them.
+	 *
+	 * <p>
+	 * Bytes are kept as bytes and decoded once, at the end. Decoding each frame on its
+	 * own splits any character whose UTF-8 encoding straddles a frame boundary - which is
+	 * decided by how the engine happened to chunk the stream, not by the output - and
+	 * both halves become replacement characters. An assertion message naming a variable
+	 * in Greek or a test whose name contains an em dash came back mangled, in the one
+	 * place an instructor reads to explain a failure.
 	 */
-	@SuppressWarnings("PMD.AvoidStringBufferField") // bounded and per-run; never long
-													// lived
-	private static class LogCaptureCallback extends ResultCallback.Adapter<Frame> {
+	private static final class LogCaptureCallback extends ResultCallback.Adapter<Frame> {
 
 		private final long limitBytes;
 
-		private final StringBuilder stdout = new StringBuilder();
+		private final ByteArrayOutputStream stdout = new ByteArrayOutputStream();
 
-		private final StringBuilder stderr = new StringBuilder();
+		private final ByteArrayOutputStream stderr = new ByteArrayOutputStream();
 
 		private long currentBytes;
 
@@ -288,27 +306,26 @@ class DockerGradingRunner implements GradingRunner {
 
 		@Override
 		public synchronized void onNext(Frame frame) {
-			if (currentBytes >= limitBytes) {
+			if (this.currentBytes >= this.limitBytes) {
 				return;
 			}
 			byte[] payload = frame.getPayload();
-			long allowed = Math.min(payload.length, limitBytes - currentBytes);
-			String text = new String(payload, 0, (int) allowed, StandardCharsets.UTF_8);
+			int allowed = (int) Math.min(payload.length, this.limitBytes - this.currentBytes);
 			if (frame.getStreamType() == StreamType.STDOUT) {
-				stdout.append(text);
+				this.stdout.write(payload, 0, allowed);
 			}
 			else if (frame.getStreamType() == StreamType.STDERR) {
-				stderr.append(text);
+				this.stderr.write(payload, 0, allowed);
 			}
-			currentBytes += allowed;
+			this.currentBytes += allowed;
 		}
 
 		synchronized String getStdout() {
-			return stdout.toString();
+			return this.stdout.toString(StandardCharsets.UTF_8);
 		}
 
 		synchronized String getStderr() {
-			return stderr.toString();
+			return this.stderr.toString(StandardCharsets.UTF_8);
 		}
 
 	}
