@@ -18,6 +18,8 @@ package org.gitgrader.assignments;
 
 import java.time.Instant;
 
+import org.jspecify.annotations.Nullable;
+
 /**
  * Result of evaluating a server receive time against assignment admission policy.
  *
@@ -25,7 +27,7 @@ import java.time.Instant;
  * @param late whether an accepted push arrived after its effective deadline
  * @param effectiveDueAt deadline used for this student
  */
-public record AdmissionDecision(Outcome outcome, boolean late, Instant effectiveDueAt) {
+public record AdmissionDecision(Outcome outcome, boolean late, @Nullable Instant effectiveDueAt) {
 
 	/**
 	 * Reports whether admission succeeded.

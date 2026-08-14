@@ -23,6 +23,7 @@ import java.time.ZoneOffset;
 import java.util.Optional;
 import java.util.UUID;
 
+import org.gitgrader.assignments.AdmissionDecision;
 import org.gitgrader.assignments.AssignmentDefinition;
 import org.gitgrader.assignments.AssignmentStatus;
 import org.gitgrader.assignments.domain.Assignment;
@@ -35,6 +36,8 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 class DefaultAssignmentServiceTest {
+
+	private static final UUID COURSE_ID = UUID.randomUUID();
 
 	private static final Instant NOW = Instant.parse("2026-03-01T10:00:00Z");
 
@@ -100,8 +103,40 @@ class DefaultAssignmentServiceTest {
 			.isEqualTo("new");
 	}
 
+	@Test
+	void refusesAPushToADraftThatHasNoDueDateRatherThanFailing() {
+		// Reachable without doing anything unusual: publish an assignment, which
+		// provisions a repository for every enrolled student, then take it back to draft
+		// and clear the date - a draft is not required to have one. The student still
+		// holds the repository, and their next push asked for a due date the assignment
+		// no longer has. The state alone answers this, and asking for the date first
+		// turned "not published yet" into a failed push nobody could explain.
+		AssignmentRepository assignments = mock(AssignmentRepository.class);
+		DeadlineExtensionRepository extensions = mock(DeadlineExtensionRepository.class);
+		DefaultAssignmentService service = new DefaultAssignmentService(assignments, extensions, CLOCK);
+		UUID assignmentId = UUID.randomUUID();
+		UUID studentId = UUID.randomUUID();
+		Assignment assignment = assignment();
+		assignment.changeStatus(AssignmentStatus.DRAFT, CLOCK);
+		assignment.update(draftWithoutDates(), CLOCK);
+		when(assignments.findById(assignmentId)).thenReturn(Optional.of(assignment));
+		when(extensions.findByAssignmentIdAndStudentIdAndRevokedAtIsNull(assignmentId, studentId))
+			.thenReturn(Optional.empty());
+
+		AdmissionDecision decision = service.canAccept(assignmentId, studentId, NOW);
+
+		assertThat(decision.outcome()).isEqualTo(AdmissionDecision.Outcome.ASSIGNMENT_DRAFT);
+		assertThat(decision.accepted()).isFalse();
+	}
+
+	private static AssignmentDefinition draftWithoutDates() {
+		return new AssignmentDefinition(COURSE_ID, "assignment-1", "Assignment", null, 0, AssignmentStatus.DRAFT, true,
+				null, null, "UTC", BigDecimal.valueOf(100), 10, BigDecimal.valueOf(100), false, null, null, null, 60,
+				1024L, BigDecimal.ONE, 16, false);
+	}
+
 	private static Assignment assignment() {
-		return new Assignment(new AssignmentDefinition(UUID.randomUUID(), "assignment-1", "Assignment", null, 0,
+		return new Assignment(new AssignmentDefinition(COURSE_ID, "assignment-1", "Assignment", null, 0,
 				AssignmentStatus.OPEN, true, NOW, DUE, "UTC", BigDecimal.valueOf(100), 10, BigDecimal.valueOf(100),
 				false, UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(), 60, 1024L, BigDecimal.ONE, 16, false),
 				CLOCK);
