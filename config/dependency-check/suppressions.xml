@@ -34,5 +34,19 @@
 		<packageUrl regex="true">^pkg:maven/com\.github\.docker-java/.*$</packageUrl>
 		<cpe>cpe:/a:docker:docker</cpe>
 	</suppression>
+	<suppression until="2026-11-15Z">
+		<notes><![CDATA[
+			Not applicable, and not yet fixable. CVE-2026-66299 is an unbounded
+			buffer in the WebSocket chat example, which lives in the examples web
+			application. This is embedded Tomcat: tomcat-embed-core ships no web
+			applications at all, so the vulnerable code is not on the classpath.
+			Tomcat's own advisory says installations without the examples are not
+			affected. It is fixed in 11.0.25, which is unreleased, so there is no
+			version to move to; tomcat.version is already at 11.0.24, which is what
+			clears the other five. Revisit when 11.0.25 ships.
+		]]></notes>
+		<packageUrl regex="true">^pkg:maven/org\.apache\.tomcat\.embed/.*$</packageUrl>
+		<cve>CVE-2026-66299</cve>
+	</suppression>
 
 </suppressions>
