@@ -23,9 +23,16 @@
  * the two is the most common way such a report misleads.
  *
  * <p>
+ * Depends on grading to read the score a run actually recorded. Without it the only
+ * percentage available here is inferred from a submission's status, which collapses every
+ * outcome to nothing or everything: a student who scored 70 against an 80 threshold is
+ * FAILED, and so was reported as zero points rather than seventy percent of them. The
+ * dependency is read-only and reaches no further than {@code GradingResultQuery}.
+ *
+ * <p>
  * This module never writes business data.
  */
 @org.springframework.modulith.ApplicationModule(displayName = "Reports",
-		allowedDependencies = { "identity", "courses", "assignments", "submissions" })
+		allowedDependencies = { "identity", "courses", "assignments", "submissions", "grading" })
 @org.jspecify.annotations.NullMarked
 package org.gitgrader.reports;

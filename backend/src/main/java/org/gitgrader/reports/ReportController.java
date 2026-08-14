@@ -25,6 +25,8 @@ import org.gitgrader.assignments.AssignmentCatalog;
 import org.gitgrader.assignments.AssignmentView;
 import org.gitgrader.courses.CourseCatalog;
 import org.gitgrader.courses.EnrollmentView;
+import org.gitgrader.grading.GradingResultQuery;
+import org.gitgrader.grading.StudentGradingResult;
 import org.gitgrader.identity.StudentDirectory;
 import org.gitgrader.identity.StudentView;
 import org.gitgrader.submissions.SubmissionService;
@@ -55,14 +57,17 @@ public class ReportController {
 
 	private final SubmissionService submissions;
 
+	private final GradingResultQuery gradingResults;
+
 	private final ReportExportService exports;
 
 	public ReportController(CourseCatalog courses, AssignmentCatalog assignments, StudentDirectory students,
-			SubmissionService submissions, ReportExportService exports) {
+			SubmissionService submissions, GradingResultQuery gradingResults, ReportExportService exports) {
 		this.courses = courses;
 		this.assignments = assignments;
 		this.students = students;
 		this.submissions = submissions;
+		this.gradingResults = gradingResults;
 		this.exports = exports;
 	}
 
@@ -111,15 +116,29 @@ public class ReportController {
 		List<ReportCalculator.Assessment> assessments = assignments.stream()
 			.flatMap((assignment) -> this.submissions.findHistory(student.id(), assignment.id()).stream())
 			.map((submission) -> new ReportCalculator.Assessment(submission.assignmentId(), submission.status(),
-					submission.status().isGraded()
-							? (submission.status() == org.gitgrader.submissions.SubmissionStatus.PASSED
-									? BigDecimal.valueOf(100) : BigDecimal.ZERO)
-							: null,
-					submission.receivedAt()))
+					submission.status().isGraded() ? scoreOf(submission.id()) : null, submission.receivedAt()))
 			.toList();
 		return ReportCalculator.calculate(
 				new ReportCalculator.Student(student.id(), student.studentNumber(), student.fullName()), definitions,
 				assessments);
+	}
+
+	/**
+	 * The percentage a graded submission actually earned.
+	 *
+	 * <p>
+	 * Read from the run rather than inferred from the submission's status. A status only
+	 * says whether the run cleared the assignment's pass threshold, so deriving a
+	 * percentage from it awards all of an assignment's points or none of them: 70 against
+	 * a threshold of 80 is FAILED, and reporting that as zero understates both the
+	 * student's points and the course's points rate.
+	 * @param submissionId the graded submission
+	 * @return the recorded percentage, or zero when no run recorded one
+	 */
+	private BigDecimal scoreOf(UUID submissionId) {
+		return this.gradingResults.findLatestForSubmission(submissionId)
+			.map(StudentGradingResult::scorePercent)
+			.orElse(BigDecimal.ZERO);
 	}
 
 }
