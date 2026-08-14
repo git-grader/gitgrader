@@ -20,12 +20,15 @@ import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
+import jakarta.persistence.EntityNotFoundException;
 import org.gitgrader.assignments.AdmissionDecision;
 import org.gitgrader.assignments.AssignmentDefinition;
 import org.gitgrader.assignments.AssignmentStatus;
+import org.gitgrader.assignments.DeadlineExtensionView;
 import org.gitgrader.assignments.domain.Assignment;
 import org.gitgrader.assignments.domain.DeadlineExtension;
 import org.junit.jupiter.api.Test;
@@ -62,6 +65,35 @@ class DefaultAssignmentServiceTest {
 
 		assertThat(service.effectiveDueAt(assignmentId, studentId)).isEqualTo(DUE.plusSeconds(3600));
 		assertThat(service.effectiveDueAt(assignmentId, studentId)).isEqualTo(DUE);
+	}
+
+	@Test
+	void everyExtensionOnAnAssignmentIsListedIncludingRevokedOnes() {
+		AssignmentRepository assignments = mock(AssignmentRepository.class);
+		DeadlineExtensionRepository extensions = mock(DeadlineExtensionRepository.class);
+		DefaultAssignmentService service = new DefaultAssignmentService(assignments, extensions, CLOCK);
+		UUID assignmentId = UUID.randomUUID();
+		DeadlineExtension live = new DeadlineExtension(assignmentId, UUID.randomUUID(), DUE.plusSeconds(3600), "live",
+				"actor", CLOCK);
+		DeadlineExtension revoked = new DeadlineExtension(assignmentId, UUID.randomUUID(), DUE.plusSeconds(7200),
+				"revoked", "actor", CLOCK);
+		revoked.revoke("actor", CLOCK);
+		when(assignments.findById(assignmentId)).thenReturn(Optional.of(assignment()));
+		when(extensions.findByAssignmentIdOrderByGrantedAtDesc(assignmentId)).thenReturn(List.of(live, revoked));
+
+		assertThat(service.findExtensions(assignmentId)).extracting(DeadlineExtensionView::reason)
+			.containsExactly("live", "revoked");
+	}
+
+	@Test
+	void listingExtensionsOfAnAssignmentThatDoesNotExistIsRefused() {
+		AssignmentRepository assignments = mock(AssignmentRepository.class);
+		DeadlineExtensionRepository extensions = mock(DeadlineExtensionRepository.class);
+		DefaultAssignmentService service = new DefaultAssignmentService(assignments, extensions, CLOCK);
+		UUID assignmentId = UUID.randomUUID();
+		when(assignments.findById(assignmentId)).thenReturn(Optional.empty());
+
+		assertThatThrownBy(() -> service.findExtensions(assignmentId)).isInstanceOf(EntityNotFoundException.class);
 	}
 
 	@Test

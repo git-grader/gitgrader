@@ -20,6 +20,7 @@ import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -29,6 +30,7 @@ import org.gitgrader.api.GlobalExceptionHandler;
 import org.gitgrader.assignments.AssignmentDefinition;
 import org.gitgrader.assignments.AssignmentStatus;
 import org.gitgrader.assignments.domain.Assignment;
+import org.gitgrader.assignments.domain.DeadlineExtension;
 import org.gitgrader.assignments.web.AssignmentController;
 import org.gitgrader.assignments.web.AssignmentExceptionHandler;
 import org.gitgrader.identity.ActorProvider;
@@ -39,6 +41,7 @@ import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -146,6 +149,30 @@ class AssignmentControllerTest {
 			.andExpect(jsonPath("$.status").value("OPEN"));
 	}
 
+	@Test
+	void grantedExtensionsAreListedRatherThanReportedAsNone() throws Exception {
+		UUID courseId = UUID.randomUUID();
+		Assignment assignment = assignment(courseId, "assignment-1", AssignmentStatus.OPEN);
+		UUID assignmentId = assignment.toView().id();
+		AssignmentRepository assignments = mock(AssignmentRepository.class);
+		DeadlineExtensionRepository extensions = mock(DeadlineExtensionRepository.class);
+		when(assignments.findById(assignmentId)).thenReturn(Optional.of(assignment));
+		when(extensions.findByAssignmentIdOrderByGrantedAtDesc(assignmentId))
+			.thenReturn(List.of(new DeadlineExtension(assignmentId, UUID.randomUUID(), DUE.plusSeconds(3600),
+					"hospital appointment", "instructor", CLOCK)));
+
+		mockMvc(assignments, extensions).perform(get("/api/v1/assignments/{id}/extensions", assignmentId))
+			.andExpect(status().isOk())
+			.andExpect(jsonPath("$.length()").value(1))
+			.andExpect(jsonPath("$[0].reason").value("hospital appointment"));
+	}
+
+	@Test
+	void listingExtensionsOfUnknownAssignmentReturns404() throws Exception {
+		mockMvc().perform(get("/api/v1/assignments/{id}/extensions", UUID.randomUUID()))
+			.andExpect(status().isNotFound());
+	}
+
 	private static MockMvc mockMvc(Assignment assignment) {
 		return mockMvc(Optional.of(assignment));
 	}
@@ -159,6 +186,10 @@ class AssignmentControllerTest {
 		DeadlineExtensionRepository extensions = mock(DeadlineExtensionRepository.class);
 		assignment.ifPresent((value) -> when(assignments.findById(value.toView().id())).thenReturn(Optional.of(value)));
 		when(assignments.save(any(Assignment.class))).thenAnswer((invocation) -> invocation.getArgument(0));
+		return mockMvc(assignments, extensions);
+	}
+
+	private static MockMvc mockMvc(AssignmentRepository assignments, DeadlineExtensionRepository extensions) {
 		DefaultAssignmentService service = new DefaultAssignmentService(assignments, extensions, CLOCK);
 		return MockMvcBuilders.standaloneSetup(new AssignmentController(service, service, mock(ActorProvider.class)))
 			.setControllerAdvice(new GlobalExceptionHandler(), new AssignmentExceptionHandler())
