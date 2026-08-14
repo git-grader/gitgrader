@@ -57,6 +57,10 @@ export const AvailabilitySchema = z.object({
 });
 export type Availability = z.infer<typeof AvailabilitySchema>;
 
+// The server sends every absent field as an explicit null rather than omitting it, so
+// these are nullish and not optional. The distinction is not cosmetic: `.optional()`
+// describes a value that is missing, and a schema saying so would reject every response
+// this endpoint actually sends the moment anything started parsing with it.
 export const PublicResultSchema = z.object({
   assignmentTitle: z.string(),
   courseName: z.string(),
@@ -65,14 +69,14 @@ export const PublicResultSchema = z.object({
   verified: z.boolean(),
   passed: z.number(),
   total: z.number(),
-  score: z.number(),
+  score: z.number().nullish(),
   tests: z.array(z.object({
     public: z.boolean(),
-    name: z.string().optional(),
-    category: z.string().optional(),
+    name: z.string().nullish(),
+    category: z.string().nullish(),
     outcome: z.string(),
-    message: z.string().optional(),
-    hint: z.string().optional()
+    message: z.string().nullish(),
+    hint: z.string().nullish()
   }))
 });
 export type PublicResult = z.infer<typeof PublicResultSchema>;
