@@ -32,8 +32,9 @@ public interface TestResultRepository extends JpaRepository<TestResultRecord, UU
 	 *
 	 * <p>
 	 * Returns the full records, including hidden test names and raw assertion output.
-	 * Callers serving a student must go through {@code TestResultRedactor} rather than
-	 * exposing these directly.
+	 * Anything serving a student must narrow them first, as
+	 * {@code DefaultGradingResultQuery} does: a result link needs no account, so whatever
+	 * reaches that view is public.
 	 * @param gradingRunId the run
 	 * @return the run's test results
 	 */

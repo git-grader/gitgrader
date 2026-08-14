@@ -66,12 +66,20 @@ class DefaultGradingResultQuery implements GradingResultQuery {
 	 * is, and likewise both messages. Only the public side of each pair is read here.
 	 * Reading {@code testName} or {@code internalMessage} instead would hand the suite to
 	 * anyone holding a result link, which is the whole reason the two are stored apart.
+	 *
+	 * <p>
+	 * For a hidden check the student-facing message column holds the manifest's hint,
+	 * which is the one thing such a failure is able to tell anyone. It is returned as the
+	 * hint rather than as a message, because that is what it is and what the result page
+	 * shows for a hidden check - returning it as a message left the hint field empty and
+	 * meant no student ever saw one.
 	 * @param record the stored result
 	 * @return the student-facing view
 	 */
 	private static StudentTestResultView toStudentView(TestResultRecord record) {
+		boolean hidden = TestResultRecord.VISIBILITY_HIDDEN.equals(record.visibility());
 		return new StudentTestResultView(record.visibility(), record.category(), record.publicName(), record.outcome(),
-				record.durationMs(), record.studentMessage(), null);
+				record.durationMs(), hidden ? null : record.studentMessage(), hidden ? record.studentMessage() : null);
 	}
 
 }
