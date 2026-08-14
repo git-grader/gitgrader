@@ -22,12 +22,14 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Clock;
 import java.time.Duration;
+import java.util.List;
 import java.time.Instant;
 import java.time.ZoneOffset;
 import java.util.UUID;
 
 import org.gitgrader.assignments.AssignmentStatus;
 import org.gitgrader.assignments.AssignmentView;
+import org.gitgrader.grading.GradingExecutionRequest;
 import org.gitgrader.configuration.GradingProperties;
 import org.gitgrader.grading.GradingResult;
 import org.gitgrader.grading.GradingRunner;
@@ -41,10 +43,12 @@ import org.gitgrader.submissions.SubmissionView;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 import org.junit.jupiter.api.io.TempDir;
 
 import org.springframework.util.unit.DataSize;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
@@ -83,13 +87,15 @@ class GradingExecutorTest {
 
 	private GradingRun run;
 
+	private GradingPlanResolver plans;
+
 	@BeforeEach
 	void setUp() throws Exception {
 		writeManifest(ONE_TEST_MANIFEST);
 		this.runner = mock(GradingRunner.class);
 		this.workspaces = mock(GradingWorkspaceFactory.class);
 		this.reportParser = mock(ReportParser.class);
-		GradingPlanResolver plans = mock(GradingPlanResolver.class);
+		this.plans = mock(GradingPlanResolver.class);
 		TestResultRepository testResults = mock(TestResultRepository.class);
 
 		GradingProperties properties = new GradingProperties("docker", "/data/grading", 2, Duration.ofSeconds(120),
@@ -100,12 +106,12 @@ class GradingExecutorTest {
 						500, 1000, Duration.ofSeconds(30)));
 		Clock clock = Clock.fixed(Instant.parse("2026-04-01T10:00:00Z"), ZoneOffset.UTC);
 
-		this.executor = new GradingExecutor(this.runner, this.workspaces, plans, this.reportParser, testResults,
+		this.executor = new GradingExecutor(this.runner, this.workspaces, this.plans, this.reportParser, testResults,
 				properties, new tools.jackson.databind.ObjectMapper(), clock);
 
 		this.run = new GradingRun(UUID.randomUUID(), 1, "PUSH", UUID.randomUUID(), "sha256:" + "a".repeat(64),
 				UUID.randomUUID(), "corr-1", clock);
-		when(plans.resolve(any())).thenReturn(plan());
+		when(this.plans.resolve(any())).thenReturn(plan());
 		when(this.workspaces.materialise(any(), any())).thenReturn(WORKSPACE);
 	}
 
@@ -185,8 +191,8 @@ class GradingExecutorTest {
 	}
 
 	private GradingExecutor executorRetainingWorkspaces() {
-		GradingPlanResolver plans = mock(GradingPlanResolver.class);
-		when(plans.resolve(any())).thenReturn(plan());
+		this.plans = mock(GradingPlanResolver.class);
+		when(this.plans.resolve(any())).thenReturn(plan());
 		GradingProperties retaining = new GradingProperties("docker", "/data/grading", 2, Duration.ofSeconds(120),
 				DataSize.ofMegabytes(512), 1.0, 256, false, DataSize.ofMegabytes(1), Duration.ofSeconds(20), true,
 				new GradingProperties.Docker("unix:///var/run/docker.sock", "", "", "65534:65534",
@@ -196,6 +202,51 @@ class GradingExecutorTest {
 		return new GradingExecutor(this.runner, this.workspaces, plans, this.reportParser,
 				mock(TestResultRepository.class), retaining, new tools.jackson.databind.ObjectMapper(),
 				Clock.fixed(Instant.parse("2026-04-01T10:00:00Z"), ZoneOffset.UTC));
+	}
+
+	@Test
+	@DisplayName("keeps the sandbox inside the lease its job is held under")
+	void boundsTheSandboxTimeoutByTheClaimLease() {
+		// A claim is a lease taken once and never renewed, and the reaper returns any job
+		// whose lease expired without asking whether its worker is still running. A run
+		// allowed past its lease is requeued from underneath itself and graded a second
+		// time, and nothing in the results table refuses the duplicate rows that follow.
+		when(this.plans.resolve(any())).thenReturn(planWithTimeout(3_600));
+		when(this.runner.execute(any())).thenReturn(new GradingResult(0, "", "", 10, false, false, null));
+		when(this.reportParser.parse(any(), any(), any())).thenReturn(List.of());
+
+		this.executor.execute(this.run);
+
+		ArgumentCaptor<GradingExecutionRequest> request = ArgumentCaptor.forClass(GradingExecutionRequest.class);
+		verify(this.runner).execute(request.capture());
+		// The lease is fifteen minutes, so an hour is cut to what is left of it.
+		assertThat(request.getValue().timeout()).isEqualTo(Duration.ofMinutes(14));
+	}
+
+	@Test
+	@DisplayName("leaves a timeout that already fits the lease alone")
+	void leavesATimeoutThatFitsTheLease() {
+		when(this.plans.resolve(any())).thenReturn(planWithTimeout(300));
+		when(this.runner.execute(any())).thenReturn(new GradingResult(0, "", "", 10, false, false, null));
+		when(this.reportParser.parse(any(), any(), any())).thenReturn(List.of());
+
+		this.executor.execute(this.run);
+
+		ArgumentCaptor<GradingExecutionRequest> request = ArgumentCaptor.forClass(GradingExecutionRequest.class);
+		verify(this.runner).execute(request.capture());
+		assertThat(request.getValue().timeout()).isEqualTo(Duration.ofSeconds(300));
+	}
+
+	private GradingPlan planWithTimeout(int timeoutSeconds) {
+		GradingPlan base = plan();
+		AssignmentView a = base.assignment();
+		AssignmentView withTimeout = new AssignmentView(a.id(), a.courseId(), a.assignmentKey(), a.title(),
+				a.description(), a.displayOrder(), a.status(), a.mandatory(), a.opensAt(), a.dueAt(), a.timezone(),
+				a.maxPoints(), a.testCount(), a.passThreshold(), a.allowLate(), a.templateVersionId(),
+				a.testSuiteVersionId(), a.runtimeId(), timeoutSeconds, a.memoryLimitBytes(), a.cpuLimit(), a.pidLimit(),
+				a.networkEnabled());
+		return new GradingPlan(base.submission(), base.repositoryPath(), withTimeout, base.runtime(),
+				base.hiddenTests());
 	}
 
 	private GradingPlan plan() {
