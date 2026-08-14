@@ -72,9 +72,17 @@ printf '    Docker socket group is %s.\n' "$socket_gid"
 # example configuration ships it off, which is right for a real deployment and wrong
 # here: without this the only authentication left is a local account list that is
 # empty, and every sign-in is refused.
+#
+# The session cookie goes the same way. It ships restricted to HTTPS, which is what a
+# real deployment needs and what the documentation promises, but this instance is
+# reached over plain HTTP on localhost - so the browser would hold the cookie back and
+# no sign-in could complete. Relaxing it belongs to the demo, not to the file every
+# deployment is built from.
 if [[ "$WITH_DEMO" == true ]]; then
   set_env SECURITY_LDAP_ENABLED true
+  set_env SECURITY_SESSION_SECURE_COOKIE false
   printf '    Demo directory enabled for sign-in.\n'
+  printf '    Session cookie relaxed to HTTP for this demo; do not carry that .env into a deployment.\n'
 fi
 
 # The version is the one this checkout builds, read from the POM and written into .env
