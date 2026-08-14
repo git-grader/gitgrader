@@ -1,3 +1,11 @@
+# Compose otherwise names the project after whatever directory the checkout sits in,
+# and that name prefixes every volume. The grading sandbox is bind-mounted by the
+# Docker daemon from an absolute host path that has to spell those volumes out
+# (GRADING_DOCKER_*_MOUNT_ROOT), so a rename nobody chose - cloning into gitgrader-2,
+# or into git-grader - silently points the hidden tests at a directory the daemon
+# then creates empty, and every submission is graded against no tests and scored zero.
+name: gitgrader
+
 services:
   app:
     image: ghcr.io/git-grader/gitgrader:${GITGRADER_VERSION:-0.1.0-SNAPSHOT}
@@ -44,6 +52,8 @@ services:
       SECURITY_LDAP_ENABLED: ${SECURITY_LDAP_ENABLED:-false}
       SECURITY_LOCAL_ACCOUNTS_ENABLED: ${SECURITY_LOCAL_ACCOUNTS_ENABLED:-false}
       SECURITY_SESSION_SECURE_COOKIE: ${SECURITY_SESSION_SECURE_COOKIE:-true}
+      AUDIT_IP_HASH_KEY: ${AUDIT_IP_HASH_KEY:-}
+      AUDIT_RETENTION: ${AUDIT_RETENTION:-P365D}
       SERVER_FORWARD_HEADERS_STRATEGY: ${SERVER_FORWARD_HEADERS_STRATEGY:-none}
       # JGit caches filesystem timing attributes in a user config file and treats being
       # unable to write it as a hard failure, which surfaces as every signed commit being
