@@ -4,6 +4,7 @@
 import { useState } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { api } from '../api';
+import { QueryErrorNotice } from '../components/QueryErrorNotice';
 import type { RegistrationRequest } from '../api';
 import { Box, Button, TextField, Typography, Alert, Paper, MenuItem } from '@mui/material';
 import { useNavigate } from 'react-router';
@@ -16,7 +17,7 @@ export function RegistrationPage() {
   const [form, setForm] = useState<Partial<RegistrationRequest>>({});
   const [keyError, setKeyError] = useState<string | null>(null);
 
-  const { data: avail, isLoading } = useQuery({
+  const { data: avail, isLoading, isError, refetch } = useQuery({
     queryKey: ['availability'],
     queryFn: api.getAvailability
   });
@@ -29,6 +30,20 @@ export function RegistrationPage() {
   });
 
   if (isLoading) return <Box sx={{ p: 4 }}>Loading...</Box>;
+
+  // Whether registration is open is a decision only the server can make. Reading a
+  // failed call as a closed one turned any hiccup into a refusal, and told a student
+  // within the window that they had missed it.
+  if (isError) {
+    return (
+      <Box sx={{ p: 4, maxWidth: 'sm', mx: 'auto' }}>
+        <QueryErrorNotice
+          message="Whether registration is open could not be checked. Try again in a moment."
+          onRetry={() => void refetch()}
+        />
+      </Box>
+    );
+  }
 
   if (!avail?.open) {
     return (

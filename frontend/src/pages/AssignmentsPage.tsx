@@ -6,6 +6,7 @@ import { useSearchParams, Link } from 'react-router';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAssignmentMaterials } from '../hooks/useAssignmentMaterials';
 import { api } from '../api';
+import { QueryErrorNotice } from '../components/QueryErrorNotice';
 import type { AssignmentDefinition } from '../api';
 import { ApiProblem } from '../api/client';
 import { Typography, CircularProgress, Button, Dialog, DialogTitle, DialogContent, DialogActions, TextField, Alert, Select, MenuItem, InputLabel, FormControl, FormControlLabel, Checkbox, Switch, FormHelperText, Tooltip } from '@mui/material';
@@ -34,7 +35,7 @@ export function AssignmentsPage() {
   const materials = useAssignmentMaterials();
   
   const { paginationModel, setPaginationModel, params } = useServerPagination();
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ['assignments', selectedCourseId, params.page, params.size],
     queryFn: () => api.getAssignments(selectedCourseId ? { ...params, courseId: selectedCourseId } : params),
     placeholderData: (previous) => previous
@@ -160,6 +161,8 @@ export function AssignmentsPage() {
 
       {isLoading ? (
         <div style={{ display: 'flex', justifyContent: 'center', padding: '32px' }}><CircularProgress /></div>
+      ) : isError ? (
+        <QueryErrorNotice message="The assignments could not be loaded." onRetry={() => void refetch()} />
       ) : (
         <div style={{ height: 600, width: '100%', marginTop: '16px' }}>
           <DataGrid

@@ -9,6 +9,11 @@ import { DashboardPage } from '../src/pages/DashboardPage';
 import { StudentsPage } from '../src/pages/StudentsPage';
 import { ReportPage } from '../src/pages/ReportPage';
 import { AdminRuntimesPage } from '../src/pages/AdminRuntimesPage';
+import { CoursesPage } from '../src/pages/CoursesPage';
+import { SubmissionsPage } from '../src/pages/SubmissionsPage';
+import { RegistrationPage } from '../src/pages/RegistrationPage';
+import { CourseDetailPage } from '../src/pages/CourseDetailPage';
+import { MetaProvider } from '../src/components/MetaProvider';
 import { api } from '../src/api';
 
 vi.mock('../src/api', async () => {
@@ -20,7 +25,13 @@ vi.mock('../src/api', async () => {
       getStudents: vi.fn(),
       getCourseReport: vi.fn(),
       getRuntimes: vi.fn(),
-      getMe: vi.fn()
+      getMe: vi.fn(),
+      getCourses: vi.fn(),
+      getSubmissions: vi.fn(),
+      getAvailability: vi.fn(),
+      getCourse: vi.fn(),
+      getCourseClasses: vi.fn(),
+      getMeta: vi.fn()
     }
   };
 });
@@ -69,4 +80,40 @@ test('retrying asks the server again', async () => {
   await vi.waitFor(() => {
     expect(mocked['getDashboard']?.mock.calls.length ?? 0).toBeGreaterThan(calls);
   });
+});
+
+// These did something worse than render nothing: they stated something untrue. An empty
+// list and a failed request are indistinguishable once the data is undefined, so each
+// page reported the answer it would have given had the server said there was nothing.
+test.each([
+  ['courses', <CoursesPage key="c" />, 'The courses could not be loaded.', 'No courses found.'],
+  ['submissions', <SubmissionsPage key="s" />, 'The submissions could not be loaded.', null],
+  ['course detail', <CourseDetailPage key="cd" />, 'The course could not be loaded.', 'Course not found']
+])('%s page does not present a failed request as an answer', async (_name, page, message, lie) => {
+  renderPage(page);
+
+  expect(await screen.findByText(message)).toBeInTheDocument();
+  if (lie) {
+    expect(screen.queryByText(lie)).not.toBeInTheDocument();
+  }
+});
+
+test('registration does not report itself closed because the check failed', async () => {
+  // The harm this prevents: a student inside the registration window is told they
+  // missed it, and has no reason to try again.
+  mocked['getMeta']?.mockResolvedValue({ name: 'GitGrader' });
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  render(
+    <QueryClientProvider client={client}>
+      <MemoryRouter>
+        <MetaProvider>
+          <RegistrationPage />
+        </MetaProvider>
+      </MemoryRouter>
+    </QueryClientProvider>
+  );
+
+  expect(await screen.findByText('Whether registration is open could not be checked. Try again in a moment.'))
+    .toBeInTheDocument();
+  expect(screen.queryByText('Registration is currently closed.')).not.toBeInTheDocument();
 });
