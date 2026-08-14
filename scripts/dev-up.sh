@@ -1,6 +1,11 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# Every path below is relative to the repository, not to wherever this was called from,
+# so the script has to stand where it expects to. Without this, running it by its full
+# path wrote a fresh .env into the caller's directory and then failed on ./mvnw.
+cd "$(dirname "$0")/.."
+
 usage() {
   cat <<'EOF'
 Usage: scripts/dev-up.sh [docker-compose arguments...]

@@ -67,11 +67,18 @@ jobs:
       # Buildpacks produce the image directly; there is no Dockerfile in this repository,
       # so the image cannot be built by a Docker build action. The goal runs against the
       # backend module because the aggregator does not carry the Spring Boot plugin.
-      - name: Build application image
+      #
+      # `verify` runs in the same invocation rather than being left to the Build
+      # workflow. Build does run on the tag, but nothing joins the two: a red Build did
+      # not stop this job from publishing the image and moving :latest onto it, so a
+      # release that failed the project's own gate could reach the registry and be
+      # pulled as the current one. Tags are rare; paying for the gate here is what makes
+      # "it was published" mean "it passed".
+      - name: Verify and build the application image
         env:
           VERSION: ${{ steps.release.outputs.version }}
         run: |
-          ./mvnw -B spring-boot:build-image -pl backend \
+          ./mvnw -B -Plicense verify spring-boot:build-image -pl backend \
             -Dspring-boot.build-image.imageName="${IMAGE}:${VERSION}"
       - name: Push image
         id: push
