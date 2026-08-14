@@ -30,9 +30,6 @@ config/*.local.*
 .vscode/
 !.vscode/extensions.json
 
-# Coding-assistant scratch state
-.omo/
-
 # Operating systems
 .DS_Store
 Thumbs.db
