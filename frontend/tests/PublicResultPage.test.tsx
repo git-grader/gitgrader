@@ -75,3 +75,36 @@ test('PublicResultPage has no a11y violations', async () => {
   const results = await axe(container);
   expect(results).toHaveNoViolations();
 });
+
+// A run that timed out or broke leaves no score, deliberately: the domain refuses to
+// write a zero because it would be indistinguishable from a student who passed nothing.
+// The page read it as a number regardless, which threw during render and left the
+// student a blank page instead of their result.
+test('PublicResultPage explains a run that produced no score', async () => {
+  const { api } = await import('../src/api');
+  (api.getResult as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+    assignmentTitle: 'Timed Out Assig',
+    courseName: 'Test Course',
+    commitSha: 'abcdef12',
+    receivedAt: new Date().toISOString(),
+    verified: true,
+    passed: 0,
+    total: 0,
+    score: null,
+    tests: []
+  });
+
+  render(
+    <QueryClientProvider client={new QueryClient()}>
+      <MemoryRouter initialEntries={['/result/token456']}>
+        <Routes>
+          <Route path="/result/:token" element={<PublicResultPage />} />
+        </Routes>
+      </MemoryRouter>
+    </QueryClientProvider>
+  );
+
+  await screen.findByText('Timed Out Assig');
+  expect(screen.getByText(/has no score yet/)).toBeInTheDocument();
+  expect(screen.queryByText(/Score: 0.0 %/)).not.toBeInTheDocument();
+});

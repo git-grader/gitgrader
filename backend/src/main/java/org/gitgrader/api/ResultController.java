@@ -93,10 +93,14 @@ public class ResultController {
 			.name();
 
 		Optional<StudentGradingResult> graded = this.gradingResults.findLatestForSubmission(submission.id());
+		// Absent rather than zero when there is no score. A run that timed out or broke
+		// leaves it null precisely so that it cannot be read as a mark, and answering
+		// zero here rebuilt on the student's own result page the confusion the domain
+		// refuses to write to the database.
 		return new PublicResultView(assignment.title(), courseName, submission.commitSha(), submission.receivedAt(),
 				submission.signatureVerified(), graded.map(StudentGradingResult::testsPassed).orElse(0),
 				graded.map(StudentGradingResult::testsTotal).orElse(0),
-				graded.map(StudentGradingResult::scorePercent).orElse(BigDecimal.ZERO),
+				graded.map(StudentGradingResult::scorePercent).orElse(null),
 				graded.map(StudentGradingResult::tests).orElse(List.of()).stream().map(PublicTestView::of).toList());
 	}
 

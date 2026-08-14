@@ -101,13 +101,25 @@ export function PublicResultPage() {
         <Box sx={{ mt: 4, mb: 4 }}>
           <Typography variant="h3" component="h2" gutterBottom>Overall</Typography>
           <Typography variant="body1">{data.passed} of {data.total} tests passed</Typography>
-          <Typography variant="body1" sx={{ fontWeight: 'bold' }}>Score: {data.score.toFixed(1)} %</Typography>
-          <LinearProgress 
-            variant="determinate" 
-            value={data.score} 
-            sx={{ mt: 1, height: 10, borderRadius: 5 }} 
-            aria-label="Score progress"
-          />
+          {typeof data.score === 'number' ? (
+            <>
+              <Typography variant="body1" sx={{ fontWeight: 'bold' }}>Score: {data.score.toFixed(1)} %</Typography>
+              <LinearProgress
+                variant="determinate"
+                value={data.score}
+                sx={{ mt: 1, height: 10, borderRadius: 5 }}
+                aria-label="Score progress"
+              />
+            </>
+          ) : (
+            // A run that timed out or broke has no score, which is not the same as
+            // having scored nothing. Reading the absent value as a number threw here
+            // and took the whole page with it.
+            <Alert severity="info" sx={{ mt: 1 }}>
+              This submission has no score yet. It is either still being graded, or the grading run could not
+              finish - your instructor can run it again.
+            </Alert>
+          )}
         </Box>
 
         <Typography variant="h3" component="h2" gutterBottom>Test Details</Typography>
