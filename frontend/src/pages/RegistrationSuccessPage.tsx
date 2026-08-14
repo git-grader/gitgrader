@@ -1,9 +1,39 @@
 // Copyright the GitGrader contributors.
 // SPDX-License-Identifier: Apache-2.0
 
+import { useState } from 'react';
 import { useLocation, Navigate } from 'react-router';
 import { Box, Typography, Paper, Button, List, ListItem, ListItemText } from '@mui/material';
 import type { RegistrationResponse } from '../api';
+
+/**
+ * Copies one clone command, and admits it when it could not.
+ *
+ * The clipboard API does not exist on an insecure origin and can be refused on a secure
+ * one, and both arrive here as a click that did nothing at all. This is the first page a
+ * student sees and the clone URL is the one thing they came away with, so a button that
+ * quietly fails sends them looking for a command they think they already have.
+ */
+function CopyCloneCommand({ command }: { command: string }) {
+  const [outcome, setOutcome] = useState<'idle' | 'copied' | 'failed'>('idle');
+
+  const copy = async () => {
+    try {
+      await navigator.clipboard.writeText(command);
+      setOutcome('copied');
+    }
+    catch {
+      setOutcome('failed');
+    }
+  };
+
+  const label = outcome === 'copied' ? 'Copied' : outcome === 'failed' ? 'Copy it by hand' : 'Copy';
+  return (
+    <Button size="small" onClick={() => void copy()} aria-live="polite">
+      {label}
+    </Button>
+  );
+}
 
 export function RegistrationSuccessPage() {
   const location = useLocation();
@@ -40,7 +70,7 @@ export function RegistrationSuccessPage() {
                     >
                       git clone {repo.cloneUrl}
                     </Box>
-                    <Button size="small" onClick={() => { void navigator.clipboard.writeText(`git clone ${repo.cloneUrl}`); }}>Copy</Button>
+                    <CopyCloneCommand command={`git clone ${repo.cloneUrl}`} />
                   </Box>
                 } 
               />
