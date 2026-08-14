@@ -97,9 +97,17 @@
 		<spring-javaformat.validate.skip>${skipQuality}</spring-javaformat.validate.skip>
 		<forbiddenapis.skip>${skipQuality}</forbiddenapis.skip>
 
-		<!-- Coverage floor. Raised as the test suite grows. -->
-		<jacoco.line.coverage>0.50</jacoco.line.coverage>
-		<jacoco.branch.coverage>0.40</jacoco.branch.coverage>
+		<!--
+		  Coverage floor, for a run of the unit tests alone. Without a Docker engine the
+		  integration tests skip - deliberately, so that a contributor without one still
+		  gets a green `./mvnw verify`, which CONTRIBUTING.md promises - and they are
+		  worth about twenty points of line coverage. A floor set for a run that includes
+		  them would turn that promise into a build failing on a coverage ratio, with
+		  nothing anywhere to connect it to Docker. The `ci-coverage` profile below
+		  raises it where the integration tests are guaranteed to have run.
+		-->
+		<jacoco.line.coverage>0.55</jacoco.line.coverage>
+		<jacoco.branch.coverage>0.45</jacoco.branch.coverage>
 
 		<!-- SonarQube / IDE friendly aggregate report location. -->
 		<sonar.coverage.jacoco.xmlReportPaths>${project.build.directory}/site/jacoco/jacoco.xml</sonar.coverage.jacoco.xmlReportPaths>
@@ -564,12 +572,43 @@
 							<goal>prepare-agent-integration</goal>
 						</goals>
 					</execution>
+					<!--
+					  The integration tests are the most realistic thing the suite has, and
+					  their coverage was written to a second file that nothing ever read: the
+					  report and the gate below both defaulted to the unit data alone. So the
+					  push admission hook, the grading queue and the SSH server - all of them
+					  driven end to end by a Testcontainers IT - were published as 0% covered,
+					  and the gate they had to clear was one they contributed nothing to.
+					  Merging first makes both reports describe the same run.
+					-->
+					<execution>
+						<id>jacoco-merge</id>
+						<phase>verify</phase>
+						<goals>
+							<goal>merge</goal>
+						</goals>
+						<configuration>
+							<fileSets>
+								<fileSet>
+									<directory>${project.build.directory}</directory>
+									<includes>
+										<include>jacoco.exec</include>
+										<include>jacoco-it.exec</include>
+									</includes>
+								</fileSet>
+							</fileSets>
+							<destFile>${project.build.directory}/jacoco-merged.exec</destFile>
+						</configuration>
+					</execution>
 					<execution>
 						<id>jacoco-report</id>
 						<phase>verify</phase>
 						<goals>
 							<goal>report</goal>
 						</goals>
+						<configuration>
+							<dataFile>${project.build.directory}/jacoco-merged.exec</dataFile>
+						</configuration>
 					</execution>
 					<execution>
 						<id>jacoco-check</id>
@@ -578,6 +617,7 @@
 							<goal>check</goal>
 						</goals>
 						<configuration>
+							<dataFile>${project.build.directory}/jacoco-merged.exec</dataFile>
 							<haltOnFailure>true</haltOnFailure>
 							<rules>
 								<rule>
@@ -725,6 +765,27 @@
 	</build>
 
 	<profiles>
+		<!-- ============ Coverage floor where every test runs ============ -->
+		<!--
+		  Activated by the CI environment variable, which is the same signal
+		  DockerAvailableCondition uses to enable the integration tests rather than skip
+		  them. Wherever that condition guarantees they ran, this guarantees their
+		  coverage is demanded: the suite reaches about 80% line and 64% branch, so a
+		  floor set here catches a lost test instead of tolerating a twenty-point fall.
+		-->
+		<profile>
+			<id>ci-coverage</id>
+			<activation>
+				<property>
+					<name>env.CI</name>
+				</property>
+			</activation>
+			<properties>
+				<jacoco.line.coverage>0.75</jacoco.line.coverage>
+				<jacoco.branch.coverage>0.60</jacoco.branch.coverage>
+			</properties>
+		</profile>
+
 		<!-- ============ Reproducible frontend build ============ -->
 		<profile>
 			<id>frontend</id>
