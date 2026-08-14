@@ -5,6 +5,7 @@ import { useState } from 'react';
 import { useParams } from 'react-router';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '../api';
+import { QueryErrorNotice } from '../components/QueryErrorNotice';
 import { AssignmentStatusChip } from '../components/AssignmentStatusChip';
 import { fromLocalInputValue, toLocalInputValue } from '../components/localDateTime';
 import type { AssignmentDefinition, AssignmentDetail } from '../api';
@@ -144,7 +145,7 @@ export function AssignmentDetailPage() {
   const { id } = useParams<{ id: string }>();
   const queryClient = useQueryClient();
 
-  const { data: assignment, isLoading: assignmentLoading } = useQuery({
+  const { data: assignment, isLoading: assignmentLoading, isError: assignmentFailed, refetch: refetchAssignment } = useQuery({
     queryKey: ['assignments', 'detail', id],
     queryFn: () => api.getAssignment(id || '')
   });
@@ -175,6 +176,11 @@ export function AssignmentDetailPage() {
         configured. Reload the page to try again.
       </Alert>
     );
+  }
+  // A failed request is not a missing assignment, and saying so sends an instructor
+  // looking for something they deleted rather than reloading the page.
+  if (assignmentFailed) {
+    return <QueryErrorNotice message="The assignment could not be loaded." onRetry={() => void refetchAssignment()} />;
   }
   if (!assignment) return <Typography color="error">Assignment not found</Typography>;
 

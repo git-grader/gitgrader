@@ -5,6 +5,7 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useSearchParams } from 'react-router';
 import { api } from '../api';
+import { QueryErrorNotice } from '../components/QueryErrorNotice';
 import { useServerPagination } from '../components/useServerPagination';
 import { CourseStatusChip } from '../components/CourseStatusChip';
 import type { CourseDefinition } from '../api';
@@ -32,7 +33,7 @@ export function CoursesPage() {
   });
 
   const { paginationModel, setPaginationModel, params } = useServerPagination();
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ['courses', statusFilter, params.page, params.size],
     queryFn: () => api.getCourses({ ...params, status: statusFilter }),
     placeholderData: (previous) => previous
@@ -117,6 +118,8 @@ export function CoursesPage() {
 
       {isLoading ? (
         <div style={{ display: 'flex', justifyContent: 'center', padding: '32px' }}><CircularProgress /></div>
+      ) : isError ? (
+        <QueryErrorNotice message="The courses could not be loaded." onRetry={() => void refetch()} />
       ) : !data?.content || data.content.length === 0 ? (
         <Paper sx={{ p: 4, textAlign: 'center' }}>
           <Typography color="text.secondary">No courses found.</Typography>

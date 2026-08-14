@@ -4,6 +4,7 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '../api';
+import { QueryErrorNotice } from '../components/QueryErrorNotice';
 import { CHOICE_PAGE_SIZE } from '../components/useServerPagination';
 import type { TemplateDefinition, TestSuiteDefinition } from '../api';
 import { ApiProblem } from '../api/client';
@@ -234,8 +235,8 @@ export function MaterialsPage() {
   const [tsOpen, setTsOpen] = useState(false);
   const [tsForm, setTsForm] = useState<TestSuiteDefinition>({ suiteKey: '', name: '', description: '' });
 
-  const { data: templates, isLoading: tLoading } = useQuery({ queryKey: ['templates'], queryFn: () => api.getTemplates({ size: CHOICE_PAGE_SIZE }) });
-  const { data: testSuites, isLoading: tsLoading } = useQuery({ queryKey: ['testSuites'], queryFn: () => api.getTestSuites({ size: CHOICE_PAGE_SIZE }) });
+  const { data: templates, isLoading: tLoading, isError: tFailed, refetch: refetchTemplates } = useQuery({ queryKey: ['templates'], queryFn: () => api.getTemplates({ size: CHOICE_PAGE_SIZE }) });
+  const { data: testSuites, isLoading: tsLoading, isError: tsFailed, refetch: refetchTestSuites } = useQuery({ queryKey: ['testSuites'], queryFn: () => api.getTestSuites({ size: CHOICE_PAGE_SIZE }) });
 
   const createTemplateMutation = useMutation({
     mutationFn: (req: TemplateDefinition) => api.createTemplate(req),
@@ -290,7 +291,9 @@ export function MaterialsPage() {
           </Typography>
           <Button variant="contained" onClick={() => setTOpen(true)}>New Template</Button>
         </Box>
-        {tLoading ? <CircularProgress /> : filteredTemplates.length === 0 ? (
+        {tLoading ? <CircularProgress /> : tFailed ? (
+          <QueryErrorNotice message="The templates could not be loaded." onRetry={() => void refetchTemplates()} />
+        ) : filteredTemplates.length === 0 ? (
           <Paper sx={{ p: 4, textAlign: 'center' }}>
             <Typography color="text.secondary">{emptyStateMessage}</Typography>
           </Paper>
@@ -318,7 +321,9 @@ export function MaterialsPage() {
           </Typography>
           <Button variant="contained" onClick={() => setTsOpen(true)}>New Test Suite</Button>
         </Box>
-        {tsLoading ? <CircularProgress /> : filteredTestSuites.length === 0 ? (
+        {tsLoading ? <CircularProgress /> : tsFailed ? (
+          <QueryErrorNotice message="The test suites could not be loaded." onRetry={() => void refetchTestSuites()} />
+        ) : filteredTestSuites.length === 0 ? (
           <Paper sx={{ p: 4, textAlign: 'center' }}>
             <Typography color="text.secondary">{emptyStateMessage}</Typography>
           </Paper>

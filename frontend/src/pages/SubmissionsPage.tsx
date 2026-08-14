@@ -4,6 +4,7 @@
 import { useSearchParams } from 'react-router';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '../api';
+import { QueryErrorNotice } from '../components/QueryErrorNotice';
 import { Box, Typography, CircularProgress, Select, MenuItem, InputLabel, FormControl } from '@mui/material';
 import { DataGrid } from '@mui/x-data-grid';
 import type { GridColDef } from '@mui/x-data-grid';
@@ -28,7 +29,7 @@ export function SubmissionsPage() {
   });
 
   const { paginationModel, setPaginationModel, params } = useServerPagination();
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ['submissions', selectedCourseId, params.page, params.size],
     queryFn: () => api.getSubmissions(selectedCourseId ? { ...params, courseId: selectedCourseId } : params),
     placeholderData: (previous) => previous
@@ -105,6 +106,8 @@ export function SubmissionsPage() {
 
       {isLoading ? (
         <div style={{ display: 'flex', justifyContent: 'center', padding: '32px' }}><CircularProgress /></div>
+      ) : isError ? (
+        <QueryErrorNotice message="The submissions could not be loaded." onRetry={() => void refetch()} />
       ) : (
         <div style={{ height: 600, width: '100%' }}>
           <DataGrid

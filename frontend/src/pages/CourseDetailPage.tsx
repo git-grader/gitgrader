@@ -5,6 +5,7 @@ import { useState } from 'react';
 import { useParams, Link } from 'react-router';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '../api';
+import { QueryErrorNotice } from '../components/QueryErrorNotice';
 import { CourseStatusChip } from '../components/CourseStatusChip';
 import { fromLocalInputValue, toLocalInputValue } from '../components/localDateTime';
 import type { ClassDefinition, CourseDefinition, CourseView, Class } from '../api';
@@ -252,7 +253,7 @@ export function CourseDetailPage() {
   const [classOpen, setClassOpen] = useState(false);
   const [editingClass, setEditingClass] = useState<Class | null>(null);
 
-  const { data: course, isLoading: courseLoading } = useQuery({
+  const { data: course, isLoading: courseLoading, isError: courseFailed, refetch: refetchCourse } = useQuery({
     queryKey: ['courses', id],
     queryFn: () => api.getCourse(id || '')
   });
@@ -264,6 +265,12 @@ export function CourseDetailPage() {
 
   if (courseLoading || classesLoading) {
     return <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}><CircularProgress /></Box>;
+  }
+
+  // A failed request is not a missing course, and telling an instructor their course
+  // does not exist is a far more alarming answer than the truth.
+  if (courseFailed) {
+    return <QueryErrorNotice message="The course could not be loaded." onRetry={() => void refetchCourse()} />;
   }
 
   if (!course) {
