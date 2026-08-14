@@ -27,7 +27,12 @@ export default defineConfig({
   },
   build: {
     outDir: 'dist',
-    sourcemap: true,
+    // Maven copies dist/ into the jar and /assets/** is permitAll, so a production map
+    // is published, cached immutably for a year, and was 5.6 MB of the 7.4 MB payload.
+    // The sources are Apache-2.0 and already on GitHub, so nothing is being hidden here;
+    // what is avoided is shipping a debug artifact to every operator. Build locally with
+    // `npx vite build --sourcemap` when a production stack trace needs resolving.
+    sourcemap: false,
     rollupOptions: {
       output: {
         // Rolldown replaced the object form of manualChunks with named groups matched
@@ -49,8 +54,20 @@ export default defineConfig({
     environment: 'jsdom',
     setupFiles: ['./tests/setup.ts'],
     globals: true,
+    restoreMocks: true,
+    // A fixed zone with a real, non-zero offset and a daylight-saving change. The
+    // datetime-local conversions are only meaningful where local time differs from UTC,
+    // so leaving this to the machine would make those tests pass everywhere except CI,
+    // which runs in UTC and would silently assert nothing.
+    env: { TZ: 'Europe/Zurich' },
     coverage: {
-      provider: 'v8'
+      provider: 'v8',
+      // Without this the report only counts files a test already imported, which made
+      // the figure read ~71% while most of src/ was never measured at all. Counting the
+      // whole tree is what makes the number mean "how much of the app is covered".
+      include: ['src/**'],
+      // A ratchet set just under today's real numbers, not a target being missed.
+      thresholds: { statements: 18, branches: 11, functions: 8, lines: 19 }
     }
   }
 });

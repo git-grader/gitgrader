@@ -3,7 +3,8 @@
 
 import { StrictMode, useMemo } from 'react';
 import { createBrowserRouter, RouterProvider, useRouteError, isRouteErrorResponse, Navigate, Link } from 'react-router';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { QueryCache, QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { ApiProblem } from './api/client';
 import { CssBaseline, ThemeProvider, useMediaQuery, Box, Button, Typography } from '@mui/material';
 import { createAppTheme } from './theme';
 import PrimaryLogo from './assets/brand/gitgrader-lockup-primary.svg';
@@ -29,7 +30,42 @@ import { AssignmentDetailPage } from './pages/AssignmentDetailPage';
 import { SubmissionDetailPage } from './pages/SubmissionDetailPage';
 import { MaterialsPage } from './pages/MaterialsPage';
 
-const queryClient = new QueryClient();
+/**
+ * Sends an expired session back to the sign-in page.
+ *
+ * A full navigation rather than a router push, because it is also what discards the
+ * cache: every page holds the previous user's data until the document is replaced, and
+ * that data includes student records and audit entries.
+ */
+function redirectToSignIn() {
+  if (window.location.pathname !== '/login') {
+    window.location.assign('/login');
+  }
+}
+
+const queryClient = new QueryClient({
+  // A 401 is a session problem, not a page problem, so it is handled once here. Left to
+  // the pages, each one renders its own `!data` branch and an expired session looks like
+  // a blank screen rather than a prompt to sign in again.
+  queryCache: new QueryCache({
+    onError: (error) => {
+      if (error instanceof ApiProblem && error.status === 401) {
+        redirectToSignIn();
+      }
+    }
+  }),
+  defaultOptions: {
+    queries: {
+      // A 4xx is an answer, not a hiccup; retrying one only delays it.
+      retry: (failureCount, error) => {
+        if (error instanceof ApiProblem && error.status >= 400 && error.status < 500) {
+          return false;
+        }
+        return failureCount < 3;
+      }
+    }
+  }
+});
 
 function ErrorBoundary() {
   const error = useRouteError();

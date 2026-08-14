@@ -6,6 +6,7 @@ import { useParams } from 'react-router';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '../api';
 import { AssignmentStatusChip } from '../components/AssignmentStatusChip';
+import { fromLocalInputValue, toLocalInputValue } from '../components/localDateTime';
 import type { AssignmentDefinition, AssignmentDetail } from '../api';
 import { ApiProblem } from '../api/client';
 import { Typography, CircularProgress, Button, Paper, Alert, Tooltip, Box, FormControl, InputLabel, Select, MenuItem, TextField } from '@mui/material';
@@ -26,8 +27,8 @@ function ConfigurationForm({ assignment, materials, isDraft, pending, onSave }: 
   // remounts this form via a key when a different assignment is opened.
   const [form, setForm] = useState<Partial<AssignmentDefinition>>(() => ({
     ...assignment,
-    opensAt: assignment.opensAt ? assignment.opensAt.slice(0, 16) : '',
-    dueAt: assignment.dueAt ? assignment.dueAt.slice(0, 16) : ''
+    opensAt: toLocalInputValue(assignment.opensAt),
+    dueAt: toLocalInputValue(assignment.dueAt)
   }));
 
   const disabled = !isDraft || pending;
@@ -39,7 +40,6 @@ function ConfigurationForm({ assignment, materials, isDraft, pending, onSave }: 
 
   const handleSave = (event: React.SyntheticEvent) => {
     event.preventDefault();
-    const toIso = (value?: string | null) => (value ? new Date(value).toISOString() : null);
     onSave({
       ...assignment,
       ...form,
@@ -49,8 +49,8 @@ function ConfigurationForm({ assignment, materials, isDraft, pending, onSave }: 
       status: assignment.status,
       displayOrder: form.displayOrder ?? assignment.displayOrder,
       mandatory: form.mandatory ?? assignment.mandatory,
-      opensAt: toIso(form.opensAt),
-      dueAt: toIso(form.dueAt),
+      opensAt: fromLocalInputValue(form.opensAt),
+      dueAt: fromLocalInputValue(form.dueAt),
       templateVersionId: form.templateVersionId || null,
       testSuiteVersionId: form.testSuiteVersionId || null,
       runtimeId: form.runtimeId || null,
@@ -167,6 +167,14 @@ export function AssignmentDetailPage() {
 
   if (assignmentLoading || materials.isLoading) {
     return <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}><CircularProgress /></Box>;
+  }
+  if (materials.isError) {
+    return (
+      <Alert severity="error" sx={{ m: 2 }}>
+        The templates, test suites and runtimes could not be loaded, so this assignment cannot be
+        configured. Reload the page to try again.
+      </Alert>
+    );
   }
   if (!assignment) return <Typography color="error">Assignment not found</Typography>;
 
