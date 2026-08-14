@@ -14,11 +14,41 @@ permissions:
 env:
   IMAGE: ghcr.io/git-grader/gitgrader
 
+# Never cancelled: by the time this is running it may already have pushed a tag, and a
+# half-published release is worse than a queued one.
+concurrency:
+  group: container-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
   publish:
     runs-on: ubuntu-latest
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v7
+      # workflow_dispatch accepts any ref, and the version was taken from the ref name
+      # with the leading "v" stripped. Dispatching from a branch therefore published
+      # ghcr.io/git-grader/gitgrader:main and, worse, moved :latest onto it. The ref is
+      # checked before anything is built, and only a stable release moves :latest.
+      - name: Resolve and validate the release version
+        id: release
+        run: |
+          if [ "${GITHUB_REF_TYPE}" != "tag" ]; then
+            echo "::error::This workflow publishes release tags only, but it was run on ${GITHUB_REF_TYPE} '${GITHUB_REF_NAME}'."
+            exit 1
+          fi
+          version="${GITHUB_REF_NAME#v}"
+          if ! printf '%s' "$version" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$'; then
+            echo "::error::Tag '${GITHUB_REF_NAME}' is not a semantic version, so it cannot name an image."
+            exit 1
+          fi
+          latest=false
+          case "$version" in
+            *-*) echo "Pre-release ${version}; :latest will not be moved." ;;
+            *) latest=true ;;
+          esac
+          printf 'version=%s\n' "$version" >> "$GITHUB_OUTPUT"
+          printf 'latest=%s\n' "$latest" >> "$GITHUB_OUTPUT"
       - uses: actions/setup-java@v5
         with:
           distribution: temurin
@@ -38,18 +68,23 @@ jobs:
       # so the image cannot be built by a Docker build action. The goal runs against the
       # backend module because the aggregator does not carry the Spring Boot plugin.
       - name: Build application image
+        env:
+          VERSION: ${{ steps.release.outputs.version }}
         run: |
-          version="${GITHUB_REF_NAME#v}"
           ./mvnw -B spring-boot:build-image -pl backend \
-            -Dspring-boot.build-image.imageName="${IMAGE}:${version}"
+            -Dspring-boot.build-image.imageName="${IMAGE}:${VERSION}"
       - name: Push image
         id: push
+        env:
+          VERSION: ${{ steps.release.outputs.version }}
+          MOVE_LATEST: ${{ steps.release.outputs.latest }}
         run: |
-          version="${GITHUB_REF_NAME#v}"
-          docker tag "${IMAGE}:${version}" "${IMAGE}:latest"
-          docker push "${IMAGE}:${version}"
-          docker push "${IMAGE}:latest"
-          digest=$(docker inspect --format '{{index .RepoDigests 0}}' "${IMAGE}:${version}" | cut -d@ -f2)
+          docker push "${IMAGE}:${VERSION}"
+          if [ "$MOVE_LATEST" = "true" ]; then
+            docker tag "${IMAGE}:${VERSION}" "${IMAGE}:latest"
+            docker push "${IMAGE}:latest"
+          fi
+          digest=$(docker inspect --format '{{index .RepoDigests 0}}' "${IMAGE}:${VERSION}" | cut -d@ -f2)
           printf 'digest=%s\n' "$digest" >> "$GITHUB_OUTPUT"
       - uses: actions/attest-build-provenance@v4
         with:
