@@ -16,23 +16,15 @@
 
 package org.gitgrader.security.internal;
 
-import java.util.Collection;
-import java.util.HashSet;
-import java.util.Set;
-
 import org.gitgrader.configuration.SecurityProperties;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.ldap.core.DirContextOperations;
-import org.springframework.security.core.GrantedAuthority;
-import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.ldap.DefaultSpringSecurityContextSource;
 import org.springframework.security.ldap.authentication.BindAuthenticator;
 import org.springframework.security.ldap.authentication.LdapAuthenticationProvider;
 import org.springframework.security.ldap.search.FilterBasedLdapUserSearch;
 import org.springframework.security.ldap.userdetails.DefaultLdapAuthoritiesPopulator;
-import org.springframework.security.ldap.userdetails.LdapAuthoritiesPopulator;
 
 /**
  * Configures LDAP authentication when active.
@@ -59,32 +51,16 @@ public class LdapSecurityConfig {
 		BindAuthenticator authenticator = new BindAuthenticator(contextSource);
 		authenticator.setUserSearch(userSearch);
 
-		DefaultLdapAuthoritiesPopulator authoritiesPopulator = new DefaultLdapAuthoritiesPopulator(contextSource,
+		DefaultLdapAuthoritiesPopulator groups = new DefaultLdapAuthoritiesPopulator(contextSource,
 				ldapProps.groupSearchBase());
-		authoritiesPopulator.setGroupSearchFilter(ldapProps.groupSearchFilter());
-		authoritiesPopulator.setRolePrefix("");
-		authoritiesPopulator.setConvertToUpperCase(false);
+		groups.setGroupSearchFilter(ldapProps.groupSearchFilter());
+		// The group name is compared as the directory spells it, so neither a prefix nor
+		// a case change may be applied before GroupRoleMapper sees it.
+		groups.setRolePrefix("");
+		groups.setConvertToUpperCase(false);
 
-		LdapAuthoritiesPopulator customPopulator = new LdapAuthoritiesPopulator() {
-			@Override
-			public Collection<? extends GrantedAuthority> getGrantedAuthorities(DirContextOperations userData,
-					String username) {
-				Collection<? extends GrantedAuthority> authorities = authoritiesPopulator
-					.getGrantedAuthorities(userData, username);
-				Set<GrantedAuthority> mappedAuthorities = new HashSet<>();
-				for (GrantedAuthority authority : authorities) {
-					if (ldapProps.instructorGroup().equals(authority.getAuthority())) {
-						mappedAuthorities.add(new SimpleGrantedAuthority("ROLE_INSTRUCTOR"));
-					}
-					if (ldapProps.adminGroup().equals(authority.getAuthority())) {
-						mappedAuthorities.add(new SimpleGrantedAuthority("ROLE_ADMIN"));
-					}
-				}
-				return mappedAuthorities;
-			}
-		};
-
-		return new LdapAuthenticationProvider(authenticator, customPopulator);
+		return new LdapAuthenticationProvider(authenticator,
+				new GroupRoleMapper(groups, ldapProps.instructorGroup(), ldapProps.adminGroup()));
 	}
 
 }
