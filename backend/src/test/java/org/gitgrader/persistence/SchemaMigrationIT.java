@@ -323,9 +323,73 @@ class SchemaMigrationIT {
 				.formatted(assignmentId))).isEqualTo("2");
 		}
 
+		@Test
+		@DisplayName("refuses a second result at a position a run already filled")
+		void refusesADuplicateResultPosition() throws SQLException {
+			// A run written twice put a second full set of results beside the first, and
+			// the student's page listed every check twice. Holding the sandbox inside its
+			// lease is what stops that happening; this is the backstop, because the
+			// position of a check within its run is unique by construction and the table
+			// said nothing about it.
+			UUID runId = insertGradingRun("dup-position");
+			insertTestResult(runId, 0);
+
+			assertThatExceptionOfType(SQLException.class).isThrownBy(() -> insertTestResult(runId, 0))
+				.withMessageContaining("test_results_unique_position");
+
+			// A different position in the same run is an ordinary second check.
+			insertTestResult(runId, 1);
+			assertThat(
+					querySingle("SELECT count(*)::text FROM test_results WHERE grading_run_id = '%s'".formatted(runId)))
+				.isEqualTo("2");
+		}
+
 	}
 
 	// ---------------------------------------------------------------- helpers
+
+	/**
+	 * Builds the whole chain a grading run hangs from, so the constraint is exercised
+	 * against real rows rather than against a foreign key failing first.
+	 * @param key distinguishes this fixture's rows from another test's
+	 * @return the grading run
+	 * @throws SQLException if any insert is refused
+	 */
+	private UUID insertGradingRun(String key) throws SQLException {
+		UUID courseId = UUID.randomUUID();
+		insertCourse(key + "-course", courseId);
+		UUID assignmentId = UUID.randomUUID();
+		execute("""
+				INSERT INTO assignments (id, course_id, assignment_key, title, status,
+					max_points, test_count, pass_threshold, created_at, updated_at)
+				VALUES ('%s', '%s', '%s-01', 'Assignment', 'DRAFT', 100, 10, 100, now(), now())
+				""".formatted(assignmentId, courseId, key));
+		UUID studentId = insertStudent(key + "-student");
+		UUID repositoryId = UUID.randomUUID();
+		execute("""
+				INSERT INTO repositories (id, assignment_id, student_id, repository_path, created_at, updated_at)
+				VALUES ('%s', '%s', '%s', '%s/repo', now(), now())
+				""".formatted(repositoryId, assignmentId, studentId, key));
+		UUID submissionId = UUID.randomUUID();
+		execute("""
+				INSERT INTO submissions (id, repository_id, student_id, course_id, assignment_id,
+					commit_sha, git_ref, received_at, signature_status, created_at)
+				VALUES ('%s', '%s', '%s', '%s', '%s', '%s', 'refs/heads/main', now(), 'VERIFIED', now())
+				""".formatted(submissionId, repositoryId, studentId, courseId, assignmentId, "a".repeat(40)));
+		UUID runId = UUID.randomUUID();
+		execute("""
+				INSERT INTO grading_runs (id, submission_id, attempt, status, correlation_id, created_at)
+				VALUES ('%s', '%s', 1, 'COMPLETED', '%s', now())
+				""".formatted(runId, submissionId, key));
+		return runId;
+	}
+
+	private void insertTestResult(UUID runId, int displayOrder) throws SQLException {
+		execute("""
+				INSERT INTO test_results (id, grading_run_id, visibility, outcome, display_order)
+				VALUES ('%s', '%s', 'PUBLIC', 'PASSED', %d)
+				""".formatted(UUID.randomUUID(), runId, displayOrder));
+	}
 
 	private void insertRuntime(String key, String tag, String digest) throws SQLException {
 		execute("""

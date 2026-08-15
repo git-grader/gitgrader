@@ -27,3 +27,43 @@ remain compatible with the previous version. There is no general Flyway
 downgrade. For a failed irreversible migration, stop the stack, restore the
 pre-upgrade database and all volumes using [backup/restore](backup-restore.md),
 then run the previous image. Practice this path before an urgent incident.
+
+## When a migration refuses to run
+
+Two migrations add a constraint the application had always assumed and the
+schema had never held. Where an older defect could have written data that
+breaks it, the migration stops instead of deciding for you: what to keep is an
+academic decision, and a migration that quietly deleted a submission or a score
+would be worse than one that will not start. The application does not come up
+until the data is resolved, so take the backup in step 2 first.
+
+Both are no-ops on an instance that never hit the defect.
+
+**`repository/commit pair(s) have more than one submission`** (V6). The same
+commit was recorded against one repository twice, which the admission check
+refuses and the schema had allowed. Find them:
+
+```sql
+SELECT repository_id, commit_sha, count(*), array_agg(id ORDER BY received_at)
+FROM submissions GROUP BY repository_id, commit_sha HAVING count(*) > 1;
+```
+
+Keep the submission that was graded and that the student was shown - normally
+the earliest - and delete the others by id, together with the grading runs that
+hang from them.
+
+**`grading run position(s) hold more than one result`** (V7). One grading run
+holds two results for the same position, which means that run was written twice
+and the student's result page has been listing every check twice. Find them:
+
+```sql
+SELECT grading_run_id, count(*) FROM test_results
+GROUP BY grading_run_id, display_order HAVING count(*) > 1;
+```
+
+The duplicate sets come from two sandbox runs of the same submission and are
+not required to agree, so check whether they do before choosing. If they agree,
+deleting either set is safe. If they disagree, the run has no trustworthy score
+and the honest repair is to delete every result for that run and regrade the
+submission from the instructor interface.
+
