@@ -73,7 +73,7 @@
 		<bucket4j.version>8.10.1</bucket4j.version>
 		<poi.version>5.5.1</poi.version>
 		<taikai.version>1.64.0</taikai.version>
-		<archunit.version>1.4.2</archunit.version>
+		<archunit.version>1.5.0</archunit.version>
 
 		<!-- Build tooling versions. -->
 		<frontend-maven-plugin.version>2.0.2</frontend-maven-plugin.version>
