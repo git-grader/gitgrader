@@ -83,7 +83,7 @@
 		<node.version>v24.18.1</node.version>
 		<npm.version>11.16.0</npm.version>
 		<spring-javaformat.version>0.0.47</spring-javaformat.version>
-		<checkstyle.version>13.9.0</checkstyle.version>
+		<checkstyle.version>13.10.0</checkstyle.version>
 		<maven-checkstyle-plugin.version>3.6.0</maven-checkstyle-plugin.version>
 		<maven-pmd-plugin.version>3.28.0</maven-pmd-plugin.version>
 		<pmd.version>7.26.0</pmd.version>
