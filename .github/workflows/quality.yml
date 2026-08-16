@@ -2,6 +2,10 @@ name: Quality
 
 on:
   push:
+    # Branch pushes (e.g. dependabot's) run without repository secrets, so the
+    # dependency check failed before it started; the pull_request event already
+    # covers those branches and tolerates the missing key.
+    branches: [main]
   pull_request:
 
 permissions:
