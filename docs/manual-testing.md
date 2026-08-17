@@ -1,5 +1,8 @@
 # Manual testing
 
+For a scripted pass with explicit expectations at every step, including the browser and
+the teardown, use the [end-to-end test](e2e-test.md). This page is the narrated version.
+
 A walkthrough of the whole path a course takes: an instructor signs in, a student
 registers, pushes signed work, and reads their result. Every command here was run
 against a clean stack.
