@@ -5,11 +5,12 @@ import { useState } from 'react';
 import { useParams } from 'react-router';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '../api';
+import { queryKeys } from '../api/queryKeys';
 import { QueryErrorNotice } from '../components/QueryErrorNotice';
 import { AssignmentStatusChip } from '../components/AssignmentStatusChip';
-import { fromLocalInputValue, toLocalInputValue } from '../components/localDateTime';
+import { MutationErrorAlert } from '../components/MutationErrorAlert';
+import { fromZonedInputValue, toZonedInputValue } from '../components/localDateTime';
 import type { AssignmentDefinition, AssignmentDetail } from '../api';
-import { ApiProblem } from '../api/client';
 import { Typography, CircularProgress, Button, Paper, Alert, Tooltip, Box, FormControl, InputLabel, Select, MenuItem, TextField } from '@mui/material';
 import { useAssignmentMaterials } from '../hooks/useAssignmentMaterials';
 
@@ -28,8 +29,8 @@ function ConfigurationForm({ assignment, materials, isDraft, pending, onSave }: 
   // remounts this form via a key when a different assignment is opened.
   const [form, setForm] = useState<Partial<AssignmentDefinition>>(() => ({
     ...assignment,
-    opensAt: toLocalInputValue(assignment.opensAt),
-    dueAt: toLocalInputValue(assignment.dueAt)
+    opensAt: toZonedInputValue(assignment.opensAt, assignment.timezone),
+    dueAt: toZonedInputValue(assignment.dueAt, assignment.timezone)
   }));
 
   const disabled = !isDraft || pending;
@@ -41,6 +42,8 @@ function ConfigurationForm({ assignment, materials, isDraft, pending, onSave }: 
 
   const handleSave = (event: React.SyntheticEvent) => {
     event.preventDefault();
+    // The two dates mean wall-clock time in the assignment's own zone, not the reader's.
+    const zone = form.timezone ?? assignment.timezone;
     onSave({
       ...assignment,
       ...form,
@@ -50,8 +53,8 @@ function ConfigurationForm({ assignment, materials, isDraft, pending, onSave }: 
       status: assignment.status,
       displayOrder: form.displayOrder ?? assignment.displayOrder,
       mandatory: form.mandatory ?? assignment.mandatory,
-      opensAt: fromLocalInputValue(form.opensAt),
-      dueAt: fromLocalInputValue(form.dueAt),
+      opensAt: fromZonedInputValue(form.opensAt, zone),
+      dueAt: fromZonedInputValue(form.dueAt, zone),
       templateVersionId: form.templateVersionId || null,
       testSuiteVersionId: form.testSuiteVersionId || null,
       runtimeId: form.runtimeId || null,
@@ -146,28 +149,36 @@ export function AssignmentDetailPage() {
   const queryClient = useQueryClient();
 
   const { data: assignment, isLoading: assignmentLoading, isError: assignmentFailed, refetch: refetchAssignment } = useQuery({
-    queryKey: ['assignments', 'detail', id],
-    queryFn: () => api.getAssignment(id || '')
+    queryKey: queryKeys.assignments.detail(id ?? ''),
+    queryFn: () => api.getAssignment(id ?? ''),
+    enabled: !!id
   });
 
   const materials = useAssignmentMaterials();
 
+  // Both endpoints answer with the updated assignment, so the cache is corrected from
+  // the response rather than left stale until a refetch lands.
+  const applyUpdated = (updated: AssignmentDetail) => {
+    queryClient.setQueryData(queryKeys.assignments.detail(updated.id), updated);
+    void queryClient.invalidateQueries({ queryKey: queryKeys.assignments.all });
+  };
+
   const updateMutation = useMutation({
-    mutationFn: (request: AssignmentDefinition) => api.updateAssignment(id || '', request),
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ['assignments', 'detail', id] });
-    }
+    mutationFn: (request: AssignmentDefinition) => api.updateAssignment(id ?? '', request),
+    onSuccess: applyUpdated
   });
 
   const publishMutation = useMutation({
-    mutationFn: () => api.publishAssignment(id || ''),
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ['assignments', 'detail', id] });
-    }
+    mutationFn: () => api.publishAssignment(id ?? ''),
+    onSuccess: applyUpdated
   });
 
   if (assignmentLoading || materials.isLoading) {
-    return <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}><CircularProgress /></Box>;
+    return (
+      <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}>
+        <CircularProgress aria-label="Loading assignment" />
+      </Box>
+    );
   }
   if (materials.isError) {
     return (
@@ -182,9 +193,11 @@ export function AssignmentDetailPage() {
   if (assignmentFailed) {
     return <QueryErrorNotice message="The assignment could not be loaded." onRetry={() => void refetchAssignment()} />;
   }
-  if (!assignment) return <Typography color="error">Assignment not found</Typography>;
+  if (!assignment) {
+    return <QueryErrorNotice message="The assignment could not be loaded." onRetry={() => void refetchAssignment()} />;
+  }
 
-  const error = (publishMutation.error || updateMutation.error) as ApiProblem | null;
+  const error: unknown = publishMutation.error ?? updateMutation.error;
 
   const missing: string[] = [];
   if (!assignment.templateVersionId) missing.push('a template version');
@@ -223,7 +236,7 @@ export function AssignmentDetailPage() {
         </Tooltip>
       </Box>
 
-      {error && <Alert severity="error">{error.detail || error.title}</Alert>}
+      <MutationErrorAlert error={error} />
       {!isDraft && <Alert severity="info">Published assignments are immutable. Configuration cannot be changed.</Alert>}
       {updateMutation.isSuccess && <Alert severity="success">Assignment updated successfully.</Alert>}
 

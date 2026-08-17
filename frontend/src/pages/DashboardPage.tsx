@@ -3,22 +3,35 @@
 
 import { useQuery } from '@tanstack/react-query';
 import { api } from '../api';
+import { queryKeys } from '../api/queryKeys';
 import { QueryErrorNotice } from '../components/QueryErrorNotice';
-import { Box, Typography, Grid, Paper, CircularProgress } from '@mui/material';
+import { Alert, Box, Typography, Grid, Paper, CircularProgress } from '@mui/material';
 
 export function DashboardPage() {
   const { data, isLoading, isError, refetch } = useQuery({
-    queryKey: ['dashboard'],
+    queryKey: queryKeys.dashboard,
     queryFn: api.getDashboard
   });
 
-  if (isLoading) return <Box sx={{ p: 4 }}><CircularProgress /></Box>;
-  if (isError) return <QueryErrorNotice message="The dashboard could not be loaded." onRetry={() => void refetch()} />;
-  if (!data) return null;
+  if (isLoading) return <Box sx={{ p: 4 }}><CircularProgress aria-label="Loading dashboard" /></Box>;
+  if (isError || !data) {
+    return <QueryErrorNotice message="The dashboard could not be loaded." onRetry={() => void refetch()} />;
+  }
 
   return (
     <Box>
       <Typography variant="h4" component="h1" gutterBottom>Dashboard</Typography>
+
+      {/* The count was fetched and then dropped, so the one number that says grading
+          itself is broken - as opposed to students failing - was never shown anywhere. */}
+      {data.failedInfrastructureCount > 0 && (
+        <Alert severity="warning" sx={{ mb: 3 }}>
+          {data.failedInfrastructureCount} grading {data.failedInfrastructureCount === 1 ? 'run' : 'runs'} could not be
+          carried out. This is a platform fault rather than a student one, and the affected submissions can be graded
+          again.
+        </Alert>
+      )}
+
       <Grid container spacing={3}>
         <Grid size={{ xs: 12, sm: 6, md: 3 }}>
           <Paper sx={{ p: 3, textAlign: 'center' }}>

@@ -16,7 +16,7 @@ interface ServerPagination {
   readonly paginationModel: { page: number; pageSize: number };
   readonly setPaginationModel: (model: { page: number; pageSize: number }) => void;
   /** Query parameters to send with the request, as the API helpers expect them. */
-  readonly params: Record<string, string>;
+  readonly params: { page: string; size: string };
 }
 
 /**

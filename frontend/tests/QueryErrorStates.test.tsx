@@ -17,7 +17,7 @@ import { MetaProvider } from '../src/components/MetaProvider';
 import { api } from '../src/api';
 
 vi.mock('../src/api', async () => {
-  const actual = (await vi.importActual('../src/api')) as Record<string, unknown>;
+  const actual = await vi.importActual<typeof import('../src/api')>('../src/api');
   return {
     ...actual,
     api: {

@@ -3,6 +3,10 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!-- A result token is part of the address of /result/:token, so it must not travel
+         in the Referer header of anything this document loads. Declared here rather than
+         injected once React mounts, which is already too late for the document itself. -->
+    <meta name="referrer" content="no-referrer" />
     <meta name="description" content="GitGrader - Automated git assignment grading and verification" />
     <meta name="theme-color" content="#FFFFFF" media="(prefers-color-scheme: light)" />
     <meta name="theme-color" content="#0D162C" media="(prefers-color-scheme: dark)" />

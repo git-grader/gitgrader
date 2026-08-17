@@ -1,8 +1,12 @@
 // Copyright the GitGrader contributors.
 // SPDX-License-Identifier: Apache-2.0
 
+// Copyright the GitGrader contributors.
+// SPDX-License-Identifier: Apache-2.0
+
 import { useQuery, useQueries } from '@tanstack/react-query';
 import { api } from '../api';
+import { queryKeys } from '../api/queryKeys';
 import { CHOICE_PAGE_SIZE } from '../components/useServerPagination';
 
 /**
@@ -15,17 +19,17 @@ import { CHOICE_PAGE_SIZE } from '../components/useServerPagination';
  */
 export function useAssignmentMaterials() {
   const templates = useQuery({
-    queryKey: ['templates'],
+    queryKey: queryKeys.templates.list,
     queryFn: () => api.getTemplates({ size: CHOICE_PAGE_SIZE })
   });
 
   const suites = useQuery({
-    queryKey: ['test-suites'],
+    queryKey: queryKeys.testSuites.list,
     queryFn: () => api.getTestSuites({ size: CHOICE_PAGE_SIZE })
   });
 
   const runtimes = useQuery({
-    queryKey: ['runtimes'],
+    queryKey: queryKeys.runtimes,
     queryFn: () => api.getRuntimes()
   });
 
@@ -33,29 +37,29 @@ export function useAssignmentMaterials() {
   const suitesData = suites.data;
 
   const templateVersionsQueries = useQueries({
-    queries: (templatesData?.content || []).map(t => ({
-      queryKey: ['templates', t.id, 'versions'],
+    queries: (templatesData?.content ?? []).map(t => ({
+      queryKey: queryKeys.templates.versions(t.id),
       queryFn: () => api.getTemplateVersions(t.id)
     }))
   });
 
   const suiteVersionsQueries = useQueries({
-    queries: (suitesData?.content || []).map(s => ({
-      queryKey: ['test-suites', s.id, 'versions'],
+    queries: (suitesData?.content ?? []).map(s => ({
+      queryKey: queryKeys.testSuites.versions(s.id),
       queryFn: () => api.getTestSuiteVersions(s.id)
     }))
   });
 
-  const publishedTemplateVersions = (templatesData?.content || []).flatMap((t, i) => {
-    const versions = templateVersionsQueries[i]?.data || [];
+  const publishedTemplateVersions = (templatesData?.content ?? []).flatMap((t, i) => {
+    const versions = templateVersionsQueries[i]?.data ?? [];
     return versions.filter(v => v.publishedAt).map(v => ({
       id: v.id,
       label: `${t.name} — ${v.versionLabel}`
     }));
   });
 
-  const publishedSuiteVersions = (suitesData?.content || []).flatMap((s, i) => {
-    const versions = suiteVersionsQueries[i]?.data || [];
+  const publishedSuiteVersions = (suitesData?.content ?? []).flatMap((s, i) => {
+    const versions = suiteVersionsQueries[i]?.data ?? [];
     return versions.filter(v => v.publishedAt).map(v => ({
       id: v.id,
       label: `${s.name} — ${v.versionLabel} (${v.hiddenTestCount} hidden / ${v.publicTestCount} public)`
@@ -65,7 +69,7 @@ export function useAssignmentMaterials() {
   return {
     publishedTemplateVersions,
     publishedSuiteVersions,
-    runtimes: runtimes.data || [],
+    runtimes: runtimes.data ?? [],
     isLoading:
       templates.isPending ||
       suites.isPending ||

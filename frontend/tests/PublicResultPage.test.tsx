@@ -6,11 +6,11 @@ import { PublicResultPage } from '../src/pages/PublicResultPage';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter, Route, Routes } from 'react-router';
 import { expect, test, vi } from 'vitest';
-import { axe } from 'vitest-axe';
+import { expectNoAxeViolations } from './harness';
 
 
 vi.mock('../src/api', async () => {
-  const actual = await vi.importActual('../src/api') as any;
+  const actual = await vi.importActual<typeof import('../src/api')>('../src/api');
   return {
     ...actual,
     api: {
@@ -72,8 +72,7 @@ test('PublicResultPage has no a11y violations', async () => {
     </QueryClientProvider>
   );
   await screen.findByText('Test Assig');
-  const results = await axe(container);
-  expect(results).toHaveNoViolations();
+  await expectNoAxeViolations(container);
 });
 
 // A run that timed out or broke leaves no score, deliberately: the domain refuses to
