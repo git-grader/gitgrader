@@ -58,7 +58,7 @@ public class RegisteredKeyOwnership implements SigningKeyOwnership {
 			return CommitSignatureResult.rejected(CommitSignatureStatus.WRONG_OWNER, fingerprint,
 					"The signing key is registered to a different student than the one who pushed");
 		}
-		return CommitSignatureResult.verified(fingerprint);
+		return CommitSignatureResult.verified(fingerprint, key.id());
 	}
 
 	/**
