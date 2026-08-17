@@ -19,8 +19,10 @@ package org.gitgrader.templates.internal;
 import java.util.List;
 import java.util.UUID;
 
+import org.gitgrader.templates.PublishedTestSuiteVersionView;
 import org.gitgrader.templates.domain.TestSuiteVersion;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
 
 /** Persists hidden test-suite versions. */
 interface TestSuiteVersionRepository extends JpaRepository<TestSuiteVersion, UUID> {
@@ -31,5 +33,22 @@ interface TestSuiteVersionRepository extends JpaRepository<TestSuiteVersion, UUI
 	 * @return versions in creation order
 	 */
 	List<TestSuiteVersion> findBySuiteIdOrderByCreatedAtAsc(UUID suiteId);
+
+	/**
+	 * Lists every published version across all suites, with its suite's name and counts.
+	 *
+	 * <p>
+	 * Only the metadata recorded at publication is selected, so this never touches the
+	 * hidden tests themselves.
+	 * @return published versions ordered by suite name, then by publication order
+	 */
+	@Query("""
+			select new org.gitgrader.templates.PublishedTestSuiteVersionView(
+					v.id, s.name, v.versionLabel, v.hiddenTestCount, v.publicTestCount)
+			from TestSuiteVersion v, TestSuite s
+			where v.suiteId = s.id and v.publishedAt is not null
+			order by s.name asc, v.createdAt asc
+			""")
+	List<PublishedTestSuiteVersionView> findPublished();
 
 }

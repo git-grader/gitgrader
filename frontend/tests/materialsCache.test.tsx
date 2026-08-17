@@ -24,10 +24,12 @@ function version(publishedAt: string | null) {
 }
 
 /**
- * The materials page and the assignment form read the same test suite versions, and for a
- * while they filed them under different keys - `testSuites` here, `test-suites` there.
- * Publishing then invalidated a cache nobody read, so the version the instructor had just
- * published was missing from the dropdown they went to next until the page was reloaded.
+ * The materials page and the assignment form read the same published versions through
+ * different endpoints: the page lists a suite's own versions, the form asks for the whole
+ * published set. Publishing has to refresh both. When it refreshed only one, the version
+ * the instructor had just published was missing from the dropdown they went to next until
+ * the page was reloaded - first because the two caches were keyed differently, and again
+ * when the form moved to a single published-materials request.
  *
  * Both pages share one client on purpose. Rendered apart, each passes while the other
  * shows nothing, which is exactly how the bug survived.
@@ -42,6 +44,12 @@ test('publishing a test suite version offers it to the assignment form', async (
       return HttpResponse.json(version('2026-02-01T00:00:00Z'));
     }),
     http.get('/api/v1/templates', () => HttpResponse.json(page([]))),
+    http.get('/api/v1/materials/published', () => HttpResponse.json({
+      templateVersions: [],
+      suiteVersions: published
+        ? [{ id: 'v1', suiteName: 'Hidden Suite', versionLabel: 'v1.0', hiddenTestCount: 3, publicTestCount: 2 }]
+        : []
+    })),
     http.get('/api/v1/runtimes', () => HttpResponse.json([])),
     http.get('/api/v1/courses', () => HttpResponse.json(page([{
       id: 'c1', courseKey: 'cs101', name: 'Course One', description: null, semester: null,

@@ -54,4 +54,10 @@ public interface TestSuiteCatalog {
 	 */
 	List<TestSuiteVersionView> findVersions(UUID suiteId);
 
+	/**
+	 * Lists every published version across all suites, each with its suite's name.
+	 * @return published versions ordered by suite name, then by publication order
+	 */
+	List<PublishedTestSuiteVersionView> findPublishedVersions();
+
 }

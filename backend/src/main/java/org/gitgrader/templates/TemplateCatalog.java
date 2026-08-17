@@ -54,4 +54,10 @@ public interface TemplateCatalog {
 	 */
 	List<TemplateVersionView> findVersions(UUID templateId);
 
+	/**
+	 * Lists every published version across all templates, each with its template's name.
+	 * @return published versions ordered by template name, then by publication order
+	 */
+	List<PublishedTemplateVersionView> findPublishedVersions();
+
 }

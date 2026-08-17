@@ -55,6 +55,10 @@ export const queryKeys = {
     versions: (suiteId: string) => ['test-suites', 'detail', suiteId, 'versions'] as const
   },
 
+  // The assignment form's choices, fetched as one set. Kept apart from the per-template
+  // and per-suite version keys so publishing a version can invalidate both spellings.
+  publishedMaterials: ['materials', 'published'] as const,
+
   runtimes: ['runtimes'] as const,
 
   audit: (page: string, size: string) => ['audit', page, size] as const,
