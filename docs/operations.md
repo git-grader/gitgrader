@@ -10,6 +10,12 @@ traffic to a process that has not become ready. Treat a process-level liveness
 check separately from readiness: liveness answers whether a restart may help;
 readiness answers whether dependencies required for requests are usable.
 
+`/actuator/health` deliberately does not include the directory. Boot's LDAP indicator
+reads `spring.ldap.urls`, which this application does not use, so it reported every
+LDAP deployment as DOWN while the instance was serving normally. A directory outage
+stops instructors signing in; it does not stop a push being accepted or graded, so it
+must not mark the instance unhealthy. Monitor the directory itself.
+
 The application exposes Spring Boot Actuator endpoints subject to its security
 configuration. Confirm the endpoint exposure policy in the deployed
 configuration before scraping metrics or publishing health data. Keep metrics

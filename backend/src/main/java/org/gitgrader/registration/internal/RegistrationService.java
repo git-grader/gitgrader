@@ -140,8 +140,8 @@ public class RegistrationService {
 			.with("classLabel", request.classKey())
 			.build());
 		recordAttempt(now, ipHash, "ACCEPTED", null, studentNumberHash, emailHash);
-		this.events.publishEvent(
-				new StudentRegistered(student.id(), student.studentNumber(), course.id(), course.courseKey(), now));
+		this.events.publishEvent(new StudentRegistered(student.id(), student.studentNumber(), course.id(),
+				course.courseKey(), request.classKey(), now));
 
 		return new RegistrationResponse(student.id(), student.studentNumber(), student.fullName(), student.status(),
 				sshKey.fingerprint());

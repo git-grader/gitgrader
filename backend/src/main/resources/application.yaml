@@ -114,6 +114,10 @@ server:
   shutdown: graceful
   servlet:
     session:
+      # Cookie only. Without this the container falls back to rewriting URLs when a
+      # request arrives without the cookie, and a redirect then carried the session
+      # identifier in its path - straight into proxy logs and browser history.
+      tracking-modes: cookie
       cookie:
         name: ${SECURITY_SESSION_COOKIE_NAME:GITGRADER_SESSION}
         http-only: true
@@ -294,12 +298,15 @@ management:
       enabled: true
     readinessstate:
       enabled: true
-    # Boot registers an LDAP health indicator whenever spring-boot-starter-ldap is on the
-    # classpath, regardless of whether LDAP is actually configured. Left on, it probes
-    # localhost:389 and reports the whole application DOWN on every deployment that does
-    # not use a directory - which is the default. It therefore tracks the LDAP switch.
+    # Off, and not merely when LDAP is disabled. Boot's indicator reads spring.ldap.urls,
+    # which this application never sets - the directory is configured under security.ldap
+    # and reached through a context source built in code - so the indicator probed
+    # localhost:389 and reported the whole instance DOWN on exactly the deployments that
+    # do use a directory. A check that always fails is worse than no check: readiness is
+    # what orchestrators follow, and it stays honest. Directory reachability affects
+    # instructor sign-in only; pushes and grading do not touch it.
     ldap:
-      enabled: ${SECURITY_LDAP_ENABLED:false}
+      enabled: false
   info:
     env:
       enabled: false

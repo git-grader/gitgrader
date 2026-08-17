@@ -38,6 +38,9 @@ import org.springframework.test.web.servlet.MvcResult;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 /**
@@ -120,6 +123,29 @@ class SpaCsrfIT {
 	void rejectsWriteWithoutToken() throws Exception {
 		this.mockMvc.perform(post("/api/v1/courses").contentType(MediaType.APPLICATION_JSON).content("{}"))
 			.andExpect(status().isForbidden());
+	}
+
+	@Test
+	@DisplayName("answers a refused write with a problem document rather than a redirect")
+	void refusedWriteIsAProblemDocument() throws Exception {
+		// The default handler redirects to the sign-in page. The SPA posts with fetch,
+		// which follows that transparently and then parses a login page as its answer,
+		// and
+		// the redirect carried the session identifier in its path.
+		this.mockMvc.perform(post("/api/v1/registration").contentType(MediaType.APPLICATION_JSON).content("{}"))
+			.andExpect(status().isForbidden())
+			.andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
+			.andExpect(jsonPath("$.status").value(403));
+	}
+
+	@Test
+	@DisplayName("challenges an unauthenticated actuator scrape instead of redirecting it")
+	void actuatorChallengesRatherThanRedirects() throws Exception {
+		// Prometheus follows a redirect and stores the sign-in page as the metrics
+		// response, so the scrape looks successful and reports nothing.
+		this.mockMvc.perform(get("/actuator/metrics"))
+			.andExpect(status().isUnauthorized())
+			.andExpect(header().string("WWW-Authenticate", org.hamcrest.Matchers.containsString("Basic")));
 	}
 
 	@Test

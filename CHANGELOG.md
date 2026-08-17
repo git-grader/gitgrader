@@ -9,6 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Security
 
+- Answer a refused API call with `403 problem+json` instead of a redirect to the sign-in
+  page. A CSRF failure sent `302` with the session identifier in the URL path, which is
+  how a session ends up in a proxy log, and the SPA followed it and parsed a login page
+  as its answer.
+- Challenge an unauthenticated actuator scrape with `401` and `WWW-Authenticate` rather
+  than redirecting it. Prometheus follows the redirect, stores the sign-in page as the
+  metrics response, and reports nothing.
 - Prove the grading sandbox mounts from outside the sandbox. The check that shipped
   earlier lived inside the grading container and reported through the exit status and
   standard error the submission controls, so a student could forge it and have their own
@@ -133,6 +140,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Enrol a student on the course they registered for. `CourseAdministration.enroll` had no
+  caller and no endpoint, so a self-registered student ended up with a repository per
+  assignment and no enrolment - and every course report, which is the instructor's view
+  of how a class is doing, listed nobody at all.
+- Adopt a repository that is already on disk instead of refusing it. The row and the
+  directory are not written together, so anything that failed after the directory was
+  created - or a database restored from a backup older than the volume beside it - left
+  the registration event retrying onto the same directory forever, and the student with a
+  repository they could never push to.
+- Pass the documented settings through to the application. `compose.yaml` named only a
+  third of them, so an operator who configured LDAP in `.env` as `docs/installation.md`
+  describes got an application that never saw the URL, the base DN or the credentials.
+- Stop reporting a healthy instance as DOWN. Boot's LDAP health indicator reads
+  `spring.ldap.urls`, which this application does not use, so it probed `localhost:389`
+  and failed `/actuator/health` on exactly the deployments that do use a directory.
 - A submission that is already being graded refuses a second run. A regrade queued while
   the first was still going gave one submission two writers for its status, and the one
   that finished last won - an older attempt could publish over a newer result.

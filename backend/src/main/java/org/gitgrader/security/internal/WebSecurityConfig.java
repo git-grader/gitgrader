@@ -23,6 +23,9 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.core.annotation.Order;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
+import org.springframework.security.config.http.SessionCreationPolicy;
+import org.springframework.http.HttpHeaders;
+import org.springframework.security.web.AuthenticationEntryPoint;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.security.web.authentication.www.BasicAuthenticationFilter;
@@ -82,6 +85,10 @@ public class WebSecurityConfig {
 			.csrf((csrf) -> csrf.csrfTokenRepository(CookieCsrfTokenRepository.withHttpOnlyFalse())
 				.csrfTokenRequestHandler(new SpaCsrfTokenRequestHandler()))
 			.addFilterAfter(new CsrfCookieFilter(), BasicAuthenticationFilter.class)
+			// Registration is a JSON POST with a CSRF token, so a stale token here has to
+			// read as 403 rather than as a redirect to a sign-in page the caller cannot
+			// use.
+			.exceptionHandling((exceptions) -> exceptions.accessDeniedHandler(new ProblemDetailAccessDeniedHandler()))
 			.headers((headers) -> headers.xssProtection((xss) -> xss.disable())
 				.contentSecurityPolicy((csp) -> csp.policyDirectives(this.properties.contentSecurityPolicy()))
 				.contentTypeOptions((contentType) -> {
@@ -101,7 +108,8 @@ public class WebSecurityConfig {
 			// the HTML login page as JSON - turning "your session expired" into an
 			// unreadable parse error.
 			.exceptionHandling(
-					(exceptions) -> exceptions.authenticationEntryPoint(new ProblemDetailAuthenticationEntryPoint()))
+					(exceptions) -> exceptions.authenticationEntryPoint(new ProblemDetailAuthenticationEntryPoint())
+						.accessDeniedHandler(new ProblemDetailAccessDeniedHandler()))
 			.csrf((csrf) -> csrf.csrfTokenRepository(CookieCsrfTokenRepository.withHttpOnlyFalse())
 				.csrfTokenRequestHandler(new SpaCsrfTokenRequestHandler()))
 			.addFilterAfter(new CsrfCookieFilter(), BasicAuthenticationFilter.class)
@@ -118,14 +126,30 @@ public class WebSecurityConfig {
 	@Bean
 	@Order(3)
 	public SecurityFilterChain actuatorFilterChain(HttpSecurity http) throws Exception {
+		// A 401 with no body is rendered by the container's error page, which this
+		// application forwards into the SPA - so an unauthenticated scrape came back as a
+		// redirect to the sign-in page with the challenge header attached to it. Writing
+		// a
+		// body keeps the response the one that was intended, and the header still tells a
+		// scraper what to send.
+		ProblemDetailAuthenticationEntryPoint unauthorized = new ProblemDetailAuthenticationEntryPoint();
+		AuthenticationEntryPoint challenge = (request, response, exception) -> {
+			response.setHeader(HttpHeaders.WWW_AUTHENTICATE, "Basic realm=\"GitGrader\", charset=\"UTF-8\"");
+			unauthorized.commence(request, response, exception);
+		};
+
 		http.securityMatcher("/actuator/**")
 			.authorizeHttpRequests((authz) -> authz.anyRequest().hasRole("ADMIN"))
 			// Safe here: this chain authenticates with HTTP Basic, not with an ambient
 			// session cookie, so a cross-site request cannot borrow the caller's
 			// credentials. Only read-only endpoints are exposed (see application.yaml).
 			.csrf((csrf) -> csrf.disable())
-			.httpBasic((basic) -> {
-			});
+			.httpBasic((basic) -> basic.authenticationEntryPoint(challenge))
+			// Named explicitly, or an unauthenticated scrape is answered with a redirect
+			// to the sign-in page: Prometheus follows it, stores an HTML page as the
+			// metrics response, and never learns that credentials were wanted.
+			.exceptionHandling((exceptions) -> exceptions.authenticationEntryPoint(challenge))
+			.sessionManagement((session) -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS));
 
 		return http.build();
 	}

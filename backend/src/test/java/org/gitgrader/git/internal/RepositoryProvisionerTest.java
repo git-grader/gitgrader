@@ -125,7 +125,7 @@ class RepositoryProvisionerTest {
 	}
 
 	private static StudentRegistered event() {
-		return new StudentRegistered(STUDENT, "s1001", COURSE, "example-programming",
+		return new StudentRegistered(STUDENT, "s1001", COURSE, "example-programming", "main",
 				Instant.parse("2026-07-30T10:00:00Z"));
 	}
 
