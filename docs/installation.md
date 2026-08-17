@@ -94,6 +94,14 @@ manager bind credentials cross that connection. Test with a non-privileged
 directory account first, then disable local accounts. Never enable LDAP debug
 logging in production because it may expose bind credentials or directory data.
 
+## Public URL
+
+`APP_PUBLIC_URL` is what every result link is built from, and that link is the whole
+credential for a student's marks. Under the production profile it has to be an `https://`
+URL; loopback is the exception, because that is the demo. An instance configured with a
+plain `http://` hostname refuses to start rather than mailing out bearer tokens in the
+clear.
+
 ## Profiles
 
 The application reads `SPRING_PROFILES_ACTIVE`. The Compose file sets
