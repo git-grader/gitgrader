@@ -83,6 +83,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- The production profile no longer falls back to the standalone `gitgrader`/`gitgrader`
+  database credentials. **Breaking:** `SPRING_DATASOURCE_USERNAME` and
+  `SPRING_DATASOURCE_PASSWORD` must be set under the production profile; an instance
+  without them now fails to start rather than reaching a real database with credentials
+  anyone can guess. Compose already required both.
 - Shutdown is now ordered and returns work rather than stranding it. The SSH
   endpoint stops accepting pushes first, the dispatcher then stops claiming,
   waits up to `grading.queue.drain-timeout` for a running sandbox, and hands
@@ -99,6 +104,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- `grading.max-parallel-jobs` bounds real concurrency. It claimed that many jobs and then
+  ran them one at a time on the polling thread, so throughput was one container per
+  instance while the surplus leases aged towards expiry before they could start.
+- A grading worker whose lease expired or was reclaimed can no longer commit its result
+  on top of whoever took the job over. Every job carries a lease generation, and starting,
+  succeeding, and failing are conditional on still owning the current lease. Shutdown
+  cancels an in-flight sandbox and waits for it to stop before handing the job back,
+  instead of requeueing work that was still running.
+- A submission's status cannot regress out of a terminal state under a concurrent or
+  stale writer.
+- Awarded points are computed from the pass ratio rather than from the already-rounded
+  display percentage, which shifted the last cent on some point scales.
+- A push carrying several refs is judged in full before any of it is recorded. One refused
+  ref used to leave behind a submission and a result link for a ref that never landed, and
+  the submission recorded `refs/heads/main` whichever branch the push actually updated.
+- The instructor interface: publishing a runtime sent a report format the backend rejects,
+  which blocked the only path to publishing anything; a published test suite version stayed
+  invisible until a reload; deadlines were converted in the browser's timezone rather than
+  the one the instructor chose; an unparseable date threw out of the submit handler and
+  discarded the form; a cleared numeric field submitted zero; and error banners rendered
+  empty for any failure that was not `problem+json`. API responses are now validated
+  against their schemas at the boundary instead of being cast unchecked.
 - A push is graded once. Spring Modulith replays an event publication it never saw
   marked complete, which is what a process dying between the listener's commit and that
   mark produces. The replay ran the whole queueing path again, so one push superseded the
