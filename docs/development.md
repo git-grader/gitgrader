@@ -66,3 +66,37 @@ domain state and repositories within their owning module; communicate across a
 cycle through the documented module API or persistent application event. Do not
 make an architectural test pass by widening an allow-list without a clear
 domain reason.
+
+## How do I…
+
+**…run one test?** Surefire owns the unit tests and Failsafe the `*IT` classes, so
+they take different flags:
+
+```sh
+./mvnw test -Dtest=PushAdmissionRulesTest
+./mvnw test -Dtest='PushAdmissionRulesTest#rejectsUnsignedCommit'
+./mvnw verify -Dit.test=GitPushOverSshIT -Dtest=none -Dsurefire.failIfNoSpecifiedTests=false
+cd frontend && npx vitest run tests/LoginPage.test.tsx
+```
+
+**…add a REST endpoint?** Controllers live in the owning module's `web` package;
+`api` holds only the ones that span modules. Return the module's own view record,
+never an entity. If the controller needs another module, add it to the module's
+`package-info.java` and expect the architecture test to argue with you when the
+dependency is one the design refuses.
+
+**…add a database change?** A new `V<n>__<name>.sql` in
+`backend/src/main/resources/db/migration/`, never an edit to an applied one, plus
+the entity, a test, and a row in `docs/configuration.md` if it adds a setting.
+
+**…add a page?** A component in `frontend/src/pages/`, a route in
+`frontend/src/App.tsx`, and — when it is administrator-only — inside the
+`RequireAdmin` element. Every response is parsed against a schema in
+`frontend/src/api`; add the schema there rather than casting.
+
+**…know what CI will fail me for?** `./mvnw -Plicense clean verify` is the same
+gate, plus `shellcheck` on `scripts/*.sh` and the CodeQL and Trivy scans. The
+licence profile is not part of a plain `verify`, and a missing SPDX header is the
+most common first failure.
+
+**…run the whole thing end to end?** [docs/e2e-test.md](e2e-test.md).

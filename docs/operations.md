@@ -100,3 +100,28 @@ sees the submission sit in `RUNNING` for that long.
 Use `docker compose logs --since=30m app database`, `scripts/verify-install.sh`,
 host escape, hidden-test disclosure, token leak, or credential exposure through
 the private process in [SECURITY.md](../SECURITY.md).
+
+## Sizing the grading workers
+
+`GRADING_MAX_PARALLEL_JOBS` defaults to 2, which is a safe default and not a
+capacity plan. It bounds how many sandboxes one instance runs at once, so the
+queue drains at roughly:
+
+```
+jobs per hour = workers × 3600 / average grading seconds
+```
+
+A class of 300 submitting in the hour before a deadline, each run averaging two
+minutes, needs ten workers to clear within that hour; two workers would take most
+of a day. Size it from a measured average rather than from the timeout, and give
+the host the CPU, memory and disk to match — raising it past what the machine can
+run turns queue latency into thrashing.
+
+Each worker holds a database connection only between runs, never during one, but
+its start and finish do compete with HTTP and SSH for the pool. Raise
+`DB_POOL_SIZE` alongside the worker count, and keep headroom for the web tier.
+
+Two instances sharing one database is also a valid way to add capacity: work is
+claimed with `SELECT ... FOR UPDATE SKIP LOCKED` and every claim carries a lease
+generation, so a worker that loses its lease cannot write the result it was
+computing.

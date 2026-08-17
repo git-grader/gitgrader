@@ -19,6 +19,8 @@ package org.gitgrader.git.internal;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.Locale;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
@@ -129,6 +131,31 @@ public class CommitSignatureVerifier {
 	 * @return the verdict, never {@code null}
 	 */
 	public CommitSignatureResult verify(Repository repository, RevCommit commit, UUID expectedStudentId) {
+		return verify(repository, commit, expectedStudentId, new HashMap<>());
+	}
+
+	/**
+	 * Verifies one commit, reusing ownership decisions already made in this push.
+	 *
+	 * <p>
+	 * The cryptography runs for every commit: that is the whole point of checking each
+	 * one rather than only the tip. The registry lookup behind it does not need to. A
+	 * push of a hundred commits signed with one key asked the same question a hundred
+	 * times, on the request path, holding a connection each time.
+	 *
+	 * <p>
+	 * The cache must not outlive the push. A key revoked between two pushes has to be
+	 * refused by the second one, so the caller owns the map and creates a new one per
+	 * push; the student is fixed for its lifetime, which is why the fingerprint alone
+	 * identifies an answer.
+	 * @param repository the repository the commit was pushed to
+	 * @param commit the commit to check
+	 * @param expectedStudentId the student whose SSH key opened the connection
+	 * @param ownershipCache decisions already made for this push, keyed by fingerprint
+	 * @return the verdict, never {@code null}
+	 */
+	public CommitSignatureResult verify(Repository repository, RevCommit commit, UUID expectedStudentId,
+			Map<String, CommitSignatureResult> ownershipCache) {
 		byte[] signature = commit.getRawGpgSignature();
 		if (signature == null || signature.length == 0) {
 			return CommitSignatureResult.rejected(CommitSignatureStatus.UNSIGNED, null,
@@ -139,7 +166,8 @@ public class CommitSignatureVerifier {
 			return cryptographic;
 		}
 		// Stage one only proved the signature is sound. Stage two decides whose it is.
-		return this.ownership.authorize(requireFingerprint(cryptographic), expectedStudentId);
+		String fingerprint = requireFingerprint(cryptographic);
+		return ownershipCache.computeIfAbsent(fingerprint, (key) -> this.ownership.authorize(key, expectedStudentId));
 	}
 
 	/**

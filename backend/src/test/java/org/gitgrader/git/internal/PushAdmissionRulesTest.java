@@ -205,9 +205,9 @@ class PushAdmissionRulesTest {
 		RevCommit first = commit("a.js", "one");
 		RevCommit second = commit("b.js", "two");
 
-		when(this.verifier.verify(any(), eq(second), any()))
+		when(this.verifier.verify(any(), eq(second), any(), any()))
 			.thenReturn(CommitSignatureResult.verified("SHA256:signingkey"));
-		when(this.verifier.verify(any(), eq(first), any()))
+		when(this.verifier.verify(any(), eq(first), any(), any()))
 			.thenReturn(CommitSignatureResult.rejected(CommitSignatureStatus.UNSIGNED, null, "parent unsigned"));
 
 		PushVerdict verdict = rules(true).evaluate(this.repository, update(second), STUDENT, true, null);
@@ -240,16 +240,17 @@ class PushAdmissionRulesTest {
 
 		// The ceiling used to truncate the walk rather than refuse the push, so commits
 		// past it were admitted without ever being verified. Counting the calls is what
-		// detects a regression to that behaviour: one per introduced commit, plus the
-		// re-verification of the tip that builds the accepted verdict.
+		// detects a regression to that behaviour: exactly one per introduced commit. The
+		// tip used to be verified twice, once in the walk and once more to build the
+		// accepted verdict; its result is now kept from the walk.
 		givenSignature(CommitSignatureResult.verified("SHA256:signingkey"));
 
 		PushVerdict verdict = rules(true, 2000).evaluate(this.repository, update(tip), STUDENT, true, null);
 
 		assertThat(verdict.accepted()).isTrue();
-		verify(this.verifier, times(1)).verify(any(), argThat((c) -> c.name().equals(first.name())), any());
-		verify(this.verifier, times(1)).verify(any(), argThat((c) -> c.name().equals(second.name())), any());
-		verify(this.verifier, times(2)).verify(any(), argThat((c) -> c.name().equals(tip.name())), any());
+		verify(this.verifier, times(1)).verify(any(), argThat((c) -> c.name().equals(first.name())), any(), any());
+		verify(this.verifier, times(1)).verify(any(), argThat((c) -> c.name().equals(second.name())), any(), any());
+		verify(this.verifier, times(1)).verify(any(), argThat((c) -> c.name().equals(tip.name())), any(), any());
 	}
 
 	@Test
@@ -298,7 +299,7 @@ class PushAdmissionRulesTest {
 	}
 
 	private void givenSignature(CommitSignatureResult result) {
-		when(this.verifier.verify(any(), any(), any())).thenReturn(result);
+		when(this.verifier.verify(any(), any(), any(), any())).thenReturn(result);
 	}
 
 	private RevCommit commit(String fileName, String content) throws GitAPIException, IOException {

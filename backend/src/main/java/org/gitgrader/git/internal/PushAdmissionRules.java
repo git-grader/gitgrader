@@ -18,6 +18,8 @@ package org.gitgrader.git.internal;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.List;
 
 import org.eclipse.jgit.lib.ObjectId;
@@ -214,14 +216,23 @@ public class PushAdmissionRules {
 	 */
 	private PushVerdict verifyEveryCommit(Repository repository, List<RevCommit> newCommits,
 			AuthenticatedStudent student) {
+		// One map for the whole push, so a hundred commits signed with one key ask the
+		// registry once. It is deliberately not shared between pushes: a key revoked
+		// between two of them has to be refused by the second.
+		Map<String, CommitSignatureResult> ownership = new HashMap<>();
+		CommitSignatureResult tipResult = null;
+		RevCommit tip = newCommits.getFirst();
 		for (RevCommit commit : newCommits) {
-			CommitSignatureResult result = this.signatureVerifier.verify(repository, commit, student.studentId());
+			CommitSignatureResult result = this.signatureVerifier.verify(repository, commit, student.studentId(),
+					ownership);
 			if (!result.isAcceptable()) {
 				return PushVerdict.rejected(explain(commit, result), result);
 			}
+			if (commit.equals(tip)) {
+				tipResult = result;
+			}
 		}
-		RevCommit tip = newCommits.getFirst();
-		return PushVerdict.accepted(tip, this.signatureVerifier.verify(repository, tip, student.studentId()));
+		return PushVerdict.accepted(tip, tipResult);
 	}
 
 	/**
