@@ -36,7 +36,7 @@ jobs:
             echo "::error::compose.yaml uses $compose but scripts/lib.sh uses $scripts"
             exit 1
           fi
-          echo "Both use $compose.
+          echo "Both use $compose."
 
   # Static analysis is not repeated here. Build runs the one full `verify` - formatting,
   # Checkstyle, PMD/CPD, SpotBugs, forbidden APIs, frontend lint and licence headers - and

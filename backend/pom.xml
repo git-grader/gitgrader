@@ -51,7 +51,7 @@
 		     HTTP/2 settings limit applies (CVE-2026-54428), either of which exhausts
 		     memory. This is the transport docker-java speaks to the engine over, so the
 		     reach is the runner. Fixed in 5.4.3; drop this once Boot manages it. -->
-    <httpcore5.version>5.4.3</httpcore5.version>
+    <httpclient5.version>5.6.4</httpclient5.version>
     <jacoco-maven-plugin.version>0.8.15</jacoco-maven-plugin.version>
     <jacoco.branch.coverage>0.45</jacoco.branch.coverage>
 
@@ -132,6 +132,17 @@
         <version>${docker-java.version}</version>
         <type>pom</type>
         <scope>import</scope>
+      </dependency>
+      <!--
+        Ahead of docker-java, which still resolves 5.6.1. CVE-2026-71290 (9.1): the
+        BUILTIN hostname-verification policy has no effect on the async client, so a
+        client that thinks it is verifying certificates accepts one issued for another
+        domain. Drop this pin once docker-java ships 5.6.4 or newer itself.
+      -->
+      <dependency>
+        <groupId>org.apache.httpcomponents.client5</groupId>
+        <artifactId>httpclient5</artifactId>
+        <version>${httpclient5.version}</version>
       </dependency>
     </dependencies>
   </dependencyManagement>

@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Security
 
+- Pin `httpclient5` to 5.6.4 ahead of docker-java, which still resolves 5.6.1.
+  CVE-2026-71290 (9.1): the `BUILTIN` hostname-verification policy has no effect on the
+  async client, so a client that believes it is verifying certificates accepts one issued
+  for a different domain. This is the client the grading runner talks to the Docker daemon
+  with.
 - Refuse to start a production instance whose `app.public-url` is plain `http://`.
   Every result link is built from it and the link is the whole credential for a
   student's marks, printed into their terminal after each push, so the default left an
