@@ -19,6 +19,7 @@ package org.gitgrader.submissions.domain;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;
+import java.util.List;
 import java.util.UUID;
 
 import org.gitgrader.submissions.NewSubmission;
@@ -113,6 +114,25 @@ class SubmissionTest {
 		assertThatExceptionOfType(IllegalStateException.class)
 			.isThrownBy(() -> submission.updateStatus(SubmissionStatus.RUNNING))
 			.withMessageContaining("final");
+	}
+
+	@Test
+	@DisplayName("a graded submission can be queued again, because that is what a regrade is")
+	void regradeRequeuesAGradedSubmission() {
+		// The orchestrator queues a regrade through the same path a push takes, so
+		// refusing every transition out of a finished status made the second attempt
+		// impossible rather than making the first one safe.
+		for (SubmissionStatus finished : List.of(SubmissionStatus.PASSED, SubmissionStatus.FAILED,
+				SubmissionStatus.INFRASTRUCTURE_ERROR, SubmissionStatus.CANCELLED)) {
+			Submission submission = new Submission(base().build(), CLOCK);
+			submission.updateStatus(SubmissionStatus.QUEUED);
+			submission.updateStatus(SubmissionStatus.RUNNING);
+			submission.updateStatus(finished);
+
+			submission.updateStatus(SubmissionStatus.QUEUED);
+
+			assertThat(submission.status()).isEqualTo(SubmissionStatus.QUEUED);
+		}
 	}
 
 	@Test
