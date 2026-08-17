@@ -1,26 +1,28 @@
 # End-to-end test
 
-A scripted pass over the whole product on one machine: containers up, a student
-registering and pushing signed work over SSH, grading in a throwaway sandbox, and both
-web surfaces in a real browser. Every step states what to expect, so a run either matches
-or has found something.
+A scripted pass over the whole product on one machine: containers up, an instructor
+working in a browser, a student registering and pushing signed work over SSH, grading in
+a throwaway sandbox, and the refusals that matter probed one by one. Every step states
+what to expect, so a run either matches or has found something.
 
-This is the acceptance test for a release candidate and the first thing to run when
-"it works on my machine" is in doubt. It complements, and does not replace,
-`./mvnw clean verify`: that proves the code, this proves the deployment.
+This is the acceptance test for a release candidate and the first thing to run when "it
+works on my machine" is in doubt. It complements, and does not replace, `./mvnw clean
+verify`: that proves the code, this proves the deployment. The campaign that produced this
+document found six defects, listed at the end — every one of them passed the unit and
+integration suites.
 
 The sample assignment ships a reference solution that deliberately fails three of its ten
 hidden checks, so the whole run has one arithmetic oracle: **7 of 10, 70.0 %**. Any other
 number is a finding.
 
-Budget about 20 minutes, most of it the first image build.
+Budget about 40 minutes for the full sweep, most of it the first image build.
 
 ## 0. Preconditions
 
 | Requirement | Check | Why |
 |---|---|---|
 | Docker + Compose plugin | `docker info`, `docker compose version` | runs everything |
-| JDK 25 | `java -version` | builds the image from this checkout |
+| JDK 25 or newer | `java -version` | builds the image from this checkout |
 | `git`, `ssh-keygen`, `curl`, `awk`, `jq`, `python3` | `command -v` each | drives the student path |
 | Ports 8080, 2222, 5432 free | `ss -ltn` | the stack binds them |
 | ~5 GB disk | `df -h .` | image, volumes, runtime image |
@@ -28,8 +30,8 @@ Budget about 20 minutes, most of it the first image build.
 **The daemon must share its filesystem with this host.** The grading sandbox is a sibling
 container that the daemon bind-mounts from an absolute path, so a daemon running in a VM
 or its own mount namespace (Docker Desktop, Colima, rootless) resolves that path to
-something else and grades every submission against empty directories. `install.sh` proves
-this before it finishes and stops if it cannot; to check by hand:
+something else and would grade every submission against empty directories.
+`scripts/install.sh` proves this and stops if it cannot. To check by hand:
 
 ```sh
 docker volume create probe-vol >/dev/null
@@ -39,17 +41,23 @@ docker run --rm -v "$(docker volume inspect probe-vol --format '{{.Mountpoint}}'
 docker volume rm probe-vol >/dev/null
 ```
 
+If it prints `UNUSABLE`, give the two sandbox volumes host paths the daemon can see and
+point the mount roots at them:
+
+```yaml
+# /tmp/e2e/compose.e2e.yaml, added with a third -f
+services:
+  app:
+    volumes:
+      - /tmp/e2e/data/grading:/data/grading
+      - /tmp/e2e/data/tests:/data/tests
+```
+
 Start from a clean slate, or step 6 will read results from an earlier run:
 
 ```sh
 docker compose -f compose.yaml -f compose.dev.yaml down -v
-rm -f .env          # only if you want the installer to write a fresh one
 ```
-
-> A `.env` kept from an older checkout is the single most common cause of a run that
-> looks healthy and grades everything zero: it names volumes that no longer exist. The
-> installer now overwrites the two sandbox mount roots from the live volumes on every
-> run, so keeping `.env` is safe, but a fresh one removes the question.
 
 ## 1. Install
 
@@ -65,9 +73,6 @@ rm -f .env          # only if you want the installer to write a fresh one
     The daemon can see them.
 ```
 
-**Then** `docker compose -f compose.yaml -f compose.dev.yaml ps` shows `app`, `database`
-(healthy) and `openldap` running.
-
 The demo runtime is pinned by digest and is not pulled by the install. Pull it once, or
 the first submission fails with `No such image`:
 
@@ -81,19 +86,20 @@ docker pull "$(docker compose -f compose.yaml -f compose.dev.yaml exec -T databa
 
 ```sh
 ./scripts/verify-install.sh
-curl -s http://localhost:8080/actuator/health/readiness | jq -c .
+curl -s http://localhost:8080/actuator/health | jq -c .
 curl -s http://localhost:8080/api/v1/meta | jq -c .
+docker compose -f compose.yaml -f compose.dev.yaml exec -T database psql -U gitgrader -d gitgrader \
+  -tAc 'select version, success from flyway_schema_history order by installed_rank desc limit 1'
 ```
 
-**Expect** `Installation checks passed`, `{"status":"UP"}`, and meta naming
-`sshPort 2222` and `registrationEnabled true`.
+**Expect** `Installation checks passed`, `{"status":"UP"}` — not `DOWN`, because health has
+to be usable as a probe — meta naming `sshPort 2222`, and the newest migration applied.
 
-**Expect** the schema at its newest migration:
+**Expect** the settings you put in `.env` to reach the application. Compose passes only
+what it names, which is worth checking whenever a setting appears not to work:
 
 ```sh
-docker compose -f compose.yaml -f compose.dev.yaml exec -T database \
-  psql -U gitgrader -d gitgrader -tAc \
-  'select version, success from flyway_schema_history order by installed_rank desc limit 1'
+docker inspect gitgrader-app-1 --format '{{range .Config.Env}}{{println .}}{{end}}' | grep SECURITY_
 ```
 
 ## 3. A student registers
@@ -117,15 +123,32 @@ EOF
 )"
 ```
 
-**Expect** `HTTP 201` and a `keyFingerprint`. Repositories are provisioned from the
-registration event, so allow a moment:
+**Expect** `HTTP 201` and a `keyFingerprint`. Then, after a moment for the event to be
+handled:
 
 ```sh
-docker compose -f compose.yaml -f compose.dev.yaml exec -T database \
-  psql -U gitgrader -d gitgrader -tAc 'select count(*), status from repositories group by status'
+docker compose -f compose.yaml -f compose.dev.yaml exec -T database psql -U gitgrader -d gitgrader \
+  -tAc 'select count(*) from repositories'
+docker compose -f compose.yaml -f compose.dev.yaml exec -T database psql -U gitgrader -d gitgrader \
+  -tAc 'select s.student_number, c.class_key, e.status from enrollments e
+          join students s on s.id = e.student_id
+          left join course_classes c on c.id = e.class_id'
 ```
 
-**Expect** `12 | READY`, one per assignment in the sample course.
+**Expect** 12 repositories, one per assignment, **and one enrolment row** naming the class
+the student picked. A student with repositories and no enrolment is invisible to every
+course report.
+
+### Refusals worth checking
+
+| Attempt | Expect |
+|---|---|
+| the same student number again | `409` |
+| the same public key, new number | `400`, telling the student to generate a new key |
+| a **private** key pasted in | `400`, and the response must not echo the key material |
+| an unknown course key | refused, without confirming which courses exist |
+| empty or malformed fields | `400` naming the fields |
+| no `X-XSRF-TOKEN` header | `403` as `application/problem+json` — never a redirect, and never a session id in a URL |
 
 ## 4. Clone, and prove the hidden tests are not in it
 
@@ -140,7 +163,7 @@ find /tmp/e2e/work -iname '*hidden*' -not -path '*/.git/*'
 print **nothing**. Anything printed is a serious defect: the assessment secrets shipped to
 the student.
 
-## 5. Admission refuses what it should
+## 5. What admission refuses
 
 Set the identity once:
 
@@ -153,25 +176,15 @@ git config commit.gpgsign true
 cp "$gitgrader"/examples/assignments/assignment-01-string-utils/reference-solution/partial-70/string-utils.js src/string-utils.js
 ```
 
-**Unsigned commit — must be refused:**
-
-```sh
-git -c commit.gpgsign=false commit -qam "unsigned attempt"
-git push origin main
-```
-
-**Expect** `remote rejected`, a message naming the commit as unsigned, and the three
-`git config` lines that fix it.
-
-**Unknown key — must not authenticate:**
-
-```sh
-ssh-keygen -t ed25519 -f /tmp/e2e/stranger -N "" -q
-GIT_SSH_COMMAND="ssh -i /tmp/e2e/stranger -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o IdentitiesOnly=yes -o BatchMode=yes" \
-  git ls-remote origin
-```
-
-**Expect** a permission failure, not a repository listing.
+| Attempt | Expect |
+|---|---|
+| unsigned commit, then `git push origin main` | rejected, naming the commit and the three `git config` lines that fix it |
+| a key registered to nobody | permission denied, no repository listing |
+| another student's repository, with your own key | refused, without revealing whether it exists |
+| a commit signed with another student's registered key | rejected as signed by a key registered to a different student |
+| `git push origin --delete main` | rejected; history has to stay reconstructible |
+| `git push origin +main:main` after a reset | rejected as non-fast-forward |
+| `git tag -m x v1 && git push origin refs/tags/v1` | rejected: only `refs/heads/` is accepted |
 
 ## 6. Push signed work
 
@@ -188,12 +201,11 @@ remote: Submission accepted.
 remote: http://localhost:8080/result/<token>
 ```
 
-Keep that URL; step 8 opens it. Then watch grading finish:
+Keep that URL. Then watch grading finish:
 
 ```sh
-docker compose -f compose.yaml -f compose.dev.yaml exec -T database \
-  psql -U gitgrader -d gitgrader -tAc \
-  'select status, score_percent, tests_passed, tests_total from grading_runs order by created_at desc limit 1'
+docker compose -f compose.yaml -f compose.dev.yaml exec -T database psql -U gitgrader -d gitgrader \
+  -tAc 'select status, score_percent, tests_passed, tests_total from grading_runs order by created_at desc limit 1'
 ```
 
 **Expect** `COMPLETED | 70.000 | 7 | 10` within a few seconds of the sandbox starting.
@@ -202,19 +214,21 @@ docker compose -f compose.yaml -f compose.dev.yaml exec -T database \
 |---|---|
 | `INFRASTRUCTURE_ERROR`, log says `No such image` | the runtime image was never pulled (step 1) |
 | `INFRASTRUCTURE_ERROR`, "not visible inside the sandbox" | the daemon cannot resolve the mount roots (preconditions) |
-| `COMPLETED` but `0/10` | on a build before that check existed, the same mount problem |
+| `COMPLETED` but `0/10` | on a build before the mount probe existed, the same mount problem |
 | any other score | a real grading regression |
 
 **Expect** the submission to carry what admission learned:
 
 ```sh
-docker compose -f compose.yaml -f compose.dev.yaml exec -T database \
-  psql -U gitgrader -d gitgrader -tAc \
-  'select status, signature_status, signature_key_id is not null, git_ref from submissions order by created_at desc limit 1'
+docker compose -f compose.yaml -f compose.dev.yaml exec -T database psql -U gitgrader -d gitgrader \
+  -tAc 'select status, signature_status, signature_key_id is not null, git_ref from submissions order by created_at desc limit 1'
 ```
 
-**Expect** `PASSED | VERIFIED | t | refs/heads/main`. A null key id or a `git_ref` that is
-always `refs/heads/main` regardless of the branch pushed are both regressions.
+**Expect** `PASSED | VERIFIED | t | refs/heads/main`.
+
+**Regrade** it through `POST /api/v1/submissions/{id}/regrade` as an instructor. **Expect**
+`202` and a second `grading_runs` row. A regrade requested while a run is still active is
+refused rather than started alongside it.
 
 ## 7. The instructor interface
 
@@ -222,15 +236,16 @@ Open <http://localhost:8080/> and sign in as `instructor` / `password`.
 
 | Page | Expect |
 |---|---|
-| `/login` | signing in lands on `/dashboard`; a wrong password says the credentials were not accepted, not a generic failure |
-| `/dashboard` | 1 course, 1 student, 1 open assignment, 0 running |
-| `/submissions` | one row: commit `fe1bd12`, **Passed**, Signature **VERIFIED**, the commit message |
+| `/login` | a wrong password says the credentials were not accepted; the right one lands on `/dashboard` |
+| `/dashboard` | counts that match the database, not zeros |
+| `/courses` → New Course | required fields are enforced before submitting; creating one lists it |
+| `/submissions` | the pushed commit, **Passed**, Signature **VERIFIED** |
 | `/courses` → the course | classes and enrolments load; a failed load says so rather than showing an empty table |
-| `/admin/audit` | **refused** with "Administrators only", naming the signed-in account. An instructor must not see the audit log, and must not see a broken page either |
-| sign out | returns to `/login`; afterwards `curl http://localhost:8080/api/v1/me` is `401` |
+| `/reports/courses/{id}` | the enrolled students appear, and CSV, JSON and XLSX each download **without leaving the page** |
+| `/admin/audit` | refused with "Administrators only", naming the signed-in account |
+| sign out | returns to `/login`; afterwards `curl /api/v1/me` is `401` |
 
-Keep the browser console open. **Expect** no errors other than the CSP notice
-`'script-src' was not explicitly set` (informational, from the vendor bundle).
+Keep the browser console open. **Expect** no errors.
 
 ## 8. The student's result page
 
@@ -241,20 +256,45 @@ certify how the work was produced, **7 of 10 tests passed**, **Score: 70.0 %**, 
 rows naming a *category* and a *hint*.
 
 **Expect not**: the name of any hidden test, any assertion text, any file path, any
-instructor-only field. Grep the API for it:
+instructor-only field:
 
 ```sh
 curl -s http://localhost:8080/api/v1/results/<token> | grep -ciE 'h0[0-9]|hidden\.test|assert'
 ```
 
-**Expect** `0`.
+**Expect** `0`, and the response headers to carry `Referrer-Policy: no-referrer`,
+`Cache-Control: no-store` — the link is the whole credential — `X-Frame-Options: DENY` and
+a `default-src 'none'` CSP. An altered token answers `404`, the same as one that never
+existed.
 
-**Expect** the response headers to carry `Referrer-Policy: no-referrer` (the token is in
-the URL), `X-Frame-Options: DENY` and a `default-src 'none'` CSP, and an invalid token to
-answer `404` — the same as a valid token that does not exist, so the endpoint cannot be
-used to discover which tokens are real.
+## 9. Authorization and exposure
 
-## 9. Tear down
+| Probe | Expect |
+|---|---|
+| any `/api/v1/**` without a session | `401` problem+json, never a redirect |
+| `/api/v1/audit` as an instructor | `403` |
+| `POST /api/v1/runtimes` as an instructor | `403` |
+| revoking a key through another student's URL | `404`, and the key untouched |
+| revoking an extension through another assignment's URL | `404` |
+| `/actuator/metrics` with no credentials | `401` with `WWW-Authenticate: Basic` — a redirect here silently breaks Prometheus |
+| `/actuator/metrics` with admin credentials | `200` |
+| `/api/v1/courses/not-a-uuid` | `400`, carrying no stack trace, class name or SQL |
+
+## 10. Operations
+
+```sh
+# The host key must not change, or every student gets a host key warning.
+ssh-keyscan -p 2222 -t ecdsa localhost | awk '{print $3}'
+docker compose -f compose.yaml -f compose.dev.yaml restart app
+ssh-keyscan -p 2222 -t ecdsa localhost | awk '{print $3}'
+
+./scripts/backup.sh /tmp/e2e/backup
+```
+
+**Expect** an identical host key, the submission still present, readiness and health both
+`200`, and a backup directory with a checksum beside it.
+
+## 11. Tear down
 
 ```sh
 docker compose -f compose.yaml -f compose.dev.yaml down -v
@@ -263,17 +303,31 @@ docker ps -a --filter name=gitgrader
 docker volume ls | grep gitgrader
 ```
 
-**Expect** both listings empty. `-v` discards the volumes, which is what makes the next
-run a genuine first run.
+**Expect** both listings empty.
 
 ## What this run has proven
 
-Signed-push admission, the registered-key rule and its refusals; repository provisioning
-from a registration; hidden tests reaching the sandbox and never the student; grading in a
-throwaway container with the documented score; the submission record keeping the signing
-key and the real ref; instructor authentication, authorisation and the admin boundary; and
-the token-only result page with its headers.
+Signed-push admission and each of its refusals; registration validation, enrolment and
+repository provisioning; hidden tests reaching the sandbox and never the student; grading
+in a throwaway container with the documented score; the submission record keeping the
+signing key and the real ref; instructor authentication, authorisation and the admin
+boundary; the token-only result page with its headers; and that a restart changes neither
+the host key nor the data.
 
-It does not cover: LDAP over TLS (the demo directory is plaintext on purpose), the
-production profile's refusals, backup and restore, upgrades across versions, or more than
-one grading worker under load. Those need their own runs.
+It does not cover: LDAP over TLS (the demo directory is plaintext on purpose), a restore
+onto a running instance, upgrades across versions, or more than one grading worker under
+load. Those need their own runs.
+
+## Defects this playbook has found
+
+Each was found by running the steps above against a real deployment, and each is fixed.
+They are listed because they are the shapes of failure this test exists to catch.
+
+| # | Step | Defect |
+|---|---|---|
+| 1 | 2 | `compose.yaml` forwarded none of the documented `SECURITY_*`, `APP_*`, `GIT_*` or `GRADING_*` settings. An operator following `docs/installation.md` to configure LDAP got an application that never saw the URL, base DN or credentials. |
+| 2 | 3 | Repository provisioning refused a directory that already existed, so anything failing after the directory was created — or a database restored from an older backup — left the student permanently unprovisionable: the registration event retried onto the same directory forever. |
+| 3 | 3 | A CSRF failure answered `302` to the sign-in page with the session id in the URL path, instead of `403 problem+json`. `fetch` follows the redirect and parses a login page as the answer. |
+| 4 | 2 | `/actuator/health` was permanently `503`: Boot's LDAP indicator reads `spring.ldap.urls`, which this application does not use, so it probed `localhost:389` on every deployment that did configure a directory. |
+| 5 | 9 | `/actuator/metrics` answered an unauthenticated scrape with a redirect rather than a `401` challenge, so Prometheus stored the sign-in page as the metrics response and reported nothing. |
+| 6 | 3, 7 | A self-registered student was never enrolled on the course. `CourseAdministration.enroll` existed with no caller and no endpoint, so every course report — the instructor's only view of how a class is doing — listed nobody. |

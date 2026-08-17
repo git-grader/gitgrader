@@ -194,8 +194,19 @@ public class GitRepositoryService {
 		}
 		try {
 			Files.createDirectories(bareParent);
+			// The database row and the directory are not written atomically: anything
+			// that
+			// fails after the directory exists rolls the row back and leaves the
+			// directory
+			// behind, and a restored database can be older than the volume beside it.
+			// Refusing an existing directory made both cases permanent - every retry of
+			// the registration event failed on the same directory, and the student was
+			// left with a repository they could never push to.
+			boolean adopted = Files.isDirectory(bare);
 			try (Repository repository = FileRepositoryBuilder.create(bare.toFile())) {
-				repository.create(true);
+				if (!adopted) {
+					repository.create(true);
+				}
 				// JGit still defaults a new repository's HEAD to "master". Students and
 				// the push admission rules both work in terms of "main", so the default
 				// branch is pinned here rather than left to the JGit version in use.
@@ -203,7 +214,14 @@ public class GitRepositoryService {
 				head.disableRefLog();
 				head.link(DEFAULT_BRANCH_REF);
 			}
-			seedFromTemplate(bare, templateVersionId);
+			// An adopted repository is only seeded when it holds nothing, so a retry
+			// cannot write a second template commit over work a student has pushed.
+			if (!adopted || isEmpty(bare)) {
+				seedFromTemplate(bare, templateVersionId);
+			}
+			else {
+				logger.info("Adopted the repository already present at {}", bare);
+			}
 		}
 		catch (IOException ex) {
 			throw new IllegalStateException("Could not provision repository at " + bare, ex);
@@ -231,6 +249,18 @@ public class GitRepositoryService {
 	 */
 	public boolean acceptsPushes(RepositoryRecord record) {
 		return record.status() == RepositoryStatus.READY;
+	}
+
+	/**
+	 * Whether a bare repository holds no refs at all.
+	 * @param bare the bare repository directory
+	 * @return true when nothing has been committed or pushed to it
+	 * @throws IOException if the repository cannot be read
+	 */
+	private static boolean isEmpty(Path bare) throws IOException {
+		try (Repository repository = FileRepositoryBuilder.create(bare.toFile())) {
+			return repository.getRefDatabase().getRefs().isEmpty();
+		}
 	}
 
 	/**

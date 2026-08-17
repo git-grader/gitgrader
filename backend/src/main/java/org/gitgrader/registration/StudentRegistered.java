@@ -19,6 +19,8 @@ package org.gitgrader.registration;
 import java.time.Instant;
 import java.util.UUID;
 
+import org.jspecify.annotations.Nullable;
+
 /**
  * Published once a student has been accepted onto a course.
  *
@@ -31,8 +33,9 @@ import java.util.UUID;
  * @param studentNumber the student number, as it appears in repository paths
  * @param courseId the course the student joined
  * @param courseKey the course key, as it appears in repository paths
+ * @param classKey the class the student picked, or {@code null} when the course has none
  * @param registeredAt when the registration was accepted
  */
 public record StudentRegistered(UUID studentId, String studentNumber, UUID courseId, String courseKey,
-		Instant registeredAt) {
+		@Nullable String classKey, Instant registeredAt) {
 }

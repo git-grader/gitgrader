@@ -74,6 +74,8 @@ class RegistrationServiceTest {
 
 	private CourseCatalog courseCatalog;
 
+	private SshKeyRegistry sshKeys;
+
 	private StudentDirectory studentDirectory;
 
 	private StudentRegistry studentRegistry;
@@ -86,6 +88,7 @@ class RegistrationServiceTest {
 	void setUp() {
 		this.rateLimiter = mock(RateLimiter.class);
 		this.courseCatalog = mock(CourseCatalog.class);
+		this.sshKeys = mock(SshKeyRegistry.class);
 		this.studentDirectory = mock(StudentDirectory.class);
 		this.studentRegistry = mock(StudentRegistry.class);
 		this.attemptLog = mock(RegistrationAttemptLog.class);
@@ -100,7 +103,7 @@ class RegistrationServiceTest {
 		when(this.studentDirectory.findByStudentNumber(anyString())).thenReturn(Optional.empty());
 
 		this.service = new RegistrationService(properties(), this.rateLimiter, this.courseCatalog,
-				this.studentDirectory, this.studentRegistry, mock(SshKeyRegistry.class), this.attemptLog, hasher,
+				this.studentDirectory, this.studentRegistry, this.sshKeys, this.attemptLog, hasher,
 				mock(AuditService.class), Clock.fixed(Instant.parse("2026-03-01T10:00:00Z"), ZoneOffset.UTC),
 				mock(ApplicationEventPublisher.class));
 	}
@@ -175,9 +178,12 @@ class RegistrationServiceTest {
 				new AppProperties.ResultTokens(256, java.time.Duration.ofDays(180), 8));
 	}
 
+	/** Fixed so a test can assert which course a student was enrolled in. */
+	private static final CourseView COURSE = new CourseView(UUID.randomUUID(), "cs101", "Programming", null, null, null,
+			null, "UTC", CourseStatus.ACTIVE, null, null, true);
+
 	private static CourseView openCourse() {
-		return new CourseView(UUID.randomUUID(), "cs101", "Programming", null, null, null, null, "UTC",
-				CourseStatus.ACTIVE, null, null, true);
+		return COURSE;
 	}
 
 	private static StudentView existingStudent() {
