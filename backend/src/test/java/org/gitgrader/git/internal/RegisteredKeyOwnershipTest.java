@@ -176,12 +176,13 @@ class RegisteredKeyOwnershipTest {
 			}
 
 			@Override
-			public SshKeyView revoke(UUID keyId, String reason, String actor) {
+			public SshKeyView revoke(UUID studentId, UUID keyId, String reason, String actor) {
 				throw new UnsupportedOperationException();
 			}
 
 			@Override
-			public SshKeyView replace(UUID keyId, String label, String submittedKey, String reason, String actor) {
+			public SshKeyView replace(UUID studentId, UUID keyId, String label, String submittedKey, String reason,
+					String actor) {
 				throw new UnsupportedOperationException();
 			}
 

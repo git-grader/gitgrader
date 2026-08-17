@@ -85,12 +85,18 @@ public interface SshKeyRegistry {
 
 	/**
 	 * Withdraws a key permanently.
+	 *
+	 * <p>
+	 * Scoped to the owner on purpose: the key identifier alone is enough to act on
+	 * somebody else's key, and the caller always knows whose key it means.
+	 * @param studentId the owner the caller believes the key belongs to
 	 * @param keyId the key
 	 * @param reason why it is being withdrawn
 	 * @param actor who is withdrawing it
 	 * @return the updated key
+	 * @throws IllegalArgumentException when no such key exists for that student
 	 */
-	SshKeyView revoke(UUID keyId, String reason, String actor);
+	SshKeyView revoke(UUID studentId, UUID keyId, String reason, String actor);
 
 	/**
 	 * Exchanges a key for a new one in a single operation.
@@ -99,14 +105,16 @@ public interface SshKeyRegistry {
 	 * Atomic on purpose. Revoking first and adding second would leave a student locked
 	 * out if the new key turned out to be invalid, and adding first and revoking second
 	 * would briefly leave both usable.
+	 * @param studentId the owner the caller believes the key belongs to
 	 * @param keyId the key being replaced
 	 * @param label label for the replacement
 	 * @param submittedKey raw text of the replacement public key
 	 * @param reason why the exchange is happening
 	 * @param actor who is performing it
 	 * @return the newly registered key
+	 * @throws IllegalArgumentException when no such key exists for that student
 	 */
-	SshKeyView replace(UUID keyId, String label, String submittedKey, String reason, String actor);
+	SshKeyView replace(UUID studentId, UUID keyId, String label, String submittedKey, String reason, String actor);
 
 	/**
 	 * Temporarily disables a key.

@@ -119,8 +119,8 @@ public class DefaultSshKeyRegistry implements SshKeyRegistry {
 	}
 
 	@Override
-	public SshKeyView revoke(UUID keyId, String reason, String actor) {
-		SshKeyRecord record = require(keyId);
+	public SshKeyView revoke(UUID studentId, UUID keyId, String reason, String actor) {
+		SshKeyRecord record = require(studentId, keyId);
 		record.revoke(reason, actor, this.clock);
 		this.auditService.record(AuditRecord.of(AuditEventType.SSH_KEY_REVOKED)
 			.subject("SshKey", keyId.toString())
@@ -133,8 +133,9 @@ public class DefaultSshKeyRegistry implements SshKeyRegistry {
 	}
 
 	@Override
-	public SshKeyView replace(UUID keyId, String label, String submittedKey, String reason, String actor) {
-		SshKeyRecord outgoing = require(keyId);
+	public SshKeyView replace(UUID studentId, UUID keyId, String label, String submittedKey, String reason,
+			String actor) {
+		SshKeyRecord outgoing = require(studentId, keyId);
 		SshPublicKey parsed = this.parser.parse(submittedKey);
 		requireUnusedFingerprint(parsed);
 
@@ -202,6 +203,24 @@ public class DefaultSshKeyRegistry implements SshKeyRegistry {
 	private SshKeyRecord require(UUID keyId) {
 		return this.repository.findById(keyId)
 			.orElseThrow(() -> new IllegalArgumentException("No SSH key with id " + keyId));
+	}
+
+	/**
+	 * Resolves a key that must belong to the named student.
+	 *
+	 * <p>
+	 * A key that exists but belongs to somebody else is reported exactly like one that
+	 * does not exist, so the caller learns nothing about another student's keys.
+	 * @param studentId the expected owner
+	 * @param keyId the key
+	 * @return the key
+	 */
+	private SshKeyRecord require(UUID studentId, UUID keyId) {
+		SshKeyRecord record = require(keyId);
+		if (!record.studentId().equals(studentId)) {
+			throw new IllegalArgumentException("No SSH key with id " + keyId + " for student " + studentId);
+		}
+		return record;
 	}
 
 	private static SshKeyView toView(SshKeyRecord record) {

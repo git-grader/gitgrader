@@ -145,7 +145,7 @@ class DefaultSshKeyRegistryTest {
 		SshKeyRecord stored = record();
 		when(this.repository.findById(stored.id())).thenReturn(Optional.of(stored));
 
-		SshKeyView revoked = this.registry.revoke(stored.id(), "laptop stolen", "instructor.a");
+		SshKeyView revoked = this.registry.revoke(STUDENT, stored.id(), "laptop stolen", "instructor.a");
 
 		assertThat(revoked.status()).isEqualTo(SshKeyStatus.REVOKED);
 		assertThat(revoked.usable()).isFalse();
@@ -160,13 +160,32 @@ class DefaultSshKeyRegistryTest {
 		SshKeyRecord outgoing = record();
 		when(this.repository.findById(outgoing.id())).thenReturn(Optional.of(outgoing));
 
-		SshKeyView incoming = this.registry.replace(outgoing.id(), "new laptop", ED25519, "rotation", "instructor.a");
+		SshKeyView incoming = this.registry.replace(STUDENT, outgoing.id(), "new laptop", ED25519, "rotation",
+				"instructor.a");
 
 		assertThat(incoming.fingerprint()).isEqualTo(ED25519_FINGERPRINT);
 		assertThat(incoming.status()).isEqualTo(SshKeyStatus.ACTIVE);
 		assertThat(outgoing.status()).isEqualTo(SshKeyStatus.REPLACED);
 		assertThat(outgoing.isUsable()).isFalse();
 		assertThat(outgoing.replacedById()).isEqualTo(incoming.id());
+	}
+
+	@Test
+	@DisplayName("refuses to act on a key belonging to another student")
+	void refusesSomebodyElsesKey() {
+		// The key identifier alone used to be enough: an instructor could revoke any key
+		// by naming an unrelated student in the URL, and the request was still carried
+		// out
+		// against the real owner.
+		SshKeyRecord stored = record();
+		UUID somebodyElse = UUID.randomUUID();
+		when(this.repository.findById(stored.id())).thenReturn(Optional.of(stored));
+
+		assertThatExceptionOfType(IllegalArgumentException.class)
+			.isThrownBy(() -> this.registry.revoke(somebodyElse, stored.id(), "not mine", "instructor.a"));
+		assertThatExceptionOfType(IllegalArgumentException.class).isThrownBy(
+				() -> this.registry.replace(somebodyElse, stored.id(), "new", ED25519, "rotation", "instructor.a"));
+		assertThat(stored.status()).isEqualTo(SshKeyStatus.ACTIVE);
 	}
 
 	@Test
