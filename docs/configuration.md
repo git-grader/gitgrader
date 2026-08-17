@@ -31,13 +31,11 @@ listed in the second table.
 | `git.idle-timeout` | — | `10m` | SSH idle timeout. |
 | `git.allowed-key-types` | — | packaged list | Accepted OpenSSH key blob types. |
 | `grading.runner` | `GRADING_RUNNER` | `docker` | Runner implementation selector. |
-| `grading.working-directory` | `GRADING_WORKING_DIRECTORY` | `/data/grading` | Runner workspace root. |
 | `grading.max-parallel-jobs` | `GRADING_MAX_PARALLEL_JOBS` | `2` | Worker concurrency. |
 | `grading.default-timeout` | `GRADING_DEFAULT_TIMEOUT` | `120s` | Run time limit. |
 | `grading.default-memory-limit` / `default-cpu-limit` / `default-pid-limit` | `GRADING_DEFAULT_MEMORY_LIMIT` / `GRADING_DEFAULT_CPU_LIMIT` / `GRADING_DEFAULT_PID_LIMIT` | `512MB` / `1.0` / `256` | Default resource limits. |
 | `grading.network-enabled` | `GRADING_NETWORK_ENABLED` | `false` | Permit runner network access. |
 | `grading.log-size-limit` | `GRADING_LOG_SIZE_LIMIT` | `1MB` | Captured log limit. |
-| `grading.synchronous-timeout` | `GRADING_SYNCHRONOUS_TIMEOUT` | `20s` | Synchronous wait bound. |
 | `grading.retain-workspaces` | `GRADING_RETAIN_WORKSPACES` | `false` | Retain workspaces for diagnosis. |
 | `grading.docker.host` | `GRADING_DOCKER_HOST` | `unix:///var/run/docker.sock` | Docker API endpoint. |
 | `grading.docker.workspace-mount-root` | `GRADING_DOCKER_WORKSPACE_MOUNT_ROOT` | empty | Host-visible workspace root. |

@@ -24,7 +24,6 @@ git:
 
 grading:
   runner: noop
-  working-directory: ./target/test-data/grading
   max-parallel-jobs: 1
 
 storage:
