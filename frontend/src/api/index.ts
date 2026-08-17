@@ -323,6 +323,26 @@ export const TestSuiteVersionSchema = z.object({
 });
 export type TestSuiteVersion = z.infer<typeof TestSuiteVersionSchema>;
 
+// Mirrors PublishedMaterialsController.PublishedMaterials: every choice an assignment can
+// be pointed at, in one response. The owning template's or suite's name travels with each
+// version because the picker labels choices "material - version"; fetching the names
+// separately is what made opening the page cost one request per template and per suite.
+export const PublishedMaterialsSchema = z.object({
+  templateVersions: z.array(
+    z.object({ id: z.string(), templateName: z.string(), versionLabel: z.string() })
+  ),
+  suiteVersions: z.array(
+    z.object({
+      id: z.string(),
+      suiteName: z.string(),
+      versionLabel: z.string(),
+      hiddenTestCount: z.number(),
+      publicTestCount: z.number()
+    })
+  )
+});
+export type PublishedMaterials = z.infer<typeof PublishedMaterialsSchema>;
+
 // Mirrors SubmissionView. `late` and `signatureStatus` were missing, which is why the
 // submissions list could not say whether an attempt was late or whether its commit
 // signature verified - the two facts the product exists to record.
@@ -501,6 +521,8 @@ export const api = {
 
   getAuditLog: (params?: Record<string, string>) =>
     readJson(`/api/v1/audit${queryString({ sort: 'occurredAt,desc', ...params })}`, AuditPageSchema),
+
+  getPublishedMaterials: () => readJson('/api/v1/materials/published', PublishedMaterialsSchema),
 
   getRuntimes: () => readJson('/api/v1/runtimes', z.array(RuntimeSchema)),
   createRuntime: (req: RuntimeDefinition) => sendJson('POST', '/api/v1/runtimes', req, RuntimeSchema)

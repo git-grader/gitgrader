@@ -31,6 +31,7 @@ describe('the instructor pages', () => {
       http.get('/api/v1/assignments', () => HttpResponse.json(page([]))),
       http.get('/api/v1/templates', () => HttpResponse.json(page([]))),
       http.get('/api/v1/test-suites', () => HttpResponse.json(page([]))),
+      http.get('/api/v1/materials/published', () => HttpResponse.json({ templateVersions: [], suiteVersions: [] })),
       http.get('/api/v1/runtimes', () => HttpResponse.json([]))
     );
   }

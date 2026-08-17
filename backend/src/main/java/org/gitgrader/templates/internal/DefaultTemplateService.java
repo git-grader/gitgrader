@@ -24,6 +24,7 @@ import java.util.UUID;
 
 import jakarta.persistence.EntityNotFoundException;
 import org.gitgrader.configuration.StorageProperties;
+import org.gitgrader.templates.PublishedTemplateVersionView;
 import org.gitgrader.templates.TemplateAdministration;
 import org.gitgrader.templates.TemplateCatalog;
 import org.gitgrader.templates.TemplateContentGuard;
@@ -85,6 +86,12 @@ public class DefaultTemplateService implements TemplateCatalog, TemplateAdminist
 			.stream()
 			.map(TemplateVersion::toView)
 			.toList();
+	}
+
+	@Override
+	@Transactional(readOnly = true)
+	public List<PublishedTemplateVersionView> findPublishedVersions() {
+		return this.versions.findPublished();
 	}
 
 	@Override

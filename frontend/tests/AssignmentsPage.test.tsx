@@ -35,6 +35,7 @@ function stubReads() {
     http.get('/api/v1/assignments', () => HttpResponse.json(page([]))),
     http.get('/api/v1/templates', () => HttpResponse.json(page([]))),
     http.get('/api/v1/test-suites', () => HttpResponse.json(page([]))),
+    http.get('/api/v1/materials/published', () => HttpResponse.json({ templateVersions: [], suiteVersions: [] })),
     http.get('/api/v1/runtimes', () => HttpResponse.json([]))
   );
 }
@@ -129,6 +130,7 @@ test('names the field when a required choice is missing', async () => {
     http.get('/api/v1/assignments', () => HttpResponse.json(page([]))),
     http.get('/api/v1/templates', () => HttpResponse.json(page([]))),
     http.get('/api/v1/test-suites', () => HttpResponse.json(page([]))),
+    http.get('/api/v1/materials/published', () => HttpResponse.json({ templateVersions: [], suiteVersions: [] })),
     http.get('/api/v1/runtimes', () => HttpResponse.json([]))
   );
   const posts: unknown[] = [];

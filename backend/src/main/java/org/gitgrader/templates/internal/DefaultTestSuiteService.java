@@ -24,6 +24,7 @@ import java.util.UUID;
 
 import jakarta.persistence.EntityNotFoundException;
 import org.gitgrader.configuration.StorageProperties;
+import org.gitgrader.templates.PublishedTestSuiteVersionView;
 import org.gitgrader.templates.TestSuiteAdministration;
 import org.gitgrader.templates.TestSuiteCatalog;
 import org.gitgrader.templates.TestSuiteVersionView;
@@ -78,6 +79,12 @@ public class DefaultTestSuiteService implements TestSuiteCatalog, TestSuiteAdmin
 	@Transactional(readOnly = true)
 	public List<TestSuiteVersionView> findVersions(UUID suiteId) {
 		return this.versions.findBySuiteIdOrderByCreatedAtAsc(suiteId).stream().map(TestSuiteVersion::toView).toList();
+	}
+
+	@Override
+	@Transactional(readOnly = true)
+	public List<PublishedTestSuiteVersionView> findPublishedVersions() {
+		return this.versions.findPublished();
 	}
 
 	@Override

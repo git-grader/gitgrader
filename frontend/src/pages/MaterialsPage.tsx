@@ -138,7 +138,13 @@ function TemplateVersionList({ templateId }: { templateId: string }) {
 
   const publishMutation = useMutation({
     mutationFn: (versionId: string) => api.publishTemplateVersion(versionId),
-    onSuccess: () => { void queryClient.invalidateQueries({ queryKey: queryKeys.templates.versions(templateId) }); }
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: queryKeys.templates.versions(templateId) });
+      // Publishing is what puts a version in front of an assignment, and the picker
+      // reads the published set rather than this list. Without this the instructor
+      // publishes a version and cannot select it until the page is reloaded.
+      void queryClient.invalidateQueries({ queryKey: queryKeys.publishedMaterials });
+    }
   });
 
   if (isLoading) return <CircularProgress size={24} aria-label="Loading template versions" />;
@@ -213,6 +219,7 @@ function TestSuiteVersionList({ suiteId }: { suiteId: string }) {
       // version invalidated a cache nobody read and the new version never appeared in the
       // assignment dropdown until the page was reloaded.
       void queryClient.invalidateQueries({ queryKey: queryKeys.testSuites.all });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.publishedMaterials });
       closePublish();
     }
   });
