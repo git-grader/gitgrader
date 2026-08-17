@@ -58,11 +58,20 @@ import org.jspecify.annotations.Nullable;
 @Table(name = "submissions")
 public class Submission {
 
+	/**
+	 * A finished submission returns to {@code QUEUED} because a regrade is a second
+	 * attempt at the same push, not a new submission. Only {@code REJECTED} is final: it
+	 * describes a push that never became work, so there is nothing to attempt again.
+	 */
 	private static final Map<SubmissionStatus, Set<SubmissionStatus>> STATUS_TRANSITIONS = Map.of(
 			SubmissionStatus.RECEIVED, EnumSet.of(SubmissionStatus.QUEUED, SubmissionStatus.CANCELLED),
 			SubmissionStatus.QUEUED, EnumSet.of(SubmissionStatus.RUNNING, SubmissionStatus.CANCELLED),
-			SubmissionStatus.RUNNING, EnumSet.of(SubmissionStatus.QUEUED, SubmissionStatus.PASSED,
-					SubmissionStatus.FAILED, SubmissionStatus.INFRASTRUCTURE_ERROR));
+			SubmissionStatus.RUNNING,
+			EnumSet.of(SubmissionStatus.QUEUED, SubmissionStatus.PASSED, SubmissionStatus.FAILED,
+					SubmissionStatus.INFRASTRUCTURE_ERROR, SubmissionStatus.CANCELLED),
+			SubmissionStatus.PASSED, EnumSet.of(SubmissionStatus.QUEUED), SubmissionStatus.FAILED,
+			EnumSet.of(SubmissionStatus.QUEUED), SubmissionStatus.INFRASTRUCTURE_ERROR,
+			EnumSet.of(SubmissionStatus.QUEUED), SubmissionStatus.CANCELLED, EnumSet.of(SubmissionStatus.QUEUED));
 
 	/** Number of hash characters shown in abbreviated output, matching git's default. */
 	private static final int SHORT_SHA_LENGTH = 7;
