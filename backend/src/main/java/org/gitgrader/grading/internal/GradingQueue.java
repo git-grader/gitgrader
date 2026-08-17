@@ -102,11 +102,14 @@ public class GradingQueue {
 	 * @return ids of the jobs this worker now owns
 	 */
 	@Transactional
-	public List<UUID> claimBatch(String worker) {
-		List<UUID> claimed = this.jobs.claimNext(Instant.now(this.clock), this.properties.maxParallelJobs());
-		claimed.forEach((id) -> this.jobs.findById(id)
-			.ifPresent((job) -> job.claim(worker, this.properties.queue().claimTimeout(), this.clock)));
-		return claimed;
+	public List<ClaimedJob> claimBatch(String worker, int capacity) {
+		List<UUID> claimed = this.jobs.claimNext(Instant.now(this.clock), capacity);
+		List<ClaimedJob> leases = claimed.stream().map(this.jobs::findById).flatMap(Optional::stream).map((job) -> {
+			job.claim(worker, this.properties.queue().claimTimeout(), this.clock);
+			return new ClaimedJob(job.id(), worker, job.leaseGeneration(), job.claimExpiresAt());
+		}).toList();
+		this.jobs.flush();
+		return leases;
 	}
 
 	/**
@@ -149,8 +152,9 @@ public class GradingQueue {
 	 * @return the pair, or empty when either has disappeared
 	 */
 	@Transactional(readOnly = true)
-	public Optional<ClaimedWork> load(UUID jobId) {
-		return this.jobs.findById(jobId)
+	public Optional<ClaimedWork> load(ClaimedJob lease) {
+		return this.jobs.findById(lease.jobId())
+			.filter((job) -> job.status() == GradingJobStatus.CLAIMED && job.leaseGeneration() == lease.generation())
 			.flatMap((job) -> this.runs.findById(job.gradingRunId()).map((run) -> new ClaimedWork(job, run)));
 	}
 
@@ -160,12 +164,18 @@ public class GradingQueue {
 	 * @param runId the run
 	 */
 	@Transactional
-	public void markRunning(UUID jobId, UUID runId) {
-		this.jobs.findById(jobId).ifPresent((job) -> job.markRunning(this.clock));
+	public boolean markRunning(ClaimedJob lease, UUID runId) {
+		Instant now = Instant.now(this.clock);
+		if (this.jobs.markRunningIfOwned(lease.jobId(), lease.worker(), lease.generation(), now) == 0) {
+			logger.warn("Ignoring stale grading claim {} generation {} for worker {}", lease.jobId(),
+					lease.generation(), lease.worker());
+			return false;
+		}
 		this.runs.findById(runId).ifPresent((run) -> {
 			run.markRunning(this.clock);
 			this.submissions.markStatus(run.submissionId(), SubmissionStatus.RUNNING);
 		});
+		return true;
 	}
 
 	/**
@@ -175,15 +185,22 @@ public class GradingQueue {
 	 * @param outcome what the sandbox produced
 	 */
 	@Transactional
-	public void recordSuccess(UUID jobId, UUID runId, GradingExecutor.Outcome outcome) {
+	public boolean recordSuccess(ClaimedJob lease, UUID runId, GradingExecutor.Outcome outcome) {
+		if (this.jobs.lockRunningLease(lease.jobId(), lease.worker(), lease.generation(), Instant.now(this.clock))
+			.isEmpty()) {
+			logger.warn("Ignoring stale grading success for job {} generation {} from worker {}", lease.jobId(),
+					lease.generation(), lease.worker());
+			return false;
+		}
 		GradingRun run = this.runs.findById(runId).orElseThrow();
 		this.executor.persist(run, outcome);
-		this.jobs.findById(jobId).ifPresent((job) -> job.markDone(this.clock));
+		this.jobs.findById(lease.jobId()).ifPresent((job) -> job.markDone(this.clock));
 
 		SubmissionStatus status = resolveSubmissionStatus(run);
 		this.submissions.markStatus(run.submissionId(), status);
 		logger.info("Grading run {} finished: {} ({} of {} tests passed) [correlationId={}]", run.id(), status,
 				run.testsPassed(), run.testsTotal(), run.correlationId());
+		return true;
 	}
 
 	/**
@@ -193,11 +210,17 @@ public class GradingQueue {
 	 * @param cause what went wrong
 	 */
 	@Transactional(propagation = Propagation.REQUIRES_NEW)
-	public void recordFailure(UUID jobId, UUID runId, Throwable cause) {
+	public boolean recordFailure(ClaimedJob lease, UUID runId, Throwable cause) {
+		if (this.jobs.lockRunningLease(lease.jobId(), lease.worker(), lease.generation(), Instant.now(this.clock))
+			.isEmpty()) {
+			logger.warn("Ignoring stale grading failure for job {} generation {} from worker {}", lease.jobId(),
+					lease.generation(), lease.worker());
+			return false;
+		}
 		String message = String.valueOf(cause.getMessage());
 		String truncated = (message.length() > MAX_ERROR_LENGTH) ? message.substring(0, MAX_ERROR_LENGTH) : message;
 
-		GradingJob job = this.jobs.findById(jobId).orElseThrow();
+		GradingJob job = this.jobs.findById(lease.jobId()).orElseThrow();
 		boolean willRetry = job.recordFailure(truncated, this.properties.queue().retryBackoff(), this.clock);
 
 		if (!willRetry) {
@@ -209,7 +232,8 @@ public class GradingQueue {
 				this.submissions.markStatus(run.submissionId(), SubmissionStatus.INFRASTRUCTURE_ERROR);
 			});
 		}
-		logger.error("Grading job {} failed (attempt {}, retry={})", jobId, job.attempts(), willRetry, cause);
+		logger.error("Grading job {} failed (attempt {}, retry={})", lease.jobId(), job.attempts(), willRetry, cause);
+		return true;
 	}
 
 	/**
@@ -237,6 +261,10 @@ public class GradingQueue {
 	 * @param run the run it will execute
 	 */
 	public record ClaimedWork(GradingJob job, GradingRun run) {
+	}
+
+	/** A persisted lease identity carried by one worker execution. */
+	public record ClaimedJob(UUID jobId, String worker, long generation, Instant claimExpiresAt) {
 	}
 
 }

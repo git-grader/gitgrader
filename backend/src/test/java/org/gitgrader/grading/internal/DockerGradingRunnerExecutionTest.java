@@ -87,8 +87,8 @@ class DockerGradingRunnerExecutionTest {
 		this.dockerClient = mock(DockerClient.class);
 		this.logsDelivered = new CountDownLatch(1);
 
-		GradingProperties properties = new GradingProperties("docker", "/data/grading", 2, Duration.ofSeconds(120),
-				DataSize.ofMegabytes(512), 1.0, 256, false, DataSize.ofMegabytes(1), Duration.ofSeconds(20), false,
+		GradingProperties properties = new GradingProperties("docker", 2, Duration.ofSeconds(120),
+				DataSize.ofMegabytes(512), 1.0, 256, false, DataSize.ofMegabytes(1), false,
 				new GradingProperties.Docker("unix:///var/run/docker.sock", "", "", "65534:65534",
 						Duration.ofMinutes(5), true, DataSize.ofMegabytes(64), true, true),
 				new GradingProperties.Queue(Duration.ofSeconds(2), Duration.ofMinutes(15), 3, Duration.ofSeconds(30), 3,
@@ -200,6 +200,28 @@ class DockerGradingRunnerExecutionTest {
 
 		assertThat(this.logsDelivered.await(5, TimeUnit.SECONDS)).isTrue();
 		assertThat(result.stdout()).isEqualTo("ok 1 - café\n");
+	}
+
+	@Test
+	@DisplayName("closes the Docker log stream handle")
+	void closesTheReturnedLogStream() throws Exception {
+		@SuppressWarnings("unchecked")
+		ResultCallback<Frame> stream = mock(ResultCallback.class);
+		LogContainerCmd logCmd = mock(LogContainerCmd.class);
+		when(logCmd.withStdOut(anyBoolean())).thenReturn(logCmd);
+		when(logCmd.withStdErr(anyBoolean())).thenReturn(logCmd);
+		when(logCmd.withFollowStream(anyBoolean())).thenReturn(logCmd);
+		when(logCmd.exec(any())).thenAnswer((invocation) -> {
+			ResultCallback<Frame> callback = invocation.getArgument(0);
+			callback.onComplete();
+			return stream;
+		});
+		when(this.dockerClient.logContainerCmd(CONTAINER_ID)).thenReturn(logCmd);
+		completeWaitWith(0);
+
+		this.runner.execute(this.request);
+
+		verify(stream).close();
 	}
 
 	private void stubContainerLifecycle() {

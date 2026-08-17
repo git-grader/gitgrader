@@ -67,13 +67,6 @@ public interface SubmissionRepository extends JpaRepository<Submission, UUID>, J
 	Page<Submission> findByCourseId(UUID courseId, Pageable pageable);
 
 	/**
-	 * Lists submissions in one status.
-	 * @param status the status
-	 * @return matching submissions
-	 */
-	List<Submission> findByStatus(SubmissionStatus status);
-
-	/**
 	 * Counts submissions in one status.
 	 * @param status the status
 	 * @return number of matching submissions
@@ -89,14 +82,14 @@ public interface SubmissionRepository extends JpaRepository<Submission, UUID>, J
 	long countByStudentIdAndAssignmentId(UUID studentId, UUID assignmentId);
 
 	/**
-	 * Serialises admission decisions for one student and assignment.
+	 * Serialises admission decisions for one repository.
 	 *
 	 * <p>
 	 * The duplicate and rolling-window checks are read-then-write. Two pushes arriving
 	 * together would otherwise both read a count below the limit and both insert, letting
 	 * a burst step straight over the ceiling. The lock is transaction scoped, so it is
 	 * released on commit or rollback with no unlock path to forget.
-	 * @param key identifies the student and assignment pair
+	 * @param key identifies the repository
 	 */
 	@Query(value = "SELECT pg_advisory_xact_lock(:key)", nativeQuery = true)
 	void lockForAdmission(@Param("key") long key);

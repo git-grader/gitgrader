@@ -19,12 +19,19 @@ package org.gitgrader.grading.internal;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.util.Optional;
+import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Future;
+import java.util.concurrent.FutureTask;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import org.gitgrader.configuration.GradingProperties;
 import org.gitgrader.grading.internal.GradingQueue.ClaimedWork;
+import org.gitgrader.grading.internal.GradingQueue.ClaimedJob;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.SmartLifecycle;
@@ -63,36 +70,46 @@ public class GradingDispatcher implements SmartLifecycle {
 
 	private final GradingProperties properties;
 
+	private final ExecutorService workers;
+
 	private final String workerId = "worker-" + UUID.randomUUID();
 
 	private final AtomicBoolean accepting = new AtomicBoolean();
 
 	private final AtomicInteger inFlight = new AtomicInteger();
 
-	public GradingDispatcher(GradingQueue queue, GradingExecutor executor, GradingProperties properties) {
+	private final Map<UUID, Future<?>> active = new ConcurrentHashMap<>();
+
+	public GradingDispatcher(GradingQueue queue, GradingExecutor executor, GradingProperties properties,
+			ExecutorService workers) {
 		this.queue = queue;
 		this.executor = executor;
 		this.properties = properties;
+		this.workers = workers;
 	}
 
 	/**
 	 * Claims and runs whatever work is due.
 	 */
-	@Scheduled(fixedDelayString = "${grading.queue.poll-interval:2s}")
+	@Scheduled(fixedDelayString = "${grading.queue.poll-interval}")
 	public void poll() {
 		if (!this.accepting.get()) {
 			return;
 		}
 		try {
 			this.queue.reapAbandonedClaims();
-			for (UUID jobId : this.queue.claimBatch(this.workerId)) {
+			int capacity = this.properties.maxParallelJobs() - this.inFlight.get();
+			if (capacity <= 0) {
+				return;
+			}
+			for (ClaimedJob lease : this.queue.claimBatch(this.workerId, capacity)) {
 				if (!this.accepting.get()) {
 					// Shutdown began after the batch was claimed. Everything still held
 					// is
 					// handed back by stop(), so returning here loses nothing.
 					return;
 				}
-				process(jobId);
+				submit(lease);
 			}
 		}
 		catch (RuntimeException ex) {
@@ -139,6 +156,7 @@ public class GradingDispatcher implements SmartLifecycle {
 	public void stop() {
 		this.accepting.set(false);
 		awaitQuiet(this.properties.queue().drainTimeout());
+		cancelActive();
 		try {
 			this.queue.requeueHeldJobs(this.workerId);
 		}
@@ -146,6 +164,36 @@ public class GradingDispatcher implements SmartLifecycle {
 			// Losing the database here only means the lease has to expire instead, which
 			// is slower but still correct. It must never break the shutdown sequence.
 			logger.warn("Could not return in-flight grading jobs to the queue", ex);
+		}
+	}
+
+	private void submit(ClaimedJob lease) {
+		this.inFlight.incrementAndGet();
+		try {
+			FutureTask<Void> task = new FutureTask<>(() -> {
+				process(lease);
+				return null;
+			});
+			this.active.put(lease.jobId(), task);
+			this.workers.execute(task);
+		}
+		catch (RuntimeException ex) {
+			this.inFlight.decrementAndGet();
+			throw ex;
+		}
+	}
+
+	private void cancelActive() {
+		this.active.values().forEach((future) -> future.cancel(true));
+		long deadline = System.nanoTime() + this.properties.queue().drainTimeout().toNanos();
+		while (this.inFlight.get() > 0 && System.nanoTime() < deadline) {
+			try {
+				TimeUnit.MILLISECONDS.sleep(DRAIN_POLL.toMillis());
+			}
+			catch (InterruptedException ex) {
+				Thread.currentThread().interrupt();
+				return;
+			}
 		}
 	}
 
@@ -172,30 +220,40 @@ public class GradingDispatcher implements SmartLifecycle {
 	 * <p>
 	 * The sandbox call sits between short transactions rather than inside one, so a run
 	 * that takes minutes never holds a database connection open.
-	 * @param jobId the claimed job
+	 * @param lease the claim this worker holds on the job
 	 */
-	void process(UUID jobId) {
-		Optional<ClaimedWork> work = this.queue.load(jobId);
-		if (work.isEmpty()) {
-			logger.warn("Claimed grading job {} disappeared before it could run", jobId);
-			return;
-		}
-
-		UUID runId = work.get().run().id();
-		this.queue.markRunning(jobId, runId);
-
-		this.inFlight.incrementAndGet();
+	void process(ClaimedJob lease) {
 		Path workspace = null;
+		UUID runId = null;
 		try {
-			GradingExecutor.Outcome outcome = this.executor.execute(work.get().run());
+			Optional<ClaimedWork> work = this.queue.load(lease);
+			if (work.isEmpty()) {
+				logger.warn("Claimed grading job {} disappeared before it could run", lease.jobId());
+				return;
+			}
+
+			runId = work.get().run().id();
+			// The lease was lost between claiming and starting, so another worker owns
+			// this job now and anything this one produced must not be written.
+			if (!this.queue.markRunning(lease, runId)) {
+				return;
+			}
+
+			GradingExecutor.Outcome outcome = this.executor.execute(work.get().run(), lease.claimExpiresAt());
 			workspace = outcome.workspace();
-			this.queue.recordSuccess(jobId, runId, outcome);
+			if (Thread.currentThread().isInterrupted()) {
+				return;
+			}
+			this.queue.recordSuccess(lease, runId, outcome);
 		}
 		catch (RuntimeException ex) {
-			this.queue.recordFailure(jobId, runId, ex);
+			if (runId != null) {
+				this.queue.recordFailure(lease, runId, ex);
+			}
 		}
 		finally {
 			this.inFlight.decrementAndGet();
+			this.active.remove(lease.jobId());
 			if (workspace != null) {
 				this.executor.discardWorkspace(workspace);
 			}

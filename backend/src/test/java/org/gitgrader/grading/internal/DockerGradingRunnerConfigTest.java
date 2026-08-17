@@ -59,8 +59,8 @@ class DockerGradingRunnerConfigTest {
 	@BeforeEach
 	void setUp() {
 		this.dockerClient = mock(DockerClient.class);
-		this.properties = new GradingProperties("docker", "/data/grading", 2, Duration.ofSeconds(120),
-				DataSize.ofMegabytes(512), 1.0, 256, false, DataSize.ofMegabytes(1), Duration.ofSeconds(20), false,
+		this.properties = new GradingProperties("docker", 2, Duration.ofSeconds(120), DataSize.ofMegabytes(512), 1.0,
+				256, false, DataSize.ofMegabytes(1), false,
 				new GradingProperties.Docker("unix:///var/run/docker.sock", "", "", "65534:65534",
 						Duration.ofMinutes(5), true, DataSize.ofMegabytes(64), true, true),
 				new GradingProperties.Queue(Duration.ofSeconds(2), Duration.ofMinutes(15), 3, Duration.ofSeconds(30), 3,
@@ -142,10 +142,9 @@ class DockerGradingRunnerConfigTest {
 	}
 
 	private GradingProperties withDocker(GradingProperties.Docker docker) {
-		return new GradingProperties("docker", "/data/grading", 2, Duration.ofSeconds(120), DataSize.ofMegabytes(512),
-				1.0, 256, false, DataSize.ofMegabytes(1), Duration.ofSeconds(20), false, docker,
-				new GradingProperties.Queue(Duration.ofSeconds(2), Duration.ofMinutes(15), 3, Duration.ofSeconds(30), 3,
-						500, 1000, Duration.ofSeconds(30)));
+		return new GradingProperties("docker", 2, Duration.ofSeconds(120), DataSize.ofMegabytes(512), 1.0, 256, false,
+				DataSize.ofMegabytes(1), false, docker, new GradingProperties.Queue(Duration.ofSeconds(2),
+						Duration.ofMinutes(15), 3, Duration.ofSeconds(30), 3, 500, 1000, Duration.ofSeconds(30)));
 	}
 
 	private HostConfig hostConfigFor(GradingProperties properties) {

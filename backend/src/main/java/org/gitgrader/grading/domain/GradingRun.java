@@ -203,6 +203,9 @@ public class GradingRun {
 	 * @param clock the application clock
 	 */
 	public void markRunning(Clock clock) {
+		if (this.status != GradingRunStatus.QUEUED && this.status != GradingRunStatus.RUNNING) {
+			throw new IllegalStateException("Only a queued grading run can start, but this one is " + this.status);
+		}
 		this.status = GradingRunStatus.RUNNING;
 		this.startedAt = Instant.now(clock);
 	}
@@ -215,6 +218,7 @@ public class GradingRun {
 	 * @param clock the application clock
 	 */
 	public void complete(GradingScore score, @Nullable Integer exitCode, long durationMs, Clock clock) {
+		requireRunning("complete");
 		this.status = GradingRunStatus.COMPLETED;
 		this.testsTotal = score.testsTotal();
 		this.testsPassed = score.testsPassed();
@@ -239,9 +243,19 @@ public class GradingRun {
 	 * written, because a run only records one when it completes.
 	 */
 	public void requeue() {
+		if (this.status == GradingRunStatus.QUEUED) {
+			return;
+		}
+		requireRunning("requeue");
 		this.status = GradingRunStatus.QUEUED;
 		this.startedAt = null;
 		this.finishedAt = null;
+	}
+
+	private void requireRunning(String action) {
+		if (this.status != GradingRunStatus.RUNNING) {
+			throw new IllegalStateException("Cannot " + action + " a grading run in state " + this.status);
+		}
 	}
 
 	/**

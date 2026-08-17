@@ -97,38 +97,42 @@ class DockerGradingRunner implements GradingRunner {
 
 				this.dockerClient.startContainerCmd(containerId).exec();
 
-				this.dockerClient.logContainerCmd(containerId)
+				ResultCallback<Frame> logStream = this.dockerClient.logContainerCmd(containerId)
 					.withStdOut(true)
 					.withStdErr(true)
 					.withFollowStream(true)
 					.exec(callback);
+				try (logStream) {
+					this.dockerClient.waitContainerCmd(containerId).exec(waitCallback);
+					boolean completed = waitCallback.awaitCompletion(request.timeout().toMillis(),
+							TimeUnit.MILLISECONDS);
 
-				this.dockerClient.waitContainerCmd(containerId).exec(waitCallback);
-				boolean completed = waitCallback.awaitCompletion(request.timeout().toMillis(), TimeUnit.MILLISECONDS);
+					if (!completed) {
+						this.dockerClient.killContainerCmd(containerId).exec();
+						drain(callback, containerId);
+						return new GradingResult(-1, callback.getStdout(), callback.getStderr(),
+								this.clock.millis() - start, true, false, null);
+					}
 
-				if (!completed) {
-					this.dockerClient.killContainerCmd(containerId).exec();
-					drain(callback, containerId);
-					return new GradingResult(-1, callback.getStdout(), callback.getStderr(),
-							this.clock.millis() - start, true, false, null);
+					if (!drain(callback, containerId)) {
+						return new GradingResult(-1, callback.getStdout(), callback.getStderr(),
+								this.clock.millis() - start, false, true,
+								"The sandbox exited but its output never finished arriving, "
+										+ "so the test report would have been incomplete");
+					}
+
+					// Taken from the wait result rather than by inspecting the container.
+					// Containers are created with auto-remove, so Docker deletes them the
+					// moment they exit and a following inspect loses that race and
+					// answers
+					// 404. That surfaced as an infrastructure failure, which would tell a
+					// student their submission broke the grader when it had in fact been
+					// graded. The wait already carries the code, and needs nothing to
+					// exist.
+					Integer exitCode = waitCallback.awaitStatusCode();
+					return new GradingResult((exitCode != null) ? exitCode : -1, callback.getStdout(),
+							callback.getStderr(), this.clock.millis() - start, false, false, null);
 				}
-
-				if (!drain(callback, containerId)) {
-					return new GradingResult(-1, callback.getStdout(), callback.getStderr(),
-							this.clock.millis() - start, false, true,
-							"The sandbox exited but its output never finished arriving, "
-									+ "so the test report would have been incomplete");
-				}
-
-				// Taken from the wait result rather than by inspecting the container.
-				// Containers are created with auto-remove, so Docker deletes them the
-				// moment they exit and a following inspect loses that race and answers
-				// 404. That surfaced as an infrastructure failure, which would tell a
-				// student their submission broke the grader when it had in fact been
-				// graded. The wait already carries the code, and needs nothing to exist.
-				Integer exitCode = waitCallback.awaitStatusCode();
-				return new GradingResult((exitCode != null) ? exitCode : -1, callback.getStdout(), callback.getStderr(),
-						this.clock.millis() - start, false, false, null);
 
 			}
 			finally {

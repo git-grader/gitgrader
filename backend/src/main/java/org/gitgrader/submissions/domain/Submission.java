@@ -18,6 +18,9 @@ package org.gitgrader.submissions.domain;
 
 import java.time.Clock;
 import java.time.Instant;
+import java.util.EnumSet;
+import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 
 import jakarta.persistence.Column;
@@ -26,6 +29,7 @@ import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
+import jakarta.persistence.Version;
 import org.gitgrader.submissions.NewSubmission;
 import org.gitgrader.submissions.SignatureVerdict;
 import org.gitgrader.submissions.SubmissionStatus;
@@ -48,12 +52,17 @@ import org.jspecify.annotations.Nullable;
  * submission. The grading pipeline is the single writer for it.
  *
  * <p>
- * The table deliberately has no {@code version} column: there is no concurrent editing to
- * protect against, because nothing else ever writes to a submission.
+ * A version column protects the mutable status projection from stale grading workers.
  */
 @Entity
 @Table(name = "submissions")
 public class Submission {
+
+	private static final Map<SubmissionStatus, Set<SubmissionStatus>> STATUS_TRANSITIONS = Map.of(
+			SubmissionStatus.RECEIVED, EnumSet.of(SubmissionStatus.QUEUED, SubmissionStatus.CANCELLED),
+			SubmissionStatus.QUEUED, EnumSet.of(SubmissionStatus.RUNNING, SubmissionStatus.CANCELLED),
+			SubmissionStatus.RUNNING, EnumSet.of(SubmissionStatus.QUEUED, SubmissionStatus.PASSED,
+					SubmissionStatus.FAILED, SubmissionStatus.INFRASTRUCTURE_ERROR));
 
 	/** Number of hash characters shown in abbreviated output, matching git's default. */
 	private static final int SHORT_SHA_LENGTH = 7;
@@ -131,6 +140,9 @@ public class Submission {
 
 	@Column(name = "created_at", nullable = false, updatable = false)
 	private Instant createdAt;
+
+	@Version
+	private long version;
 
 	protected Submission() {
 		// Required by JPA.
@@ -279,8 +291,14 @@ public class Submission {
 	 * @throws IllegalStateException if the submission was rejected
 	 */
 	public void updateStatus(SubmissionStatus next) {
-		if (this.status == SubmissionStatus.REJECTED) {
-			throw new IllegalStateException("A rejected submission is final and its status cannot be changed");
+		if (this.status == next) {
+			return;
+		}
+		boolean allowed = STATUS_TRANSITIONS.getOrDefault(this.status, EnumSet.noneOf(SubmissionStatus.class))
+			.contains(next);
+		if (!allowed) {
+			throw new IllegalStateException(
+					"Submission status " + this.status + " is final or cannot advance to " + next);
 		}
 		this.status = next;
 	}

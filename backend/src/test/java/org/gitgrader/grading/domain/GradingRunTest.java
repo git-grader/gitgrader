@@ -169,6 +169,16 @@ class GradingRunTest {
 		assertThat(run.scorePercent()).isNull();
 	}
 
+	@Test
+	@DisplayName("a completed run cannot be requeued")
+	void completedRunCannotBeRequeued() {
+		GradingRun run = newRun();
+		run.markRunning(CLOCK);
+		run.complete(score(1, 1, 0, new BigDecimal("100.0"), BigDecimal.ONE, true), 0, 1, CLOCK);
+
+		org.assertj.core.api.Assertions.assertThatExceptionOfType(IllegalStateException.class).isThrownBy(run::requeue);
+	}
+
 	private static GradingRun newRun() {
 		return new GradingRun(UUID.fromString("00000000-0000-0000-0000-0000000000aa"), 1, "PUSH", null, null, null,
 				"corr-1", CLOCK);

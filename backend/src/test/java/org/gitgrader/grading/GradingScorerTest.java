@@ -76,6 +76,19 @@ class GradingScorerTest {
 
 		assertThat(score).isNotNull();
 		assertThat(score.scorePercent().toPlainString()).isEqualTo("66.7");
+		assertThat(score.pointsAwarded()).isEqualByComparingTo("66.67");
+	}
+
+	@Test
+	void roundsPointsOnlyAfterApplyingTheExactRatio() {
+		List<TestOutcome> outcomes = List.of(TestOutcome.PASSED, TestOutcome.PASSED, TestOutcome.FAILED);
+
+		GradingScore score = GradingScorer.score(outcomes, new BigDecimal("0.07"), new BigDecimal("66.7"));
+
+		assertThat(score).isNotNull();
+		assertThat(score.scorePercent()).isEqualByComparingTo("66.7");
+		assertThat(score.pointsAwarded()).isEqualByComparingTo("0.05");
+		assertThat(score.passed()).isTrue();
 	}
 
 	@Test

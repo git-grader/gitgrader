@@ -103,6 +103,19 @@ class SubmissionTest {
 	}
 
 	@Test
+	@DisplayName("a terminal grading status cannot regress")
+	void terminalStatusCannotRegress() {
+		Submission submission = new Submission(base().build(), CLOCK);
+		submission.updateStatus(SubmissionStatus.QUEUED);
+		submission.updateStatus(SubmissionStatus.RUNNING);
+		submission.updateStatus(SubmissionStatus.PASSED);
+
+		assertThatExceptionOfType(IllegalStateException.class)
+			.isThrownBy(() -> submission.updateStatus(SubmissionStatus.RUNNING))
+			.withMessageContaining("final");
+	}
+
+	@Test
 	@DisplayName("abbreviates the commit hash the way git does")
 	void abbreviatesCommitHash() {
 		Submission submission = new Submission(
