@@ -16,6 +16,8 @@
 
 package org.gitgrader.identity;
 
+import java.util.Collection;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -46,5 +48,12 @@ public interface StudentDirectory {
 	 * @return matching students
 	 */
 	Page<StudentView> search(StudentSearch search, Pageable pageable);
+
+	/**
+	 * Finds student profiles by stable identifier.
+	 * @param ids profile identifiers
+	 * @return matching profiles in directory order
+	 */
+	List<StudentView> findByIds(Collection<UUID> ids);
 
 }

@@ -16,6 +16,8 @@
 
 package org.gitgrader.grading;
 
+import java.util.Collection;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -35,5 +37,12 @@ public interface GradingResultQuery {
 	 * @return the redacted outcome, or empty when nothing has been graded yet
 	 */
 	Optional<StudentGradingResult> findLatestForSubmission(UUID submissionId);
+
+	/**
+	 * Reads only the latest run's score columns for a group of submissions.
+	 * @param submissionIds submission identifiers
+	 * @return latest-run score projections, with no test-result rows loaded
+	 */
+	List<SubmissionScoreView> findLatestScores(Collection<UUID> submissionIds);
 
 }

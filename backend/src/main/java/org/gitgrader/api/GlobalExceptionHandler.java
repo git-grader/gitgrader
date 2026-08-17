@@ -79,20 +79,33 @@ public class GlobalExceptionHandler {
 	 * Renders a reference to something that does not exist.
 	 *
 	 * <p>
-	 * {@link EntityNotFoundException} is handled here rather than falling through to the
-	 * catch-all. The services raise it for exactly the case this method describes, and
-	 * without it every one of them answered a missing runtime, template, course, student
-	 * or extension with a 500 and an ERROR in the log - reporting a caller's typo as a
-	 * fault of the server, and burying real incidents among them.
+	 * {@link EntityNotFoundException} is the one signal for this. It used to share the
+	 * handler with {@link IllegalArgumentException}, which made every rejected argument -
+	 * an unsupported export format, a path that escaped its root - answer "the requested
+	 * resource does not exist", and told a caller their request was fine but the thing
+	 * was missing when the opposite was true.
 	 * @param ex the failure
 	 * @return a 404 problem document
 	 */
-	@ExceptionHandler({ IllegalArgumentException.class, EntityNotFoundException.class })
-	public ProblemDetail handleNotFound(RuntimeException ex) {
+	@ExceptionHandler(EntityNotFoundException.class)
+	public ProblemDetail handleNotFound(EntityNotFoundException ex) {
 		ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND,
 				"The requested resource does not exist.");
 		problem.setTitle("Not found");
 		logger.debug("Request referenced a missing resource", ex);
+		return problem;
+	}
+
+	/**
+	 * Renders an argument the domain refused.
+	 * @param ex the failure
+	 * @return a 400 problem document
+	 */
+	@ExceptionHandler(IllegalArgumentException.class)
+	public ProblemDetail handleBadRequest(IllegalArgumentException ex) {
+		ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, "The request was not valid.");
+		problem.setTitle("Bad request");
+		logger.debug("Request carried an argument the domain refused", ex);
 		return problem;
 	}
 

@@ -82,12 +82,7 @@ export const RegistrationResponseSchema = z.object({
   studentNumber: z.string(),
   fullName: z.string(),
   status,
-  keyFingerprint: z.string(),
-  repositories: z.array(z.object({
-    assignmentKey: z.string(),
-    assignmentTitle: z.string(),
-    cloneUrl: z.string()
-  }))
+  keyFingerprint: z.string()
 });
 export type RegistrationResponse = z.infer<typeof RegistrationResponseSchema>;
 
@@ -145,8 +140,7 @@ export const DashboardSchema = z.object({
   studentCount: z.number(),
   openAssignmentCount: z.number(),
   runningGradingCount: z.number(),
-  failedInfrastructureCount: z.number(),
-  recentActivity: z.array(z.unknown())
+  failedInfrastructureCount: z.number()
 });
 export type Dashboard = z.infer<typeof DashboardSchema>;
 

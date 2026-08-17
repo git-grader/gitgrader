@@ -3,8 +3,9 @@
 
 import { useState } from 'react';
 import { useLocation, Navigate } from 'react-router';
-import { Alert, Box, Typography, Paper, Button, List, ListItem, ListItemText } from '@mui/material';
+import { Alert, Box, Typography, Paper, Button } from '@mui/material';
 import { RegistrationResponseSchema } from '../api';
+import { useMeta } from '../components/MetaProvider';
 
 /**
  * Copies one clone command, and admits it when it could not.
@@ -44,6 +45,7 @@ function CopyCloneCommand({ command }: { command: string }) {
 }
 
 export function RegistrationSuccessPage() {
+  const meta = useMeta();
   const location = useLocation();
   // Routing state is whatever the previous page put there, and casting it meant a
   // malformed value crashed on the first field this page read rather than being
@@ -55,6 +57,11 @@ export function RegistrationSuccessPage() {
 
   if (!parsed.success) return <Navigate to="/register" replace />;
   const result = parsed.data;
+  const courseKey =
+    state && typeof state === 'object' && 'courseKey' in state && typeof state.courseKey === 'string'
+      ? state.courseKey
+      : null;
+  const repositoryRoot = `ssh://git@${meta.sshHost}:${meta.sshPort}/${courseKey ?? '<course-key>'}`;
 
   return (
     <Box sx={{ p: 4, maxWidth: 'md', mx: 'auto' }}>
@@ -72,37 +79,38 @@ export function RegistrationSuccessPage() {
             if a push is refused.
           </Alert>
         )}
-        <Typography variant="h6" gutterBottom>Your Assignments</Typography>
-        <List>
-          {result.repositories.map(repo => (
-            <ListItem key={repo.assignmentKey}>
-              <ListItemText 
-                primary={repo.assignmentTitle} 
-                secondary={
-                  <Box component="span" sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
-                    <Box
-                      component="code"
-                      // A clone URL is longer than a phone is wide, and this is the first
-                      // page a student sees after registering.
-                      sx={{
-                        bgcolor: 'action.hover',
-                        px: 0.5,
-                        py: 0.25,
-                        borderRadius: 1,
-                        fontFamily: 'monospace',
-                        overflowWrap: 'anywhere',
-                        minWidth: 0
-                      }}
-                    >
-                      git clone {repo.cloneUrl}
-                    </Box>
-                    <CopyCloneCommand command={`git clone ${repo.cloneUrl}`} />
-                  </Box>
-                } 
-              />
-            </ListItem>
-          ))}
-        </List>
+        <Typography variant="h6" gutterBottom>Cloning your work</Typography>
+        {/* The repositories are created from the registration event, so they do not exist
+            yet when this page renders. Listing them here meant an empty list under a
+            heading promising assignments; the address they will appear at is knowable
+            now, and is what the student actually needs. */}
+        <Typography component="p" sx={{ mb: 1 }}>
+          One repository is being prepared for each assignment. Clone the one you have been set with:
+        </Typography>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
+          <Box
+            component="code"
+            // A clone URL is longer than a phone is wide, and this is the first page a
+            // student sees after registering.
+            sx={{
+              bgcolor: 'action.hover',
+              px: 0.5,
+              py: 0.25,
+              borderRadius: 1,
+              fontFamily: 'monospace',
+              overflowWrap: 'anywhere',
+              minWidth: 0
+            }}
+          >
+            git clone {repositoryRoot}/&lt;assignment-key&gt;/{result.studentNumber}.git
+          </Box>
+          <CopyCloneCommand
+            command={`git clone ${repositoryRoot}/<assignment-key>/${result.studentNumber}.git`}
+          />
+        </Box>
+        <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+          Your instructor publishes the assignment key for each piece of work.
+        </Typography>
       </Paper>
     </Box>
   );

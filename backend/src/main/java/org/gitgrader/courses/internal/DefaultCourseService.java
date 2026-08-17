@@ -89,6 +89,12 @@ public class DefaultCourseService implements CourseCatalog, CourseAdministration
 	}
 
 	@Override
+	@Transactional(readOnly = true)
+	public List<UUID> findEnrolledStudentIds(UUID courseId) {
+		return this.enrollments.findStudentIdsByCourseId(courseId);
+	}
+
+	@Override
 	public CourseView createCourse(CourseDefinition definition) {
 		return this.courses.save(new Course(definition, this.clock)).toView();
 	}
@@ -96,7 +102,7 @@ public class DefaultCourseService implements CourseCatalog, CourseAdministration
 	@Override
 	public CourseView update(UUID id, CourseDefinition definition) {
 		Course course = this.courses.findById(id)
-			.orElseThrow(() -> new IllegalArgumentException("Course not found: " + id));
+			.orElseThrow(() -> new EntityNotFoundException("Course not found: " + id));
 		course.update(definition, this.clock);
 		return this.courses.save(course).toView();
 	}
@@ -110,12 +116,12 @@ public class DefaultCourseService implements CourseCatalog, CourseAdministration
 	@Override
 	public CourseClassView updateClass(UUID courseId, UUID classId, String classKey, String name) {
 		CourseClass courseClass = this.classes.findById(classId)
-			.orElseThrow(() -> new IllegalArgumentException("Course class not found: " + classId));
+			.orElseThrow(() -> new EntityNotFoundException("Course class not found: " + classId));
 		// A class reached through the wrong course is not that course's class. Reporting
 		// it
 		// as missing keeps the path from confirming that it exists somewhere else.
 		if (!courseClass.courseId().equals(courseId)) {
-			throw new IllegalArgumentException("Course class not found: " + classId);
+			throw new EntityNotFoundException("Course class not found: " + classId);
 		}
 		courseClass.update(classKey, name, this.clock);
 		return this.classes.save(courseClass).toView();

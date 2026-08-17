@@ -43,7 +43,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 class DashboardControllerTest {
 
 	@Test
-	void dashboardReturnsAllSixFields() throws Exception {
+	void dashboardReturnsEveryCounter() throws Exception {
 		CourseCatalog courses = mock(CourseCatalog.class);
 		StudentDirectory students = mock(StudentDirectory.class);
 		AssignmentCatalog assignments = mock(AssignmentCatalog.class);
@@ -64,7 +64,7 @@ class DashboardControllerTest {
 			.andExpect(jsonPath("$.openAssignmentCount").value(1))
 			.andExpect(jsonPath("$.runningGradingCount").value(2))
 			.andExpect(jsonPath("$.failedInfrastructureCount").value(3))
-			.andExpect(jsonPath("$.recentActivity").isArray());
+			.andExpect(jsonPath("$.recentActivity").doesNotExist());
 	}
 
 	private static AssignmentView assignment(AssignmentStatus status) {

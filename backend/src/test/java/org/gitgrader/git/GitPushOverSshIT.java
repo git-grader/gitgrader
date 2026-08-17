@@ -41,7 +41,7 @@ import org.gitgrader.identity.StudentRegistration;
 import org.gitgrader.identity.StudentRegistry;
 import org.gitgrader.identity.StudentView;
 import org.gitgrader.runtimes.RuntimeAdministration;
-import org.gitgrader.runtimes.RuntimeDefinition;
+import org.gitgrader.runtimes.NewRuntime;
 import org.gitgrader.runtimes.RuntimeView;
 import org.gitgrader.sshkeys.SshKeyOrigin;
 import org.gitgrader.sshkeys.SshKeyRegistry;
@@ -256,7 +256,7 @@ class GitPushOverSshIT {
 		CourseView course = this.courses
 			.createCourse(new CourseDefinition("course-e2e", "End to end course", null, "2026FS",
 					LocalDate.now(java.time.Clock.systemUTC()), null, "UTC", CourseStatus.ACTIVE, null, null, true));
-		RuntimeView runtime = this.runtimes.create(new RuntimeDefinition("node-24-e2e", "Node.js 24",
+		RuntimeView runtime = this.runtimes.create(new NewRuntime("node-24-e2e", "Node.js 24",
 				"registry.example.org/gitgrader/runtime-node", "24.13.0", "sha256:" + "a".repeat(64), "npm ci",
 				"npm test", org.gitgrader.runtimes.ReportFormat.TAP, true));
 

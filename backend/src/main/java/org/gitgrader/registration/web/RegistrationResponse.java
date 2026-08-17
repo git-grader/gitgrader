@@ -16,7 +16,6 @@
 
 package org.gitgrader.registration.web;
 
-import java.util.List;
 import java.util.UUID;
 
 import org.gitgrader.identity.StudentStatus;
@@ -29,9 +28,7 @@ import org.gitgrader.identity.StudentStatus;
  * @param fullName display name
  * @param status current lifecycle status (usually SELF_REGISTERED)
  * @param keyFingerprint fingerprint of the accepted SSH key
- * @param repositories provisioned repositories (empty during registration; the git module
- * fills it later)
  */
 public record RegistrationResponse(UUID studentId, String studentNumber, String fullName, StudentStatus status,
-		String keyFingerprint, List<Object> repositories) {
+		String keyFingerprint) {
 }

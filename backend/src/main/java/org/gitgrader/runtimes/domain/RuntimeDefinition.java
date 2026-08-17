@@ -28,6 +28,7 @@ import jakarta.persistence.Enumerated;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import jakarta.persistence.Version;
+import org.gitgrader.runtimes.NewRuntime;
 import org.gitgrader.runtimes.ReportFormat;
 import org.gitgrader.runtimes.RuntimeView;
 import org.jspecify.annotations.Nullable;
@@ -97,7 +98,7 @@ public class RuntimeDefinition {
 	 * @param definition runtime values
 	 * @param clock application clock
 	 */
-	public RuntimeDefinition(org.gitgrader.runtimes.RuntimeDefinition definition, Clock clock) {
+	public RuntimeDefinition(NewRuntime definition, Clock clock) {
 		validate(definition);
 		Instant now = Instant.now(clock);
 		this.id = UUID.randomUUID();
@@ -110,7 +111,7 @@ public class RuntimeDefinition {
 	 * @param definition replacement values
 	 * @param clock application clock
 	 */
-	public void update(org.gitgrader.runtimes.RuntimeDefinition definition, Clock clock) {
+	public void update(NewRuntime definition, Clock clock) {
 		validate(definition);
 		apply(definition, Instant.now(clock));
 	}
@@ -132,7 +133,7 @@ public class RuntimeDefinition {
 				this.installCommand, this.testCommand, this.reportFormat, this.enabled, this.createdAt, this.updatedAt);
 	}
 
-	private void apply(org.gitgrader.runtimes.RuntimeDefinition definition, Instant updatedAt) {
+	private void apply(NewRuntime definition, Instant updatedAt) {
 		this.runtimeKey = definition.runtimeKey();
 		this.displayName = definition.displayName();
 		this.image = definition.image();
@@ -145,7 +146,7 @@ public class RuntimeDefinition {
 		this.updatedAt = updatedAt;
 	}
 
-	private static void validate(org.gitgrader.runtimes.RuntimeDefinition definition) {
+	private static void validate(NewRuntime definition) {
 		if (!IMAGE_DIGEST.matcher(definition.imageDigest()).matches()) {
 			throw new IllegalArgumentException(
 					"Image digest must be sha256 followed by 64 lowercase hexadecimal characters");

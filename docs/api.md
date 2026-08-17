@@ -22,8 +22,20 @@ bearer or result tokens to third-party origins.
 
 The generated API contract is served at `/api/v1/openapi`; Swagger UI is served
 at `/api/v1/docs`. Those endpoints are the source of truth for implemented
-resources, request schemas, pagination parameters, and status codes. Typical
-status semantics are `200`/`201` for success, `204` for an empty successful
-operation, `400` for malformed input, `401` for unauthenticated requests,
-`403` for denied access, `404` for absent resources, `409` for a state conflict,
-and `422` when a valid request cannot be processed under domain rules.
+resources, request schemas, pagination parameters, and status codes. The
+statuses this API actually returns are:
+
+| Status | Meaning |
+|---|---|
+| `200` | the request succeeded and the body carries the resource |
+| `201` | a resource was created; the body carries it |
+| `202` | the work was accepted and runs asynchronously - a regrade |
+| `400` | the request was malformed, or the domain refused an argument |
+| `401` | the request was not authenticated |
+| `403` | the caller is authenticated but not permitted |
+| `404` | no such resource, and no hint that it might exist elsewhere |
+| `409` | the resource exists but is in a state that refuses this operation |
+| `429` | a rate limit was reached - registration, result lookups, regrades |
+| `500` | an unexpected failure; the detail is deliberately generic |
+
+`204` is not used: an operation that succeeds returns the resource it acted on.

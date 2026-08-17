@@ -16,11 +16,13 @@
 
 package org.gitgrader.grading.internal;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
 import org.gitgrader.grading.domain.GradingRun;
+import org.gitgrader.grading.SubmissionScoreView;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -71,5 +73,14 @@ public interface GradingRunRepository extends JpaRepository<GradingRun, UUID> {
 	 * @return the existing run, if there is one
 	 */
 	Optional<GradingRun> findBySubmissionIdAndTrigger(UUID submissionId, String trigger);
+
+	@Query("""
+			SELECT new org.gitgrader.grading.SubmissionScoreView(r.submissionId, r.scorePercent)
+			FROM GradingRun r
+			WHERE r.submissionId IN :submissionIds
+			  AND r.attempt = (SELECT max(latest.attempt) FROM GradingRun latest
+			                   WHERE latest.submissionId = r.submissionId)
+			""")
+	List<SubmissionScoreView> findLatestScores(@Param("submissionIds") Collection<UUID> submissionIds);
 
 }

@@ -19,6 +19,7 @@ package org.gitgrader.api;
 import java.util.List;
 import java.util.UUID;
 
+import jakarta.persistence.EntityNotFoundException;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -78,7 +79,7 @@ public class StudentController {
 	@GetMapping("/{id}")
 	public StudentDetail detail(@PathVariable UUID id) {
 		StudentView student = requireStudent(id);
-		return new StudentDetail(StudentSummary.from(student), this.keys.findAllForStudent(id), List.of());
+		return new StudentDetail(StudentSummary.from(student), this.keys.findAllForStudent(id));
 	}
 
 	@PatchMapping("/{id}/status")
@@ -88,7 +89,6 @@ public class StudentController {
 			case VERIFIED_BY_INSTRUCTOR -> this.registry.verify(id, actor);
 			case SUSPENDED -> this.registry.suspend(id, request.reason(), actor);
 			case ARCHIVED -> this.registry.archive(id);
-			default -> throw new IllegalStateException("Unsupported student status transition");
 		};
 	}
 
@@ -119,7 +119,7 @@ public class StudentController {
 	}
 
 	private StudentView requireStudent(UUID id) {
-		return this.students.findById(id).orElseThrow(() -> new IllegalArgumentException("Student not found"));
+		return this.students.findById(id).orElseThrow(() -> new EntityNotFoundException("Student not found"));
 	}
 
 	/** Student fields shown in collection responses. */
@@ -135,11 +135,32 @@ public class StudentController {
 	}
 
 	/** Detailed student response. */
-	public record StudentDetail(StudentSummary student, List<SshKeyView> sshKeys, List<Object> progress) {
+	public record StudentDetail(StudentSummary student, List<SshKeyView> sshKeys) {
 	}
 
 	/** Student lifecycle transition request. */
-	public record StatusRequest(@NotNull StudentStatus status, @NotBlank String reason) {
+	public record StatusRequest(@NotNull StatusTransition status, @NotBlank String reason) {
+	}
+
+	/**
+	 * The statuses an instructor may move a student to.
+	 *
+	 * <p>
+	 * Narrower than {@link StudentStatus} on purpose. The request used to accept the
+	 * whole lifecycle enum and answer 409 for the one value it does not implement, so a
+	 * client reading the published schema could send a documented value and be told its
+	 * perfectly valid request conflicted with something. {@code SELF_REGISTERED} is where
+	 * a student starts, not somewhere an instructor can put them.
+	 */
+	public enum StatusTransition {
+
+		/** The instructor confirms this is the student they expected. */
+		VERIFIED_BY_INSTRUCTOR,
+		/** Pushes are refused until the suspension is lifted. */
+		SUSPENDED,
+		/** The student is historical; their submissions are kept. */
+		ARCHIVED
+
 	}
 
 	/** SSH key registration or replacement request. */

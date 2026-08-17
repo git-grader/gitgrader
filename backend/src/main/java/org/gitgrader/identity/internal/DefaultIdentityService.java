@@ -18,6 +18,7 @@ package org.gitgrader.identity.internal;
 
 import java.time.Clock;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
@@ -77,6 +78,12 @@ public class DefaultIdentityService implements StudentDirectory, StudentRegistry
 	@Transactional(readOnly = true)
 	public Page<StudentView> search(StudentSearch search, Pageable pageable) {
 		return this.students.findAll(specification(search), pageable).map(Student::toView);
+	}
+
+	@Override
+	@Transactional(readOnly = true)
+	public List<StudentView> findByIds(Collection<UUID> ids) {
+		return this.students.findByIdIn(ids).stream().map(Student::toView).toList();
 	}
 
 	@Override

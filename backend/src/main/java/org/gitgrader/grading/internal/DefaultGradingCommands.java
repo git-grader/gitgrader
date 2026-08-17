@@ -19,6 +19,7 @@ package org.gitgrader.grading.internal;
 import java.util.Optional;
 import java.util.UUID;
 
+import jakarta.persistence.EntityNotFoundException;
 import org.gitgrader.grading.GradingCommands;
 import org.gitgrader.grading.domain.GradingRun;
 import org.gitgrader.submissions.SubmissionService;
@@ -43,7 +44,7 @@ class DefaultGradingCommands implements GradingCommands {
 	@Transactional
 	public Optional<UUID> regrade(UUID submissionId) {
 		SubmissionView submission = this.submissions.findById(submissionId)
-			.orElseThrow(() -> new IllegalArgumentException("Submission not found"));
+			.orElseThrow(() -> new EntityNotFoundException("Submission not found"));
 		return this.orchestrator
 			.enqueue(submission.id(), submission.studentId(), submission.courseId(), submission.assignmentId(),
 					MANUAL_RETRY)

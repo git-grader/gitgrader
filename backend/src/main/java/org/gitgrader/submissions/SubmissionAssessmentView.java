@@ -14,23 +14,12 @@
  * limitations under the License.
  */
 
-package org.gitgrader.courses.internal;
+package org.gitgrader.submissions;
 
-import java.util.List;
+import java.time.Instant;
 import java.util.UUID;
 
-import org.gitgrader.courses.domain.Enrollment;
-import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.data.jpa.repository.Query;
-import org.springframework.data.repository.query.Param;
-
-interface EnrollmentRepository extends JpaRepository<Enrollment, UUID> {
-
-	boolean existsByStudentIdAndCourseId(UUID studentId, UUID courseId);
-
-	List<Enrollment> findByStudentId(UUID studentId);
-
-	@Query("SELECT e.studentId FROM Enrollment e WHERE e.courseId = :courseId")
-	List<UUID> findStudentIdsByCourseId(@Param("courseId") UUID courseId);
-
+/** Score-independent submission columns needed by aggregate reports. */
+public record SubmissionAssessmentView(UUID submissionId, UUID studentId, UUID assignmentId, SubmissionStatus status,
+		Instant receivedAt) {
 }

@@ -16,8 +16,6 @@
 
 package org.gitgrader.api;
 
-import java.util.List;
-
 import org.gitgrader.assignments.AssignmentCatalog;
 import org.gitgrader.assignments.AssignmentStatus;
 import org.gitgrader.courses.CourseCatalog;
@@ -73,7 +71,7 @@ public class DashboardController {
 			.count();
 		return new DashboardView(courseCount, studentCount, openAssignments,
 				this.submissions.countByStatus(SubmissionStatus.RUNNING),
-				this.submissions.countByStatus(SubmissionStatus.INFRASTRUCTURE_ERROR), List.of());
+				this.submissions.countByStatus(SubmissionStatus.INFRASTRUCTURE_ERROR));
 	}
 
 	/**
@@ -84,11 +82,9 @@ public class DashboardController {
 	 * @param openAssignmentCount number of assignments accepting submissions
 	 * @param runningGradingCount number of grading submissions currently running
 	 * @param failedInfrastructureCount number of submissions blocked by infrastructure
-	 * @param recentActivity recent activity items, empty when no inexpensive source
-	 * exists
 	 */
 	public record DashboardView(long courseCount, long studentCount, long openAssignmentCount, long runningGradingCount,
-			long failedInfrastructureCount, List<Object> recentActivity) {
+			long failedInfrastructureCount) {
 	}
 
 }

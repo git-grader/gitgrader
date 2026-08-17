@@ -14,23 +14,13 @@
  * limitations under the License.
  */
 
-package org.gitgrader.courses.internal;
+package org.gitgrader.grading;
 
-import java.util.List;
+import java.math.BigDecimal;
 import java.util.UUID;
 
-import org.gitgrader.courses.domain.Enrollment;
-import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.data.jpa.repository.Query;
-import org.springframework.data.repository.query.Param;
+import org.jspecify.annotations.Nullable;
 
-interface EnrollmentRepository extends JpaRepository<Enrollment, UUID> {
-
-	boolean existsByStudentIdAndCourseId(UUID studentId, UUID courseId);
-
-	List<Enrollment> findByStudentId(UUID studentId);
-
-	@Query("SELECT e.studentId FROM Enrollment e WHERE e.courseId = :courseId")
-	List<UUID> findStudentIdsByCourseId(@Param("courseId") UUID courseId);
-
+/** Score columns from the latest grading run for one submission. */
+public record SubmissionScoreView(UUID submissionId, @Nullable BigDecimal scorePercent) {
 }

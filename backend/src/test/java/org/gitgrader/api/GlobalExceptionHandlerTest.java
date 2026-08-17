@@ -41,8 +41,14 @@ class GlobalExceptionHandlerTest {
 	}
 
 	@Test
-	void aMissingArgumentIsStillNotFound() throws Exception {
-		this.mockMvc.perform(get("/missing-argument")).andExpect(status().isNotFound());
+	void anArgumentTheDomainRefusedIsABadRequest() throws Exception {
+		// Sharing the handler with EntityNotFoundException made an unsupported export
+		// format and a path that escaped its root both answer "the requested resource
+		// does
+		// not exist", which is the opposite of what happened.
+		this.mockMvc.perform(get("/missing-argument"))
+			.andExpect(status().isBadRequest())
+			.andExpect(jsonPath("$.title").value("Bad request"));
 	}
 
 	/**

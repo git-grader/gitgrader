@@ -99,6 +99,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Breaking:** four response fields that were declared as `List<Object>` and always
+  empty are gone: `recentActivity` from the dashboard, `progress` from a student, the
+  test/log placeholders from a submission detail, and `repositories` from a registration.
+  The registration one was visible: the success page rendered clone URLs from a list the
+  server never filled, so a student saw an empty "Your Assignments". The page now builds
+  the clone command from the course key and student number it already has.
+- **Breaking:** `IllegalArgumentException` no longer maps to 404. An argument the domain
+  refuses is a 400; only `EntityNotFoundException` is a 404. A rejected export format and
+  a path that escaped its root both used to answer "the requested resource does not
+  exist".
+- **Breaking:** `PATCH /api/v1/students/{id}/status` accepts only the three statuses an
+  instructor can move a student to. It previously accepted the whole lifecycle enum and
+  answered 409 for the one value it does not implement.
+- **Breaking:** the runtime request record is named `NewRuntime`, matching
+  `NewSubmission`. It shared a name with the JPA entity, which forced fully qualified
+  names at every call site.
+- The course report is served by a fixed number of queries. It asked per student, then
+  per student and assignment, then per graded submission - roughly 9,300 queries for a
+  class of 300 - and materialised every test-result row to read a score it did not need.
 - **Breaking:** a result that has not been graded reports `passed` and `total` as null
   rather than 0. "0 of 10 tests passed" is a sentence about a run that happened, and an
   ungraded submission has not had one; the score was already null for the same reason.

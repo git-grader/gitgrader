@@ -16,6 +16,7 @@
 
 package org.gitgrader.submissions;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -130,5 +131,13 @@ public interface SubmissionService {
 	 * @return the number of submissions
 	 */
 	long countAttempts(UUID studentId, UUID assignmentId);
+
+	/**
+	 * Lists the minimal assessment facts for assignments in one course.
+	 * @param courseId course identifier
+	 * @param assignmentIds assignments included in the report
+	 * @return matching assessment facts
+	 */
+	List<SubmissionAssessmentView> findAssessments(UUID courseId, Collection<UUID> assignmentIds);
 
 }

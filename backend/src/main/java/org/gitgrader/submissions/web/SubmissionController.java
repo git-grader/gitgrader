@@ -16,9 +16,9 @@
 
 package org.gitgrader.submissions.web;
 
-import java.util.List;
 import java.util.UUID;
 
+import jakarta.persistence.EntityNotFoundException;
 import org.gitgrader.submissions.SubmissionSearch;
 import org.gitgrader.submissions.SubmissionService;
 import org.gitgrader.submissions.SubmissionStatus;
@@ -58,15 +58,8 @@ public class SubmissionController {
 	}
 
 	@GetMapping("/{id}")
-	public InstructorSubmission detail(@PathVariable UUID id) {
-		SubmissionView submission = this.submissions.findById(id)
-			.orElseThrow(() -> new IllegalArgumentException("Submission not found"));
-		return new InstructorSubmission(submission, List.of(), null, null);
-	}
-
-	/** Instructor-only submission details, including optional logs. */
-	public record InstructorSubmission(SubmissionView submission, List<Object> tests, @Nullable String stdout,
-			@Nullable String stderr) {
+	public SubmissionView detail(@PathVariable UUID id) {
+		return this.submissions.findById(id).orElseThrow(() -> new EntityNotFoundException("Submission not found"));
 	}
 
 }

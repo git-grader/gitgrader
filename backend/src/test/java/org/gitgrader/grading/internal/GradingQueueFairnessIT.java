@@ -48,7 +48,7 @@ import org.gitgrader.identity.StudentRegistration;
 import org.gitgrader.identity.StudentRegistry;
 import org.gitgrader.identity.StudentView;
 import org.gitgrader.runtimes.RuntimeAdministration;
-import org.gitgrader.runtimes.RuntimeDefinition;
+import org.gitgrader.runtimes.NewRuntime;
 import org.gitgrader.runtimes.RuntimeView;
 import org.gitgrader.submissions.NewSubmission;
 import org.gitgrader.submissions.SignatureVerdict;
@@ -410,9 +410,9 @@ class GradingQueueFairnessIT {
 	private AssignmentView createAssignment(String key) throws IOException {
 		String templateKey = unique("tpl");
 		String suiteKey = unique("suite");
-		RuntimeView runtime = this.runtimes.create(new RuntimeDefinition(unique("rt"), "Node.js 24",
-				"registry.example.org/gitgrader/runtime-node", "24.13.0", "sha256:" + "a".repeat(64), "npm ci",
-				"npm test", org.gitgrader.runtimes.ReportFormat.TAP, true));
+		RuntimeView runtime = this.runtimes
+			.create(new NewRuntime(unique("rt"), "Node.js 24", "registry.example.org/gitgrader/runtime-node", "24.13.0",
+					"sha256:" + "a".repeat(64), "npm ci", "npm test", org.gitgrader.runtimes.ReportFormat.TAP, true));
 		writeContent(templateKey, suiteKey);
 
 		UUID templateId = this.templates.createTemplate(templateKey, "Template", null);

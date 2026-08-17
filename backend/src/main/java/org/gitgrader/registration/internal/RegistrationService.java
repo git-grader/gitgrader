@@ -18,7 +18,6 @@ package org.gitgrader.registration.internal;
 
 import java.time.Clock;
 import java.time.Instant;
-import java.util.Collections;
 import java.util.List;
 
 import org.gitgrader.audit.AuditEventType;
@@ -145,7 +144,7 @@ public class RegistrationService {
 				new StudentRegistered(student.id(), student.studentNumber(), course.id(), course.courseKey(), now));
 
 		return new RegistrationResponse(student.id(), student.studentNumber(), student.fullName(), student.status(),
-				sshKey.fingerprint(), Collections.emptyList());
+				sshKey.fingerprint());
 	}
 
 	private void requireRegistrationEnabled() {

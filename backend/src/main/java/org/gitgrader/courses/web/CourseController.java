@@ -19,6 +19,7 @@ package org.gitgrader.courses.web;
 import java.util.List;
 import java.util.UUID;
 
+import jakarta.persistence.EntityNotFoundException;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 
@@ -81,7 +82,7 @@ public class CourseController {
 
 	@GetMapping("/{id}")
 	public CourseView detail(@PathVariable UUID id) {
-		return this.catalog.findCourse(id).orElseThrow(() -> new IllegalArgumentException("Course not found"));
+		return this.catalog.findCourse(id).orElseThrow(() -> new EntityNotFoundException("Course not found"));
 	}
 
 	@GetMapping("/{id}/classes")
