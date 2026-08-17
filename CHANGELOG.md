@@ -19,21 +19,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   address locked itself out before most of it had connected.
 - Scope deadline-extension revocation to the assignment named in the URL, which was
   otherwise revoking whichever extension id was supplied.
-- Refuse plain LDAP wherever it is enabled. **Breaking:** it was previously refused only
-  under a profile literally named `production`, so an instance started with no profile
-  bound in the clear; `dev` and `test` remain the explicit exceptions. Migration: move
-  the directory to `ldaps://`, or run it under the development profile.
 - Send `Cache-Control: no-store` with a result response. The link is the whole
   credential, and nothing should keep the page it opens.
 - Enforce LDAP transport security instead of only documenting it.
   `security.ldap.verify-certificate` and `security.ldap.referral` were declared and
   documented but never read, so an operator who enabled LDAP against the default
   `ldap://` URL sent instructor passwords and the manager bind credentials in plaintext
-  while believing certificate verification was on. **Breaking:**
-  `security.ldap.verify-certificate` is removed because it never had an effect, and a
-  production instance now refuses to start unless `security.ldap.url` is `ldaps://`.
-  Migration: move the directory to `ldaps://` before upgrading, and delete the removed
-  property from your configuration.
+  while believing certificate verification was on. The property that never had an effect
+  is gone, `referral` reaches the directory context, and a plain `ldap://` URL is refused
+  wherever LDAP is enabled - `dev` and `test` are the explicit exceptions, because the
+  demo ships a directory without TLS.
 - Scope SSH key revocation and replacement to the owning student. Both endpoints checked
   that the student named in the URL existed and then acted on whatever key identifier was
   supplied, so an instructor could revoke or replace another student's key through a
@@ -99,33 +94,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- **Breaking:** four response fields that were declared as `List<Object>` and always
-  empty are gone: `recentActivity` from the dashboard, `progress` from a student, the
+- Four response fields that were declared as `List<Object>` and always empty are gone: `recentActivity` from the dashboard, `progress` from a student, the
   test/log placeholders from a submission detail, and `repositories` from a registration.
   The registration one was visible: the success page rendered clone URLs from a list the
   server never filled, so a student saw an empty "Your Assignments". The page now builds
   the clone command from the course key and student number it already has.
-- **Breaking:** `IllegalArgumentException` no longer maps to 404. An argument the domain
+- `IllegalArgumentException` no longer maps to 404. An argument the domain
   refuses is a 400; only `EntityNotFoundException` is a 404. A rejected export format and
   a path that escaped its root both used to answer "the requested resource does not
   exist".
-- **Breaking:** `PATCH /api/v1/students/{id}/status` accepts only the three statuses an
-  instructor can move a student to. It previously accepted the whole lifecycle enum and
+- `PATCH /api/v1/students/{id}/status` accepts only the three statuses an instructor can
+  move a student to. It previously accepted the whole lifecycle enum and
   answered 409 for the one value it does not implement.
-- **Breaking:** the runtime request record is named `NewRuntime`, matching
-  `NewSubmission`. It shared a name with the JPA entity, which forced fully qualified
+- The runtime request record is named `NewRuntime`, matching `NewSubmission`. It shared a name with the JPA entity, which forced fully qualified
   names at every call site.
 - The course report is served by a fixed number of queries. It asked per student, then
   per student and assignment, then per graded submission - roughly 9,300 queries for a
   class of 300 - and materialised every test-result row to read a score it did not need.
-- **Breaking:** a result that has not been graded reports `passed` and `total` as null
-  rather than 0. "0 of 10 tests passed" is a sentence about a run that happened, and an
+- A result that has not been graded reports `passed` and `total` as null rather than 0. "0 of 10 tests passed" is a sentence about a run that happened, and an
   ungraded submission has not had one; the score was already null for the same reason.
 - The production profile no longer falls back to the standalone `gitgrader`/`gitgrader`
-  database credentials. **Breaking:** `SPRING_DATASOURCE_USERNAME` and
-  `SPRING_DATASOURCE_PASSWORD` must be set under the production profile; an instance
-  without them now fails to start rather than reaching a real database with credentials
-  anyone can guess. Compose already required both.
+  database credentials. `SPRING_DATASOURCE_USERNAME` and `SPRING_DATASOURCE_PASSWORD`
+  must be set under it; an instance without them fails to start rather than reaching a
+  real database with credentials anyone can guess. Compose already required both.
 - Shutdown is now ordered and returns work rather than stranding it. The SSH
   endpoint stops accepting pushes first, the dispatcher then stops claiming,
   waits up to `grading.queue.drain-timeout` for a running sandbox, and hands
