@@ -8,7 +8,7 @@ listed in the second table.
 | YAML path | Environment variable | Default | Purpose |
 | --- | --- | --- | --- |
 | `app.name` | `APP_NAME` | `GitGrader` | Application name. |
-| `app.public-url` | `APP_PUBLIC_URL` | `http://localhost:8080` | Public HTTP base URL. |
+| `app.public-url` | `APP_PUBLIC_URL` | `http://localhost:8080` | Public base URL; every result link is built from it. Must be `https://` under the production profile, loopback excepted, because that link is the credential for a student's marks. |
 | `app.support-email` | `APP_SUPPORT_EMAIL` | `support@example.org` | Support address. |
 | `app.organization-name` | `APP_ORGANIZATION_NAME` | `Example Organization` | Displayed organization label. |
 | `app.documentation-url` | `APP_DOCUMENTATION_URL` | GitHub project URL | Documentation link. |
