@@ -1,6 +1,11 @@
 #!/bin/sh
+# Copyright the GitGrader contributors.
+# SPDX-License-Identifier: Apache-2.0
+
 set -eu
 
+# CDPATH is cleared for this one command so a user's CDPATH cannot redirect the cd.
+# shellcheck disable=SC1007
 runtime_dir=$(CDPATH= cd -- "$(dirname -- "$0")/node-24" && pwd)
 image=${IMAGE_NAME:-gitgrader-node-24:local}
 

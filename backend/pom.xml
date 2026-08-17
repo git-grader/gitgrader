@@ -3,115 +3,59 @@
   Copyright the GitGrader contributors.
   SPDX-License-Identifier: Apache-2.0
 -->
-<project xmlns="http://maven.apache.org/POM/4.0.0"
-		 xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-		 xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
-	<modelVersion>4.0.0</modelVersion>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
 
-	<!--
+  <!--
 	  Inherits from spring-boot-starter-parent so that the `native` profile,
 	  the resource filtering conventions and the Boot plugin management are
 	  available exactly as upstream defines them.
 	-->
-	<parent>
-		<groupId>org.springframework.boot</groupId>
-		<artifactId>spring-boot-starter-parent</artifactId>
-		<version>4.1.0</version>
-		<relativePath />
-	</parent>
+  <parent>
+    <groupId>org.springframework.boot</groupId>
+    <artifactId>spring-boot-starter-parent</artifactId>
+    <version>4.1.0</version>
+    <relativePath></relativePath>
+  </parent>
 
-	<groupId>org.gitgrader</groupId>
-	<artifactId>gitgrader</artifactId>
-	<version>0.1.0-SNAPSHOT</version>
-	<packaging>jar</packaging>
+  <groupId>org.gitgrader</groupId>
+  <artifactId>gitgrader</artifactId>
+  <version>0.1.0-SNAPSHOT</version>
+  <packaging>jar</packaging>
 
-	<name>GitGrader Backend</name>
-	<description>GitGrader application: Git SSH endpoint, grading engine, REST API and packaged web UI.</description>
+  <name>GitGrader Backend</name>
+  <description>GitGrader application: Git SSH endpoint, grading engine, REST API and packaged web UI.</description>
 
-	<licenses>
-		<license>
-			<name>Apache License, Version 2.0</name>
-			<url>https://www.apache.org/licenses/LICENSE-2.0.txt</url>
-			<distribution>repo</distribution>
-		</license>
-	</licenses>
+  <properties>
+    <archunit.version>1.5.0</archunit.version>
+    <bucket4j.version>8.10.1</bucket4j.version>
+    <checkstyle.skip>${skipQuality}</checkstyle.skip>
+    <checkstyle.version>13.10.0</checkstyle.version>
 
-	<properties>
-		<java.version>25</java.version>
-		<maven.compiler.release>25</maven.compiler.release>
-		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    <!-- Shared quality configuration lives at the repository root. -->
+    <config.directory>${project.basedir}/../config</config.directory>
+    <cpd.skip>${skipQuality}</cpd.skip>
+    <cyclonedx-maven-plugin.version>2.9.3</cyclonedx-maven-plugin.version>
+    <dependency-check-maven.version>13.0.0</dependency-check-maven.version>
+    <docker-java.version>3.7.1</docker-java.version>
+    <findsecbugs.version>1.14.0</findsecbugs.version>
+    <forbiddenapis.skip>${skipQuality}</forbiddenapis.skip>
+    <forbiddenapis.version>3.10</forbiddenapis.version>
 
-		<!-- Ahead of the version Spring Boot manages: 42.7.11 silently downgrades a
-		     channelBinding=require connection from SCRAM-SHA-256-PLUS to plain
-		     SCRAM-SHA-256, losing the man-in-the-middle protection that setting exists
-		     to give (CVE-2026-54291, fixed in 42.7.12). Drop this once the managed
-		     version reaches it. -->
-		<postgresql.version>42.7.13</postgresql.version>
+    <!-- Build tooling versions. -->
+    <frontend-maven-plugin.version>2.0.2</frontend-maven-plugin.version>
+    <frontend.directory>${project.basedir}/../frontend</frontend.directory>
 
-		<!-- Ahead of the version Spring Boot manages. 11.0.22 is the servlet container
-		     every request is served by, and it carries CVE-2026-55276, CVE-2026-53434 and
-		     CVE-2026-53404 (fixed in 11.0.23) along with CVE-2026-59083, a RewriteValve
-		     decoding flaw that can bypass a security control, and CVE-2026-59084 (both
-		     fixed in 11.0.24). Drop this once the managed version reaches 11.0.24. -->
-		<tomcat.version>11.0.24</tomcat.version>
-
-		<!-- Ahead of the version Spring Boot manages: 5.4.2 accepts an unbounded number of
+    <!-- Ahead of the version Spring Boot manages: 5.4.2 accepts an unbounded number of
 		     HTTP/1.1 headers (CVE-2026-54399) and an oversized HPACK block before the
 		     HTTP/2 settings limit applies (CVE-2026-54428), either of which exhausts
 		     memory. This is the transport docker-java speaks to the engine over, so the
 		     reach is the runner. Fixed in 5.4.3; drop this once Boot manages it. -->
-		<httpcore5.version>5.4.3</httpcore5.version>
+    <httpcore5.version>5.4.3</httpcore5.version>
+    <jacoco-maven-plugin.version>0.8.15</jacoco-maven-plugin.version>
+    <jacoco.branch.coverage>0.45</jacoco.branch.coverage>
 
-		<spring-boot.build-image.imageName>ghcr.io/git-grader/gitgrader:${project.version}</spring-boot.build-image.imageName>
-
-		<!-- Dependency versions not managed by the Spring Boot BOM. -->
-		<spring-modulith.version>2.1.0</spring-modulith.version>
-		<jgit.version>7.7.1.202607240634-r</jgit.version>
-		<sshd.version>2.19.0</sshd.version>
-		<docker-java.version>3.7.1</docker-java.version>
-		<springdoc.version>3.1.0</springdoc.version>
-		<bucket4j.version>8.10.1</bucket4j.version>
-		<poi.version>5.5.1</poi.version>
-		<taikai.version>1.66.0</taikai.version>
-		<archunit.version>1.5.0</archunit.version>
-
-		<!-- Build tooling versions. -->
-		<frontend-maven-plugin.version>2.0.2</frontend-maven-plugin.version>
-		<!-- At or above the floor jsdom 30 sets (^22.22.2 || ^24.15.0 || >=26.0.0);
-		     below it every build prints an EBADENGINE warning for a toolchain this
-		     project pins itself, so the warning is ours to fix, not npm's to report. -->
-		<node.version>v24.18.1</node.version>
-		<npm.version>11.16.0</npm.version>
-		<spring-javaformat.version>0.0.47</spring-javaformat.version>
-		<checkstyle.version>13.10.0</checkstyle.version>
-		<maven-checkstyle-plugin.version>3.6.0</maven-checkstyle-plugin.version>
-		<maven-pmd-plugin.version>3.28.0</maven-pmd-plugin.version>
-		<pmd.version>7.26.0</pmd.version>
-		<spotbugs-maven-plugin.version>4.10.3.0</spotbugs-maven-plugin.version>
-		<spotbugs.version>4.10.3</spotbugs.version>
-		<findsecbugs.version>1.14.0</findsecbugs.version>
-		<jacoco-maven-plugin.version>0.8.15</jacoco-maven-plugin.version>
-		<cyclonedx-maven-plugin.version>2.9.3</cyclonedx-maven-plugin.version>
-		<dependency-check-maven.version>13.0.0</dependency-check-maven.version>
-		<forbiddenapis.version>3.10</forbiddenapis.version>
-		<license-maven-plugin.version>5.1.1</license-maven-plugin.version>
-		<maven-enforcer-plugin.version>3.6.3</maven-enforcer-plugin.version>
-
-		<!-- Shared quality configuration lives at the repository root. -->
-		<config.directory>${project.basedir}/../config</config.directory>
-		<frontend.directory>${project.basedir}/../frontend</frontend.directory>
-
-		<!-- Quality gate switches. Individually overridable from the CLI / CI. -->
-		<skipFrontend>false</skipFrontend>
-		<skipQuality>false</skipQuality>
-		<checkstyle.skip>${skipQuality}</checkstyle.skip>
-		<pmd.skip>${skipQuality}</pmd.skip>
-		<cpd.skip>${skipQuality}</cpd.skip>
-		<spotbugs.skip>${skipQuality}</spotbugs.skip>
-		<spring-javaformat.validate.skip>${skipQuality}</spring-javaformat.validate.skip>
-		<forbiddenapis.skip>${skipQuality}</forbiddenapis.skip>
-
-		<!--
+    <!--
 		  Coverage floor, for a run of the unit tests alone. Without a Docker engine the
 		  integration tests skip - deliberately, so that a contributor without one still
 		  gets a green `./mvnw verify`, which CONTRIBUTING.md promises - and they are
@@ -120,473 +64,526 @@
 		  nothing anywhere to connect it to Docker. The `ci-coverage` profile below
 		  raises it where the integration tests are guaranteed to have run.
 		-->
-		<jacoco.line.coverage>0.55</jacoco.line.coverage>
-		<jacoco.branch.coverage>0.45</jacoco.branch.coverage>
+    <jacoco.line.coverage>0.55</jacoco.line.coverage>
+    <java.version>25</java.version>
+    <jgit.version>7.7.1.202607240634-r</jgit.version>
+    <license-maven-plugin.version>5.1.1</license-maven-plugin.version>
+    <maven-checkstyle-plugin.version>3.6.0</maven-checkstyle-plugin.version>
+    <maven-enforcer-plugin.version>3.6.3</maven-enforcer-plugin.version>
+    <maven-pmd-plugin.version>3.28.0</maven-pmd-plugin.version>
+    <maven.compiler.release>25</maven.compiler.release>
+    <!-- At or above the floor jsdom 30 sets (^22.22.2 || ^24.15.0 || >=26.0.0);
+		     below it every build prints an EBADENGINE warning for a toolchain this
+		     project pins itself, so the warning is ours to fix, not npm's to report. -->
+    <node.version>v24.18.1</node.version>
+    <npm.version>11.16.0</npm.version>
+    <pmd.skip>${skipQuality}</pmd.skip>
+    <pmd.version>7.26.0</pmd.version>
+    <poi.version>5.5.1</poi.version>
 
-		<!-- SonarQube / IDE friendly aggregate report location. -->
-		<sonar.coverage.jacoco.xmlReportPaths>${project.build.directory}/site/jacoco/jacoco.xml</sonar.coverage.jacoco.xmlReportPaths>
-	</properties>
+    <!-- Ahead of the version Spring Boot manages: 42.7.11 silently downgrades a
+		     channelBinding=require connection from SCRAM-SHA-256-PLUS to plain
+		     SCRAM-SHA-256, losing the man-in-the-middle protection that setting exists
+		     to give (CVE-2026-54291, fixed in 42.7.12). Drop this once the managed
+		     version reaches it. -->
+    <postgresql.version>42.7.13</postgresql.version>
+    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 
-	<dependencyManagement>
-		<dependencies>
-			<dependency>
-				<groupId>org.springframework.modulith</groupId>
-				<artifactId>spring-modulith-bom</artifactId>
-				<version>${spring-modulith.version}</version>
-				<type>pom</type>
-				<scope>import</scope>
-			</dependency>
-			<dependency>
-				<groupId>com.github.docker-java</groupId>
-				<artifactId>docker-java-bom</artifactId>
-				<version>${docker-java.version}</version>
-				<type>pom</type>
-				<scope>import</scope>
-			</dependency>
-		</dependencies>
-	</dependencyManagement>
+    <!-- Quality gate switches. Individually overridable from the CLI / CI. -->
+    <skipFrontend>false</skipFrontend>
+    <skipQuality>false</skipQuality>
 
-	<dependencies>
-		<!-- ==================== Web / API ==================== -->
-		<dependency>
-			<groupId>org.springframework.boot</groupId>
-			<artifactId>spring-boot-starter-webmvc</artifactId>
-		</dependency>
-		<dependency>
-			<groupId>org.springframework.boot</groupId>
-			<artifactId>spring-boot-starter-validation</artifactId>
-		</dependency>
-		<dependency>
-			<groupId>org.springdoc</groupId>
-			<artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
-			<version>${springdoc.version}</version>
-		</dependency>
+    <!-- SonarQube / IDE friendly aggregate report location. -->
+    <sonar.coverage.jacoco.xmlReportPaths>${project.build.directory}/site/jacoco/jacoco.xml</sonar.coverage.jacoco.xmlReportPaths>
+    <spotbugs-maven-plugin.version>4.10.3.0</spotbugs-maven-plugin.version>
+    <spotbugs.skip>${skipQuality}</spotbugs.skip>
+    <spotbugs.version>4.10.3</spotbugs.version>
 
-		<!-- ==================== Security ==================== -->
-		<dependency>
-			<groupId>org.springframework.boot</groupId>
-			<artifactId>spring-boot-starter-security</artifactId>
-		</dependency>
-		<dependency>
-			<groupId>org.springframework.boot</groupId>
-			<artifactId>spring-boot-starter-ldap</artifactId>
-		</dependency>
-		<dependency>
-			<groupId>org.springframework.security</groupId>
-			<artifactId>spring-security-ldap</artifactId>
-		</dependency>
+    <spring-boot.build-image.imageName>ghcr.io/git-grader/gitgrader:${project.version}</spring-boot.build-image.imageName>
+    <spring-javaformat.validate.skip>${skipQuality}</spring-javaformat.validate.skip>
+    <spring-javaformat.version>0.0.47</spring-javaformat.version>
 
-		<!-- ==================== Persistence ==================== -->
-		<dependency>
-			<groupId>org.springframework.boot</groupId>
-			<artifactId>spring-boot-starter-data-jpa</artifactId>
-		</dependency>
-		<dependency>
-			<groupId>org.springframework.boot</groupId>
-			<artifactId>spring-boot-starter-flyway</artifactId>
-		</dependency>
-		<dependency>
-			<groupId>org.flywaydb</groupId>
-			<artifactId>flyway-database-postgresql</artifactId>
-			<scope>runtime</scope>
-		</dependency>
-		<dependency>
-			<groupId>org.postgresql</groupId>
-			<artifactId>postgresql</artifactId>
-			<scope>runtime</scope>
-		</dependency>
+    <!-- Dependency versions not managed by the Spring Boot BOM. -->
+    <spring-modulith.version>2.1.0</spring-modulith.version>
+    <springdoc.version>3.1.0</springdoc.version>
+    <sshd.version>2.19.0</sshd.version>
+    <taikai.version>1.66.0</taikai.version>
 
-		<!-- ==================== Modular monolith ==================== -->
-		<dependency>
-			<groupId>org.springframework.modulith</groupId>
-			<artifactId>spring-modulith-starter-core</artifactId>
-		</dependency>
-		<dependency>
-			<groupId>org.springframework.modulith</groupId>
-			<artifactId>spring-modulith-starter-jpa</artifactId>
-		</dependency>
-		<dependency>
-			<!-- Actuator module map + module-aware tracing/metrics for the modular monolith. -->
-			<groupId>org.springframework.modulith</groupId>
-			<artifactId>spring-modulith-starter-insight</artifactId>
-			<scope>runtime</scope>
-		</dependency>
+    <!-- Ahead of the version Spring Boot manages. 11.0.22 is the servlet container
+		     every request is served by, and it carries CVE-2026-55276, CVE-2026-53434 and
+		     CVE-2026-53404 (fixed in 11.0.23) along with CVE-2026-59083, a RewriteValve
+		     decoding flaw that can bypass a security control, and CVE-2026-59084 (both
+		     fixed in 11.0.24). Drop this once the managed version reaches 11.0.24. -->
+    <tomcat.version>11.0.24</tomcat.version>
+  </properties>
 
-		<!-- ==================== Git over SSH ==================== -->
-		<dependency>
-			<groupId>org.eclipse.jgit</groupId>
-			<artifactId>org.eclipse.jgit</artifactId>
-			<version>${jgit.version}</version>
-		</dependency>
-		<dependency>
-			<!-- Provides org.eclipse.jgit.signing.ssh: SSHSIG signature verification. -->
-			<groupId>org.eclipse.jgit</groupId>
-			<artifactId>org.eclipse.jgit.ssh.apache</artifactId>
-			<version>${jgit.version}</version>
-		</dependency>
-		<dependency>
-			<groupId>org.apache.sshd</groupId>
-			<artifactId>sshd-core</artifactId>
-			<version>${sshd.version}</version>
-		</dependency>
-		<dependency>
-			<groupId>org.apache.sshd</groupId>
-			<artifactId>sshd-git</artifactId>
-			<version>${sshd.version}</version>
-		</dependency>
+  <dependencyManagement>
+    <dependencies>
+      <dependency>
+        <groupId>org.springframework.modulith</groupId>
+        <artifactId>spring-modulith-bom</artifactId>
+        <version>${spring-modulith.version}</version>
+        <type>pom</type>
+        <scope>import</scope>
+      </dependency>
+      <dependency>
+        <groupId>com.github.docker-java</groupId>
+        <artifactId>docker-java-bom</artifactId>
+        <version>${docker-java.version}</version>
+        <type>pom</type>
+        <scope>import</scope>
+      </dependency>
+    </dependencies>
+  </dependencyManagement>
 
-		<!-- ==================== Grading runner ==================== -->
-		<dependency>
-			<groupId>com.github.docker-java</groupId>
-			<artifactId>docker-java-core</artifactId>
-		</dependency>
-		<dependency>
-			<groupId>com.github.docker-java</groupId>
-			<artifactId>docker-java-transport-httpclient5</artifactId>
-		</dependency>
+  <dependencies>
+    <!-- ==================== Web / API ==================== -->
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-webmvc</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-validation</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.springdoc</groupId>
+      <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
+      <version>${springdoc.version}</version>
+    </dependency>
 
-		<!-- ==================== Supporting libraries ==================== -->
-		<dependency>
-			<groupId>com.bucket4j</groupId>
-			<artifactId>bucket4j-core</artifactId>
-			<version>${bucket4j.version}</version>
-		</dependency>
-		<dependency>
-			<groupId>com.github.ben-manes.caffeine</groupId>
-			<artifactId>caffeine</artifactId>
-		</dependency>
-		<dependency>
-			<groupId>org.apache.poi</groupId>
-			<artifactId>poi-ooxml</artifactId>
-			<version>${poi.version}</version>
-		</dependency>
+    <!-- ==================== Security ==================== -->
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-security</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-ldap</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.springframework.security</groupId>
+      <artifactId>spring-security-ldap</artifactId>
+    </dependency>
 
-		<!-- ==================== Operations ==================== -->
-		<dependency>
-			<groupId>org.springframework.boot</groupId>
-			<artifactId>spring-boot-starter-actuator</artifactId>
-		</dependency>
-		<dependency>
-			<groupId>io.micrometer</groupId>
-			<artifactId>micrometer-registry-prometheus</artifactId>
-			<scope>runtime</scope>
-		</dependency>
-		<dependency>
-			<groupId>org.springframework.boot</groupId>
-			<artifactId>spring-boot-configuration-processor</artifactId>
-			<optional>true</optional>
-		</dependency>
+    <!-- ==================== Persistence ==================== -->
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-data-jpa</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-flyway</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.flywaydb</groupId>
+      <artifactId>flyway-database-postgresql</artifactId>
+      <scope>runtime</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.postgresql</groupId>
+      <artifactId>postgresql</artifactId>
+      <scope>runtime</scope>
+    </dependency>
 
-		<!-- ==================== Null safety ==================== -->
-		<dependency>
-			<groupId>org.jspecify</groupId>
-			<artifactId>jspecify</artifactId>
-		</dependency>
+    <!-- ==================== Modular monolith ==================== -->
+    <dependency>
+      <groupId>org.springframework.modulith</groupId>
+      <artifactId>spring-modulith-starter-core</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.springframework.modulith</groupId>
+      <artifactId>spring-modulith-starter-jpa</artifactId>
+    </dependency>
+    <dependency>
+      <!-- Actuator module map + module-aware tracing/metrics for the modular monolith. -->
+      <groupId>org.springframework.modulith</groupId>
+      <artifactId>spring-modulith-starter-insight</artifactId>
+      <scope>runtime</scope>
+    </dependency>
 
-		<!-- ==================== Test ==================== -->
-		<dependency>
-			<groupId>org.springframework.boot</groupId>
-			<artifactId>spring-boot-starter-test</artifactId>
-			<scope>test</scope>
-		</dependency>
-		<dependency>
-			<!--
+    <!-- ==================== Git over SSH ==================== -->
+    <dependency>
+      <groupId>org.eclipse.jgit</groupId>
+      <artifactId>org.eclipse.jgit</artifactId>
+      <version>${jgit.version}</version>
+    </dependency>
+    <dependency>
+      <!-- Provides org.eclipse.jgit.signing.ssh: SSHSIG signature verification. -->
+      <groupId>org.eclipse.jgit</groupId>
+      <artifactId>org.eclipse.jgit.ssh.apache</artifactId>
+      <version>${jgit.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.sshd</groupId>
+      <artifactId>sshd-core</artifactId>
+      <version>${sshd.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.sshd</groupId>
+      <artifactId>sshd-git</artifactId>
+      <version>${sshd.version}</version>
+    </dependency>
+
+    <!-- ==================== Grading runner ==================== -->
+    <dependency>
+      <groupId>com.github.docker-java</groupId>
+      <artifactId>docker-java-core</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>com.github.docker-java</groupId>
+      <artifactId>docker-java-transport-httpclient5</artifactId>
+    </dependency>
+
+    <!-- ==================== Supporting libraries ==================== -->
+    <dependency>
+      <groupId>com.bucket4j</groupId>
+      <artifactId>bucket4j-core</artifactId>
+      <version>${bucket4j.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>com.github.ben-manes.caffeine</groupId>
+      <artifactId>caffeine</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.poi</groupId>
+      <artifactId>poi-ooxml</artifactId>
+      <version>${poi.version}</version>
+    </dependency>
+
+    <!-- ==================== Operations ==================== -->
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-actuator</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>io.micrometer</groupId>
+      <artifactId>micrometer-registry-prometheus</artifactId>
+      <scope>runtime</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-configuration-processor</artifactId>
+      <optional>true</optional>
+    </dependency>
+
+    <!-- ==================== Null safety ==================== -->
+    <dependency>
+      <groupId>org.jspecify</groupId>
+      <artifactId>jspecify</artifactId>
+    </dependency>
+
+    <!-- ==================== Test ==================== -->
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-test</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <!--
 			  Boot 4.x split test auto-configuration into per-technology modules, so
 			  spring-boot-starter-test no longer brings @WebMvcTest / @AutoConfigureMockMvc.
 			-->
-			<groupId>org.springframework.boot</groupId>
-			<artifactId>spring-boot-webmvc-test</artifactId>
-			<scope>test</scope>
-		</dependency>
-		<dependency>
-			<groupId>org.springframework.security</groupId>
-			<artifactId>spring-security-test</artifactId>
-			<scope>test</scope>
-		</dependency>
-		<dependency>
-			<groupId>org.springframework.boot</groupId>
-			<artifactId>spring-boot-testcontainers</artifactId>
-			<scope>test</scope>
-		</dependency>
-		<dependency>
-			<groupId>org.testcontainers</groupId>
-			<artifactId>testcontainers-junit-jupiter</artifactId>
-			<scope>test</scope>
-		</dependency>
-		<dependency>
-			<groupId>org.testcontainers</groupId>
-			<artifactId>testcontainers-postgresql</artifactId>
-			<scope>test</scope>
-		</dependency>
-		<dependency>
-			<groupId>org.testcontainers</groupId>
-			<artifactId>testcontainers-ldap</artifactId>
-			<scope>test</scope>
-		</dependency>
-		<dependency>
-			<groupId>com.unboundid</groupId>
-			<artifactId>unboundid-ldapsdk</artifactId>
-			<scope>test</scope>
-		</dependency>
-		<dependency>
-			<groupId>org.springframework.modulith</groupId>
-			<artifactId>spring-modulith-starter-test</artifactId>
-			<scope>test</scope>
-		</dependency>
-		<dependency>
-			<groupId>org.springframework.modulith</groupId>
-			<artifactId>spring-modulith-docs</artifactId>
-			<scope>test</scope>
-		</dependency>
-		<dependency>
-			<groupId>com.enofex</groupId>
-			<artifactId>taikai</artifactId>
-			<version>${taikai.version}</version>
-			<scope>test</scope>
-		</dependency>
-		<dependency>
-			<groupId>com.tngtech.archunit</groupId>
-			<artifactId>archunit-junit5</artifactId>
-			<version>${archunit.version}</version>
-			<scope>test</scope>
-		</dependency>
-		<dependency>
-			<groupId>com.h2database</groupId>
-			<artifactId>h2</artifactId>
-			<scope>test</scope>
-		</dependency>
-		<dependency>
-			<groupId>org.awaitility</groupId>
-			<artifactId>awaitility</artifactId>
-			<scope>test</scope>
-		</dependency>
-	</dependencies>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-webmvc-test</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.springframework.security</groupId>
+      <artifactId>spring-security-test</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-testcontainers</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.testcontainers</groupId>
+      <artifactId>testcontainers-junit-jupiter</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.testcontainers</groupId>
+      <artifactId>testcontainers-postgresql</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.testcontainers</groupId>
+      <artifactId>testcontainers-ldap</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>com.unboundid</groupId>
+      <artifactId>unboundid-ldapsdk</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.springframework.modulith</groupId>
+      <artifactId>spring-modulith-starter-test</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.springframework.modulith</groupId>
+      <artifactId>spring-modulith-docs</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>com.enofex</groupId>
+      <artifactId>taikai</artifactId>
+      <version>${taikai.version}</version>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>com.tngtech.archunit</groupId>
+      <artifactId>archunit-junit5</artifactId>
+      <version>${archunit.version}</version>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>com.h2database</groupId>
+      <artifactId>h2</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.awaitility</groupId>
+      <artifactId>awaitility</artifactId>
+      <scope>test</scope>
+    </dependency>
+  </dependencies>
 
-	<build>
-		<finalName>gitgrader</finalName>
-		<plugins>
-			<!-- ============ Build environment guardrails ============ -->
-			<plugin>
-				<groupId>org.apache.maven.plugins</groupId>
-				<artifactId>maven-enforcer-plugin</artifactId>
-				<version>${maven-enforcer-plugin.version}</version>
-				<executions>
-					<execution>
-						<id>enforce-build-environment</id>
-						<goals>
-							<goal>enforce</goal>
-						</goals>
-						<configuration>
-							<rules>
-								<requireMavenVersion>
-									<version>[3.9.0,)</version>
-								</requireMavenVersion>
-								<requireJavaVersion>
-									<version>[25,)</version>
-								</requireJavaVersion>
-								<banDuplicatePomDependencyVersions />
-								<requireReleaseDeps>
-									<message>No SNAPSHOT dependencies are allowed in a release build.</message>
-									<onlyWhenRelease>true</onlyWhenRelease>
-								</requireReleaseDeps>
-							</rules>
-						</configuration>
-					</execution>
-				</executions>
-			</plugin>
+  <build>
+    <finalName>gitgrader</finalName>
+    <plugins>
+      <!-- ============ Build environment guardrails ============ -->
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-enforcer-plugin</artifactId>
+        <version>${maven-enforcer-plugin.version}</version>
+        <executions>
+          <execution>
+            <id>enforce-build-environment</id>
+            <goals>
+              <goal>enforce</goal>
+            </goals>
+            <configuration>
+              <rules>
+                <requireMavenVersion>
+                  <version>[3.9.0,)</version>
+                </requireMavenVersion>
+                <requireJavaVersion>
+                  <version>[25,)</version>
+                </requireJavaVersion>
+                <banDuplicatePomDependencyVersions></banDuplicatePomDependencyVersions>
+                <requireReleaseDeps>
+                  <message>No SNAPSHOT dependencies are allowed in a release build.</message>
+                  <onlyWhenRelease>true</onlyWhenRelease>
+                </requireReleaseDeps>
+              </rules>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
 
-			<plugin>
-				<groupId>org.apache.maven.plugins</groupId>
-				<artifactId>maven-compiler-plugin</artifactId>
-				<configuration>
-					<release>${maven.compiler.release}</release>
-					<parameters>true</parameters>
-					<compilerArgs>
-						<arg>-Xlint:all,-processing,-serial</arg>
-					</compilerArgs>
-				</configuration>
-			</plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-compiler-plugin</artifactId>
+        <configuration>
+          <release>${maven.compiler.release}</release>
+          <parameters>true</parameters>
+          <compilerArgs>
+            <arg>-Xlint:all,-processing,-serial</arg>
+          </compilerArgs>
+        </configuration>
+      </plugin>
 
-			<!-- ============ Formatting: Spring Java Format ============ -->
-			<plugin>
-				<groupId>io.spring.javaformat</groupId>
-				<artifactId>spring-javaformat-maven-plugin</artifactId>
-				<version>${spring-javaformat.version}</version>
-				<executions>
-					<execution>
-						<id>validate-format</id>
-						<phase>validate</phase>
-						<goals>
-							<goal>validate</goal>
-						</goals>
-					</execution>
-				</executions>
-			</plugin>
+      <!-- ============ Formatting: Spring Java Format ============ -->
+      <plugin>
+        <groupId>io.spring.javaformat</groupId>
+        <artifactId>spring-javaformat-maven-plugin</artifactId>
+        <version>${spring-javaformat.version}</version>
+        <executions>
+          <execution>
+            <id>validate-format</id>
+            <goals>
+              <goal>validate</goal>
+            </goals>
+            <phase>validate</phase>
+          </execution>
+        </executions>
+      </plugin>
 
-			<!-- ============ Checkstyle: semantic rules only ============ -->
-			<plugin>
-				<groupId>org.apache.maven.plugins</groupId>
-				<artifactId>maven-checkstyle-plugin</artifactId>
-				<version>${maven-checkstyle-plugin.version}</version>
-				<dependencies>
-					<dependency>
-						<groupId>com.puppycrawl.tools</groupId>
-						<artifactId>checkstyle</artifactId>
-						<version>${checkstyle.version}</version>
-					</dependency>
-				</dependencies>
-				<configuration>
-					<configLocation>${config.directory}/checkstyle/checkstyle.xml</configLocation>
-					<suppressionsLocation>${config.directory}/checkstyle/checkstyle-suppressions.xml</suppressionsLocation>
-					<inputEncoding>${project.build.sourceEncoding}</inputEncoding>
-					<consoleOutput>true</consoleOutput>
-					<failsOnError>true</failsOnError>
-					<violationSeverity>warning</violationSeverity>
-					<includeTestSourceDirectory>true</includeTestSourceDirectory>
-				</configuration>
-				<executions>
-					<execution>
-						<id>checkstyle-check</id>
-						<phase>validate</phase>
-						<goals>
-							<goal>check</goal>
-						</goals>
-					</execution>
-				</executions>
-			</plugin>
+      <!-- ============ Checkstyle: semantic rules only ============ -->
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-checkstyle-plugin</artifactId>
+        <version>${maven-checkstyle-plugin.version}</version>
+        <configuration>
+          <configLocation>${config.directory}/checkstyle/checkstyle.xml</configLocation>
+          <suppressionsLocation>${config.directory}/checkstyle/checkstyle-suppressions.xml</suppressionsLocation>
+          <inputEncoding>${project.build.sourceEncoding}</inputEncoding>
+          <consoleOutput>true</consoleOutput>
+          <failsOnError>true</failsOnError>
+          <violationSeverity>warning</violationSeverity>
+          <includeTestSourceDirectory>true</includeTestSourceDirectory>
+        </configuration>
+        <dependencies>
+          <dependency>
+            <groupId>com.puppycrawl.tools</groupId>
+            <artifactId>checkstyle</artifactId>
+            <version>${checkstyle.version}</version>
+          </dependency>
+        </dependencies>
+        <executions>
+          <execution>
+            <id>checkstyle-check</id>
+            <goals>
+              <goal>check</goal>
+            </goals>
+            <phase>validate</phase>
+          </execution>
+        </executions>
+      </plugin>
 
-			<!-- ============ PMD + copy/paste detection ============ -->
-			<plugin>
-				<groupId>org.apache.maven.plugins</groupId>
-				<artifactId>maven-pmd-plugin</artifactId>
-				<version>${maven-pmd-plugin.version}</version>
-				<dependencies>
-					<dependency>
-						<groupId>net.sourceforge.pmd</groupId>
-						<artifactId>pmd-core</artifactId>
-						<version>${pmd.version}</version>
-					</dependency>
-					<dependency>
-						<groupId>net.sourceforge.pmd</groupId>
-						<artifactId>pmd-java</artifactId>
-						<version>${pmd.version}</version>
-					</dependency>
-				</dependencies>
-				<configuration>
-					<rulesets>
-						<ruleset>${config.directory}/pmd/pmd-ruleset.xml</ruleset>
-					</rulesets>
-					<printFailingErrors>true</printFailingErrors>
-					<failOnViolation>true</failOnViolation>
-					<failurePriority>4</failurePriority>
-					<minimumTokens>120</minimumTokens>
-					<includeTests>false</includeTests>
-					<analysisCache>true</analysisCache>
-				</configuration>
-				<executions>
-					<execution>
-						<id>pmd-check</id>
-						<phase>verify</phase>
-						<goals>
-							<goal>check</goal>
-							<goal>cpd-check</goal>
-						</goals>
-					</execution>
-				</executions>
-			</plugin>
+      <!-- ============ PMD + copy/paste detection ============ -->
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-pmd-plugin</artifactId>
+        <version>${maven-pmd-plugin.version}</version>
+        <configuration>
+          <rulesets>
+            <ruleset>${config.directory}/pmd/pmd-ruleset.xml</ruleset>
+          </rulesets>
+          <printFailingErrors>true</printFailingErrors>
+          <failOnViolation>true</failOnViolation>
+          <failurePriority>4</failurePriority>
+          <minimumTokens>120</minimumTokens>
+          <includeTests>false</includeTests>
+          <analysisCache>true</analysisCache>
+        </configuration>
+        <dependencies>
+          <dependency>
+            <groupId>net.sourceforge.pmd</groupId>
+            <artifactId>pmd-core</artifactId>
+            <version>${pmd.version}</version>
+          </dependency>
+          <dependency>
+            <groupId>net.sourceforge.pmd</groupId>
+            <artifactId>pmd-java</artifactId>
+            <version>${pmd.version}</version>
+          </dependency>
+        </dependencies>
+        <executions>
+          <execution>
+            <id>pmd-check</id>
+            <goals>
+              <goal>check</goal>
+              <goal>cpd-check</goal>
+            </goals>
+            <phase>verify</phase>
+          </execution>
+        </executions>
+      </plugin>
 
-			<!-- ============ SpotBugs + Find Security Bugs ============ -->
-			<plugin>
-				<groupId>com.github.spotbugs</groupId>
-				<artifactId>spotbugs-maven-plugin</artifactId>
-				<version>${spotbugs-maven-plugin.version}</version>
-				<dependencies>
-					<dependency>
-						<groupId>com.github.spotbugs</groupId>
-						<artifactId>spotbugs</artifactId>
-						<version>${spotbugs.version}</version>
-					</dependency>
-				</dependencies>
-				<configuration>
-					<effort>Max</effort>
-					<threshold>Medium</threshold>
-					<includeTests>false</includeTests>
-					<failOnError>true</failOnError>
-					<excludeFilterFile>${config.directory}/spotbugs/spotbugs-exclude.xml</excludeFilterFile>
-					<plugins>
-						<plugin>
-							<groupId>com.h3xstream.findsecbugs</groupId>
-							<artifactId>findsecbugs-plugin</artifactId>
-							<version>${findsecbugs.version}</version>
-						</plugin>
-					</plugins>
-				</configuration>
-				<executions>
-					<execution>
-						<id>spotbugs-check</id>
-						<phase>verify</phase>
-						<goals>
-							<goal>check</goal>
-						</goals>
-					</execution>
-				</executions>
-			</plugin>
+      <!-- ============ SpotBugs + Find Security Bugs ============ -->
+      <plugin>
+        <groupId>com.github.spotbugs</groupId>
+        <artifactId>spotbugs-maven-plugin</artifactId>
+        <version>${spotbugs-maven-plugin.version}</version>
+        <configuration>
+          <effort>Max</effort>
+          <threshold>Medium</threshold>
+          <includeTests>false</includeTests>
+          <failOnError>true</failOnError>
+          <excludeFilterFile>${config.directory}/spotbugs/spotbugs-exclude.xml</excludeFilterFile>
+          <plugins>
+            <plugin>
+              <groupId>com.h3xstream.findsecbugs</groupId>
+              <artifactId>findsecbugs-plugin</artifactId>
+              <version>${findsecbugs.version}</version>
+            </plugin>
+          </plugins>
+        </configuration>
+        <dependencies>
+          <dependency>
+            <groupId>com.github.spotbugs</groupId>
+            <artifactId>spotbugs</artifactId>
+            <version>${spotbugs.version}</version>
+          </dependency>
+        </dependencies>
+        <executions>
+          <execution>
+            <id>spotbugs-check</id>
+            <goals>
+              <goal>check</goal>
+            </goals>
+            <phase>verify</phase>
+          </execution>
+        </executions>
+      </plugin>
 
-			<!-- ============ Forbidden API usage ============ -->
-			<plugin>
-				<groupId>de.thetaphi</groupId>
-				<artifactId>forbiddenapis</artifactId>
-				<version>${forbiddenapis.version}</version>
-				<configuration>
-					<failOnUnsupportedJava>false</failOnUnsupportedJava>
-					<!--
+      <!-- ============ Forbidden API usage ============ -->
+      <plugin>
+        <groupId>de.thetaphi</groupId>
+        <artifactId>forbiddenapis</artifactId>
+        <version>${forbiddenapis.version}</version>
+        <configuration>
+          <failOnUnsupportedJava>false</failOnUnsupportedJava>
+          <!--
 					  Signatures naming a class that is not on this module's classpath are
 					  skipped rather than failing the build. Signatures naming a class that
 					  IS present must still resolve down to the member, so a typo in one of
 					  our own entries is reported instead of silently disabling the ban.
 					-->
-					<ignoreSignaturesOfMissingClasses>true</ignoreSignaturesOfMissingClasses>
-					<bundledSignatures>
-						<!-- Locale/charset dependent APIs make grading non-deterministic. -->
-						<bundledSignature>jdk-unsafe</bundledSignature>
-						<bundledSignature>jdk-deprecated</bundledSignature>
-						<bundledSignature>jdk-non-portable</bundledSignature>
-						<bundledSignature>jdk-reflection</bundledSignature>
-					</bundledSignatures>
-					<signaturesFiles>
-						<signaturesFile>${config.directory}/forbiddenapis/signatures.txt</signaturesFile>
-					</signaturesFiles>
-				</configuration>
-				<executions>
-					<execution>
-						<id>forbiddenapis-check</id>
-						<phase>verify</phase>
-						<goals>
-							<goal>check</goal>
-						</goals>
-					</execution>
-				</executions>
-			</plugin>
+          <ignoreSignaturesOfMissingClasses>true</ignoreSignaturesOfMissingClasses>
+          <bundledSignatures>
+            <!-- Locale/charset dependent APIs make grading non-deterministic. -->
+            <bundledSignature>jdk-unsafe</bundledSignature>
+            <bundledSignature>jdk-deprecated</bundledSignature>
+            <bundledSignature>jdk-non-portable</bundledSignature>
+            <bundledSignature>jdk-reflection</bundledSignature>
+          </bundledSignatures>
+          <signaturesFiles>
+            <signaturesFile>${config.directory}/forbiddenapis/signatures.txt</signaturesFile>
+          </signaturesFiles>
+        </configuration>
+        <executions>
+          <execution>
+            <id>forbiddenapis-check</id>
+            <goals>
+              <goal>check</goal>
+            </goals>
+            <phase>verify</phase>
+          </execution>
+        </executions>
+      </plugin>
 
-			<!-- ============ Coverage ============ -->
-			<plugin>
-				<groupId>org.jacoco</groupId>
-				<artifactId>jacoco-maven-plugin</artifactId>
-				<version>${jacoco-maven-plugin.version}</version>
-				<executions>
-					<execution>
-						<id>jacoco-prepare-unit</id>
-						<goals>
-							<goal>prepare-agent</goal>
-						</goals>
-					</execution>
-					<execution>
-						<id>jacoco-prepare-integration</id>
-						<goals>
-							<goal>prepare-agent-integration</goal>
-						</goals>
-					</execution>
-					<!--
+      <!-- ============ Coverage ============ -->
+      <plugin>
+        <groupId>org.jacoco</groupId>
+        <artifactId>jacoco-maven-plugin</artifactId>
+        <version>${jacoco-maven-plugin.version}</version>
+        <configuration>
+          <excludes>
+            <exclude>org/gitgrader/GitGraderApplication.class</exclude>
+            <exclude>**/*Properties.class</exclude>
+            <exclude>**/*Config.class</exclude>
+          </excludes>
+        </configuration>
+        <executions>
+          <execution>
+            <id>jacoco-prepare-unit</id>
+            <goals>
+              <goal>prepare-agent</goal>
+            </goals>
+          </execution>
+          <execution>
+            <id>jacoco-prepare-integration</id>
+            <goals>
+              <goal>prepare-agent-integration</goal>
+            </goals>
+          </execution>
+          <!--
 					  The integration tests are the most realistic thing the suite has, and
 					  their coverage was written to a second file that nothing ever read: the
 					  report and the gate below both defaulted to the unit data alone. So the
@@ -595,95 +592,88 @@
 					  and the gate they had to clear was one they contributed nothing to.
 					  Merging first makes both reports describe the same run.
 					-->
-					<execution>
-						<id>jacoco-merge</id>
-						<phase>verify</phase>
-						<goals>
-							<goal>merge</goal>
-						</goals>
-						<configuration>
-							<fileSets>
-								<fileSet>
-									<directory>${project.build.directory}</directory>
-									<includes>
-										<include>jacoco.exec</include>
-										<include>jacoco-it.exec</include>
-									</includes>
-								</fileSet>
-							</fileSets>
-							<destFile>${project.build.directory}/jacoco-merged.exec</destFile>
-						</configuration>
-					</execution>
-					<execution>
-						<id>jacoco-report</id>
-						<phase>verify</phase>
-						<goals>
-							<goal>report</goal>
-						</goals>
-						<configuration>
-							<dataFile>${project.build.directory}/jacoco-merged.exec</dataFile>
-						</configuration>
-					</execution>
-					<execution>
-						<id>jacoco-check</id>
-						<phase>verify</phase>
-						<goals>
-							<goal>check</goal>
-						</goals>
-						<configuration>
-							<dataFile>${project.build.directory}/jacoco-merged.exec</dataFile>
-							<haltOnFailure>true</haltOnFailure>
-							<rules>
-								<rule>
-									<element>BUNDLE</element>
-									<limits>
-										<limit>
-											<counter>LINE</counter>
-											<value>COVEREDRATIO</value>
-											<minimum>${jacoco.line.coverage}</minimum>
-										</limit>
-										<limit>
-											<counter>BRANCH</counter>
-											<value>COVEREDRATIO</value>
-											<minimum>${jacoco.branch.coverage}</minimum>
-										</limit>
-									</limits>
-								</rule>
-							</rules>
-						</configuration>
-					</execution>
-				</executions>
-				<configuration>
-					<excludes>
-						<exclude>org/gitgrader/GitGraderApplication.class</exclude>
-						<exclude>**/*Properties.class</exclude>
-						<exclude>**/*Config.class</exclude>
-					</excludes>
-				</configuration>
-			</plugin>
+          <execution>
+            <id>jacoco-merge</id>
+            <goals>
+              <goal>merge</goal>
+            </goals>
+            <phase>verify</phase>
+            <configuration>
+              <fileSets>
+                <fileSet>
+                  <directory>${project.build.directory}</directory>
+                  <includes>
+                    <include>jacoco.exec</include>
+                    <include>jacoco-it.exec</include>
+                  </includes>
+                </fileSet>
+              </fileSets>
+              <destFile>${project.build.directory}/jacoco-merged.exec</destFile>
+            </configuration>
+          </execution>
+          <execution>
+            <id>jacoco-report</id>
+            <goals>
+              <goal>report</goal>
+            </goals>
+            <phase>verify</phase>
+            <configuration>
+              <dataFile>${project.build.directory}/jacoco-merged.exec</dataFile>
+            </configuration>
+          </execution>
+          <execution>
+            <id>jacoco-check</id>
+            <goals>
+              <goal>check</goal>
+            </goals>
+            <phase>verify</phase>
+            <configuration>
+              <dataFile>${project.build.directory}/jacoco-merged.exec</dataFile>
+              <haltOnFailure>true</haltOnFailure>
+              <rules>
+                <rule>
+                  <element>BUNDLE</element>
+                  <limits>
+                    <limit>
+                      <counter>LINE</counter>
+                      <value>COVEREDRATIO</value>
+                      <minimum>${jacoco.line.coverage}</minimum>
+                    </limit>
+                    <limit>
+                      <counter>BRANCH</counter>
+                      <value>COVEREDRATIO</value>
+                      <minimum>${jacoco.branch.coverage}</minimum>
+                    </limit>
+                  </limits>
+                </rule>
+              </rules>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
 
-			<!-- ============ Unit vs integration test split ============ -->
-			<!--
+      <!-- ============ Unit vs integration test split ============ -->
+      <!--
 			  Resolves dependency paths into properties so that the Mockito agent below can
 			  be named without hard-coding a path into the local repository.
 			-->
-			<plugin>
-				<groupId>org.apache.maven.plugins</groupId>
-				<artifactId>maven-dependency-plugin</artifactId>
-				<executions>
-					<execution>
-						<id>resolve-test-agent-paths</id>
-						<goals>
-							<goal>properties</goal>
-						</goals>
-					</execution>
-				</executions>
-			</plugin>
-			<plugin>
-				<groupId>org.apache.maven.plugins</groupId>
-				<artifactId>maven-surefire-plugin</artifactId>
-				<configuration>
-					<!--
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-dependency-plugin</artifactId>
+        <executions>
+          <execution>
+            <id>resolve-test-agent-paths</id>
+            <goals>
+              <goal>properties</goal>
+            </goals>
+          </execution>
+        </executions>
+      </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-surefire-plugin</artifactId>
+        <configuration>
+          <!--
 					  `@{argLine}` is a late replacement, so JaCoCo's agent, which is added
 					  to that property during the build, is kept rather than overwritten.
 
@@ -693,267 +683,275 @@
 					  the same reason: JNA, reached through docker-java, calls a restricted
 					  method that is currently a warning and is set to become an error.
 					-->
-					<argLine>@{argLine} -javaagent:${org.mockito:mockito-core:jar}
+          <argLine>@{argLine} -javaagent:${org.mockito:mockito-core:jar}
 						--enable-native-access=ALL-UNNAMED</argLine>
-					<excludes>
-						<exclude>**/*IT.java</exclude>
-						<exclude>**/*IntegrationTest.java</exclude>
-					</excludes>
-				</configuration>
-			</plugin>
-			<plugin>
-				<groupId>org.apache.maven.plugins</groupId>
-				<artifactId>maven-failsafe-plugin</artifactId>
-				<!--
+          <excludes>
+            <exclude>**/*IT.java</exclude>
+            <exclude>**/*IntegrationTest.java</exclude>
+          </excludes>
+        </configuration>
+      </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-failsafe-plugin</artifactId>
+        <!--
 				  No execution is declared: spring-boot-starter-parent already binds
 				  integration-test and verify. Declaring another one made the goals run a
 				  second time, which Failsafe skipped as already executed but which still
 				  reported two executions of everything.
 				-->
-				<configuration>
-					<argLine>@{argLine} --enable-native-access=ALL-UNNAMED</argLine>
-					<includes>
-						<include>**/*IT.java</include>
-						<include>**/*IntegrationTest.java</include>
-					</includes>
-				</configuration>
-			</plugin>
+        <configuration>
+          <argLine>@{argLine} --enable-native-access=ALL-UNNAMED</argLine>
+          <includes>
+            <include>**/*IT.java</include>
+            <include>**/*IntegrationTest.java</include>
+          </includes>
+        </configuration>
+      </plugin>
 
-			<!-- ============ Software Bill of Materials ============ -->
-			<plugin>
-				<groupId>org.cyclonedx</groupId>
-				<artifactId>cyclonedx-maven-plugin</artifactId>
-				<version>${cyclonedx-maven-plugin.version}</version>
-				<executions>
-					<execution>
-						<id>generate-sbom</id>
-						<phase>package</phase>
-						<goals>
-							<goal>makeAggregateBom</goal>
-						</goals>
-					</execution>
-				</executions>
-				<configuration>
-					<projectType>application</projectType>
-					<schemaVersion>1.6</schemaVersion>
-					<outputFormat>all</outputFormat>
-					<outputName>gitgrader-sbom</outputName>
-					<includeBomSerialNumber>true</includeBomSerialNumber>
-					<includeLicenseText>false</includeLicenseText>
-				</configuration>
-			</plugin>
+      <!-- ============ Software Bill of Materials ============ -->
+      <plugin>
+        <groupId>org.cyclonedx</groupId>
+        <artifactId>cyclonedx-maven-plugin</artifactId>
+        <version>${cyclonedx-maven-plugin.version}</version>
+        <configuration>
+          <projectType>application</projectType>
+          <schemaVersion>1.6</schemaVersion>
+          <outputFormat>all</outputFormat>
+          <outputName>gitgrader-sbom</outputName>
+          <includeBomSerialNumber>true</includeBomSerialNumber>
+          <includeLicenseText>false</includeLicenseText>
+        </configuration>
+        <executions>
+          <execution>
+            <id>generate-sbom</id>
+            <goals>
+              <goal>makeAggregateBom</goal>
+            </goals>
+            <phase>package</phase>
+          </execution>
+        </executions>
+      </plugin>
 
-			<!-- ============ Spring Boot packaging ============ -->
-			<plugin>
-				<groupId>org.springframework.boot</groupId>
-				<artifactId>spring-boot-maven-plugin</artifactId>
-				<configuration>
-					<image>
-						<!-- Named through the plugin's own user property so a release can
+      <!-- ============ Spring Boot packaging ============ -->
+      <plugin>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-maven-plugin</artifactId>
+        <configuration>
+          <image>
+            <!-- Named through the plugin's own user property so a release can
 						     override it on the command line. Hard-coding the name here
 						     silently wins over -Dspring-boot.build-image.imageName, which
 						     makes a tagged build publish the snapshot name instead. -->
-						<name>${spring-boot.build-image.imageName}</name>
-						<env>
-							<BP_JVM_VERSION>${java.version}</BP_JVM_VERSION>
-							<BPE_DEFAULT_TZ>UTC</BPE_DEFAULT_TZ>
-						</env>
-					</image>
-					<excludes>
-						<exclude>
-							<groupId>org.springframework.boot</groupId>
-							<artifactId>spring-boot-configuration-processor</artifactId>
-						</exclude>
-					</excludes>
-				</configuration>
-				<executions>
-					<execution>
-						<id>build-info</id>
-						<goals>
-							<goal>build-info</goal>
-						</goals>
-					</execution>
-				</executions>
-			</plugin>
-		</plugins>
-	</build>
+            <name>${spring-boot.build-image.imageName}</name>
+            <env>
+              <BP_JVM_VERSION>${java.version}</BP_JVM_VERSION>
+              <BPE_DEFAULT_TZ>UTC</BPE_DEFAULT_TZ>
+            </env>
+          </image>
+          <excludes>
+            <exclude>
+              <groupId>org.springframework.boot</groupId>
+              <artifactId>spring-boot-configuration-processor</artifactId>
+            </exclude>
+          </excludes>
+        </configuration>
+        <executions>
+          <execution>
+            <id>build-info</id>
+            <goals>
+              <goal>build-info</goal>
+            </goals>
+          </execution>
+        </executions>
+      </plugin>
+    </plugins>
+  </build>
 
-	<profiles>
-		<!-- ============ Coverage floor where every test runs ============ -->
-		<!--
+  <licenses>
+    <license>
+      <name>Apache License, Version 2.0</name>
+      <url>https://www.apache.org/licenses/LICENSE-2.0.txt</url>
+      <distribution>repo</distribution>
+    </license>
+  </licenses>
+
+  <profiles>
+    <!-- ============ Coverage floor where every test runs ============ -->
+    <!--
 		  Activated by the CI environment variable, which is the same signal
 		  DockerAvailableCondition uses to enable the integration tests rather than skip
 		  them. Wherever that condition guarantees they ran, this guarantees their
 		  coverage is demanded: the suite reaches about 80% line and 64% branch, so a
 		  floor set here catches a lost test instead of tolerating a twenty-point fall.
 		-->
-		<profile>
-			<id>ci-coverage</id>
-			<activation>
-				<property>
-					<name>env.CI</name>
-				</property>
-			</activation>
-			<properties>
-				<jacoco.line.coverage>0.75</jacoco.line.coverage>
-				<jacoco.branch.coverage>0.60</jacoco.branch.coverage>
-			</properties>
-		</profile>
+    <profile>
+      <id>ci-coverage</id>
+      <activation>
+        <property>
+          <name>env.CI</name>
+        </property>
+      </activation>
+      <properties>
+        <jacoco.branch.coverage>0.60</jacoco.branch.coverage>
+        <jacoco.line.coverage>0.75</jacoco.line.coverage>
+      </properties>
+    </profile>
 
-		<!-- ============ Reproducible frontend build ============ -->
-		<profile>
-			<id>frontend</id>
-			<activation>
-				<property>
-					<name>!skipFrontend</name>
-				</property>
-			</activation>
-			<build>
-				<plugins>
-					<plugin>
-						<groupId>com.github.eirslett</groupId>
-						<artifactId>frontend-maven-plugin</artifactId>
-						<version>${frontend-maven-plugin.version}</version>
-						<configuration>
-							<workingDirectory>${frontend.directory}</workingDirectory>
-							<installDirectory>${project.build.directory}/frontend-toolchain</installDirectory>
-						</configuration>
-						<executions>
-							<execution>
-								<id>install-node-and-npm</id>
-								<goals>
-									<goal>install-node-and-npm</goal>
-								</goals>
-								<phase>generate-resources</phase>
-								<configuration>
-									<nodeVersion>${node.version}</nodeVersion>
-									<npmVersion>${npm.version}</npmVersion>
-								</configuration>
-							</execution>
-							<execution>
-								<id>npm-ci</id>
-								<goals>
-									<goal>npm</goal>
-								</goals>
-								<phase>generate-resources</phase>
-								<configuration>
-									<arguments>ci --no-audit --no-fund</arguments>
-								</configuration>
-							</execution>
-							<execution>
-								<id>npm-lint</id>
-								<goals>
-									<goal>npm</goal>
-								</goals>
-								<phase>process-resources</phase>
-								<configuration>
-									<arguments>run lint</arguments>
-									<skip>${skipQuality}</skip>
-								</configuration>
-							</execution>
-							<execution>
-								<id>npm-test</id>
-								<goals>
-									<goal>npm</goal>
-								</goals>
-								<phase>test</phase>
-								<configuration>
-									<arguments>run test:ci</arguments>
-									<skip>${skipTests}</skip>
-								</configuration>
-							</execution>
-							<execution>
-								<id>npm-build</id>
-								<goals>
-									<goal>npm</goal>
-								</goals>
-								<phase>process-resources</phase>
-								<configuration>
-									<arguments>run build -- --outDir ${project.build.outputDirectory}/static --emptyOutDir</arguments>
-								</configuration>
-							</execution>
-						</executions>
-					</plugin>
-				</plugins>
-			</build>
-		</profile>
+    <!-- ============ Reproducible frontend build ============ -->
+    <profile>
+      <id>frontend</id>
+      <activation>
+        <property>
+          <name>!skipFrontend</name>
+        </property>
+      </activation>
+      <build>
+        <plugins>
+          <plugin>
+            <groupId>com.github.eirslett</groupId>
+            <artifactId>frontend-maven-plugin</artifactId>
+            <version>${frontend-maven-plugin.version}</version>
+            <configuration>
+              <workingDirectory>${frontend.directory}</workingDirectory>
+              <installDirectory>${project.build.directory}/frontend-toolchain</installDirectory>
+            </configuration>
+            <executions>
+              <execution>
+                <id>install-node-and-npm</id>
+                <goals>
+                  <goal>install-node-and-npm</goal>
+                </goals>
+                <phase>generate-resources</phase>
+                <configuration>
+                  <nodeVersion>${node.version}</nodeVersion>
+                  <npmVersion>${npm.version}</npmVersion>
+                </configuration>
+              </execution>
+              <execution>
+                <id>npm-ci</id>
+                <goals>
+                  <goal>npm</goal>
+                </goals>
+                <phase>generate-resources</phase>
+                <configuration>
+                  <arguments>ci --no-audit --no-fund</arguments>
+                </configuration>
+              </execution>
+              <execution>
+                <id>npm-lint</id>
+                <goals>
+                  <goal>npm</goal>
+                </goals>
+                <phase>process-resources</phase>
+                <configuration>
+                  <arguments>run lint</arguments>
+                  <skip>${skipQuality}</skip>
+                </configuration>
+              </execution>
+              <execution>
+                <id>npm-test</id>
+                <goals>
+                  <goal>npm</goal>
+                </goals>
+                <phase>test</phase>
+                <configuration>
+                  <arguments>run test:ci</arguments>
+                  <skip>${skipTests}</skip>
+                </configuration>
+              </execution>
+              <execution>
+                <id>npm-build</id>
+                <goals>
+                  <goal>npm</goal>
+                </goals>
+                <phase>process-resources</phase>
+                <configuration>
+                  <arguments>run build -- --outDir ${project.build.outputDirectory}/static --emptyOutDir</arguments>
+                </configuration>
+              </execution>
+            </executions>
+          </plugin>
+        </plugins>
+      </build>
+    </profile>
 
-		<!-- ============ Dependency vulnerability scanning ============ -->
-		<profile>
-			<id>security</id>
-			<build>
-				<plugins>
-					<plugin>
-						<groupId>org.owasp</groupId>
-						<artifactId>dependency-check-maven</artifactId>
-						<version>${dependency-check-maven.version}</version>
-						<configuration>
-							<failBuildOnCVSS>7</failBuildOnCVSS>
-							<suppressionFiles>
-								<suppressionFile>${config.directory}/dependency-check/suppressions.xml</suppressionFile>
-							</suppressionFiles>
-							<formats>
-								<format>HTML</format>
-								<format>SARIF</format>
-								<format>JSON</format>
-							</formats>
-							<nvdApiKey>${env.NVD_API_KEY}</nvdApiKey>
-							<!-- NIST throttles the shared address ranges CI runners come from, and
+    <!-- ============ Dependency vulnerability scanning ============ -->
+    <profile>
+      <id>security</id>
+      <build>
+        <plugins>
+          <plugin>
+            <groupId>org.owasp</groupId>
+            <artifactId>dependency-check-maven</artifactId>
+            <version>${dependency-check-maven.version}</version>
+            <configuration>
+              <failBuildOnCVSS>7</failBuildOnCVSS>
+              <suppressionFiles>
+                <suppressionFile>${config.directory}/dependency-check/suppressions.xml</suppressionFile>
+              </suppressionFiles>
+              <formats>
+                <format>HTML</format>
+                <format>SARIF</format>
+                <format>JSON</format>
+              </formats>
+              <nvdApiKey>${env.NVD_API_KEY}</nvdApiKey>
+              <!-- NIST throttles the shared address ranges CI runners come from, and
 							     answers 503 rather than 429 when it does, which the plugin treats as
 							     fatal and which fails the build with nothing wrong in the code. Backing
 							     off and retrying rides out the throttle; keeping the downloaded feed
 							     valid for a day means most runs do not ask for it at all. -->
-							<nvdApiDelay>4000</nvdApiDelay>
-							<nvdMaxRetryCount>15</nvdMaxRetryCount>
-							<nvdValidForHours>24</nvdValidForHours>
-							<skipTestScope>true</skipTestScope>
-							<skipProvidedScope>false</skipProvidedScope>
-						</configuration>
-						<executions>
-							<execution>
-								<id>dependency-check</id>
-								<phase>verify</phase>
-								<goals>
-									<goal>check</goal>
-								</goals>
-							</execution>
-						</executions>
-					</plugin>
-				</plugins>
-			</build>
-		</profile>
+              <nvdApiDelay>4000</nvdApiDelay>
+              <nvdMaxRetryCount>15</nvdMaxRetryCount>
+              <nvdValidForHours>24</nvdValidForHours>
+              <skipTestScope>true</skipTestScope>
+              <skipProvidedScope>false</skipProvidedScope>
+            </configuration>
+            <executions>
+              <execution>
+                <id>dependency-check</id>
+                <goals>
+                  <goal>check</goal>
+                </goals>
+                <phase>verify</phase>
+              </execution>
+            </executions>
+          </plugin>
+        </plugins>
+      </build>
+    </profile>
 
-		<!-- ============ License header enforcement ============ -->
-		<profile>
-			<id>license</id>
-			<build>
-				<plugins>
-					<plugin>
-						<groupId>com.mycila</groupId>
-						<artifactId>license-maven-plugin</artifactId>
-						<version>${license-maven-plugin.version}</version>
-						<configuration>
-							<licenseSets>
-								<licenseSet>
-									<header>${config.directory}/license/header.txt</header>
-									<includes>
-										<include>src/**/*.java</include>
-									</includes>
-								</licenseSet>
-							</licenseSets>
-						</configuration>
-						<executions>
-							<execution>
-								<id>license-check</id>
-								<phase>validate</phase>
-								<goals>
-									<goal>check</goal>
-								</goals>
-							</execution>
-						</executions>
-					</plugin>
-				</plugins>
-			</build>
-		</profile>
-	</profiles>
+    <!-- ============ License header enforcement ============ -->
+    <profile>
+      <id>license</id>
+      <build>
+        <plugins>
+          <plugin>
+            <groupId>com.mycila</groupId>
+            <artifactId>license-maven-plugin</artifactId>
+            <version>${license-maven-plugin.version}</version>
+            <configuration>
+              <licenseSets>
+                <licenseSet>
+                  <header>${config.directory}/license/header.txt</header>
+                  <includes>
+                    <include>src/**/*.java</include>
+                  </includes>
+                </licenseSet>
+              </licenseSets>
+            </configuration>
+            <executions>
+              <execution>
+                <id>license-check</id>
+                <goals>
+                  <goal>check</goal>
+                </goals>
+                <phase>validate</phase>
+              </execution>
+            </executions>
+          </plugin>
+        </plugins>
+      </build>
+    </profile>
+  </profiles>
 </project>

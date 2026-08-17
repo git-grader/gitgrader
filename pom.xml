@@ -138,4 +138,53 @@
 			</plugin>
 		</plugins>
 	</build>
+	<profiles>
+		<!-- ============ License headers outside the Java sources ============ -->
+		<profile>
+			<id>license</id>
+			<build>
+				<plugins>
+					<plugin>
+						<groupId>com.mycila</groupId>
+						<artifactId>license-maven-plugin</artifactId>
+						<version>5.1.1</version>
+						<configuration>
+							<!--
+							  These files carry the two-line SPDX form rather than the full Apache
+							  notice the Java sources use, so the gate is that a header is present
+							  rather than that it is byte-identical to the Java one.
+							-->
+							<skipExistingHeaders>true</skipExistingHeaders>
+							<mapping>
+								<ts>DOUBLESLASH_STYLE</ts>
+								<tsx>DOUBLESLASH_STYLE</tsx>
+							</mapping>
+							<licenseSets>
+								<licenseSet>
+									<header>${config.directory}/license/header-spdx.txt</header>
+									<includes>
+										<include>scripts/*.sh</include>
+										<include>deployment/**/*.sh</include>
+										<include>frontend/src/**/*.ts</include>
+										<include>frontend/src/**/*.tsx</include>
+										<include>frontend/tests/**/*.ts</include>
+										<include>frontend/tests/**/*.tsx</include>
+									</includes>
+								</licenseSet>
+							</licenseSets>
+						</configuration>
+						<executions>
+							<execution>
+								<id>license-check</id>
+								<phase>validate</phase>
+								<goals>
+									<goal>check</goal>
+								</goals>
+							</execution>
+						</executions>
+					</plugin>
+				</plugins>
+			</build>
+		</profile>
+	</profiles>
 </project>

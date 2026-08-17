@@ -1,4 +1,7 @@
 #!/usr/bin/env bash
+# Copyright the GitGrader contributors.
+# SPDX-License-Identifier: Apache-2.0
+
 set -euo pipefail
 
 # Every path below is relative to the repository, not to wherever this was called from,
