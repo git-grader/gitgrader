@@ -16,6 +16,16 @@ concurrency:
   cancel-in-progress: ${{ !startsWith(github.ref, 'refs/tags/') }}
 
 jobs:
+  # The install and backup scripts are how an operator first meets the project, and no
+  # job ever looked at them: the Maven build only knows about Java and the frontend.
+  scripts:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+      - name: Shellcheck
+        run: shellcheck scripts/*.sh deployment/runtimes/*.sh
+
   # Static analysis is not repeated here. Build runs the one full `verify` - formatting,
   # Checkstyle, PMD/CPD, SpotBugs, forbidden APIs, frontend lint and licence headers - and
   # running `verify -DskipTests` again repeated all of it plus packaging and the SBOM.
