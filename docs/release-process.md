@@ -10,11 +10,12 @@ features increment the minor version; fixes increment the patch version.
 2. Run `./mvnw clean verify` and perform an installation smoke check against the
    release image.
 3. Create and push an annotated `vX.Y.Z` tag. The image workflow builds with
-   `./mvnw spring-boot:build-image`, publishes `linux/amd64` and `linux/arm64`
-   manifests to GHCR, emits its digest, and creates a provenance attestation.
-4. Generate and attach the CycloneDX SBOM (`bom.json` and `bom.xml`) from the
-   SBOM workflow. Review dependency and secret scans before announcing a
-   release.
+   `./mvnw spring-boot:build-image`, publishes a `linux/amd64` image to GHCR,
+   scans it, emits its digest, and creates a provenance attestation. There is no
+   `arm64` image: buildpacks build for the runner's architecture only.
+4. The SBOM workflow generates the aggregate CycloneDX SBOM (`bom.json` and
+   `bom.xml`) and attaches it to the release for the same tag. Review dependency
+   and secret scans before announcing a release.
 5. Publish release notes from the changelog, including upgrade and rollback
    requirements.
 

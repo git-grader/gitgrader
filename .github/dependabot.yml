@@ -23,6 +23,12 @@ updates:
     directory: "/deployment/runtimes/node-24"
     schedule:
       interval: weekly
+  - package-ecosystem: docker-compose
+    # The "docker" ecosystem above reads Dockerfiles only, so the database, the LDAP
+    # server, and the alpine helper that owns the data volumes went unwatched.
+    directory: "/"
+    schedule:
+      interval: weekly
   - package-ecosystem: github-actions
     directory: "/"
     schedule:

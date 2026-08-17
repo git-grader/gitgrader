@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 # Runs on release tags, so it is never cancelled for the same reason the image build is
 # not: the SBOM is part of what the release publishes.
@@ -33,3 +33,13 @@ jobs:
             **/target/bom.xml
             **/target/bom.json
           if-no-files-found: error
+      # An artifact expires with the run. The release is what operators keep, so the
+      # aggregate SBOM has to live there too rather than being copied across by hand.
+      - name: Attach the SBOM to the release
+        if: github.ref_type == 'tag'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          gh release view "$TAG" >/dev/null 2>&1 || gh release create "$TAG" --generate-notes
+          gh release upload "$TAG" --clobber target/bom.xml target/bom.json

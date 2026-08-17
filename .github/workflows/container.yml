@@ -98,6 +98,17 @@ jobs:
           subject-name: ghcr.io/git-grader/gitgrader
           subject-digest: ${{ steps.push.outputs.digest }}
           push-to-registry: true
+      # The Security workflow scans the source tree; nothing looked at the layers the
+      # buildpack adds, which is where an operator's CVEs actually come from. Run it
+      # after the attestation so a finding fails the release rather than the record of it.
+      - name: Scan the published image
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          image-ref: ${{ env.IMAGE }}@${{ steps.push.outputs.digest }}
+          format: table
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          exit-code: '1'
       # Block scalar on purpose: the colon inside "Image digest:" would otherwise be read
       # as a YAML mapping and make the whole workflow file unparseable.
       - run: |

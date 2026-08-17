@@ -3,7 +3,9 @@
 ## Health and observability
 
 Use `/actuator/health/readiness` to decide whether the instance can receive
-traffic. The default Compose health check calls this endpoint. Do not route
+traffic. The Compose file carries no in-container health check, because the
+buildpack run image has no shell to run one with; probe the endpoint from
+outside the container instead. Do not route
 traffic to a process that has not become ready. Treat a process-level liveness
 check separately from readiness: liveness answers whether a restart may help;
 readiness answers whether dependencies required for requests are usable.
