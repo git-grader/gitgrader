@@ -156,6 +156,11 @@ services:
       retries: 8
     security_opt:
       - no-new-privileges:true
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 2G
     logging:
       driver: json-file
       options:
