@@ -8,6 +8,13 @@
 # because "production" is exactly the environment where nobody re-reads the config.
 
 spring:
+  datasource:
+    # Deliberately without a default: the standalone "gitgrader"/"gitgrader" fallback is
+    # a convenience for a local run, and a production instance started without these set
+    # would otherwise reach a real database with credentials anyone can guess. An
+    # unresolvable placeholder fails startup, which is the intended behaviour.
+    username: ${SPRING_DATASOURCE_USERNAME}
+    password: ${SPRING_DATASOURCE_PASSWORD}
   jpa:
     hibernate:
       ddl-auto: validate
