@@ -52,6 +52,7 @@
 		     memory. This is the transport docker-java speaks to the engine over, so the
 		     reach is the runner. Fixed in 5.4.3; drop this once Boot manages it. -->
     <httpclient5.version>5.6.4</httpclient5.version>
+    <httpcore5.version>5.4.3</httpcore5.version>
     <jacoco-maven-plugin.version>0.8.15</jacoco-maven-plugin.version>
     <jacoco.branch.coverage>0.45</jacoco.branch.coverage>
 
@@ -143,6 +144,22 @@
         <groupId>org.apache.httpcomponents.client5</groupId>
         <artifactId>httpclient5</artifactId>
         <version>${httpclient5.version}</version>
+      </dependency>
+      <!--
+        Likewise 5.4.2, which httpclient5 still brings: CVE-2026-54399 and CVE-2026-54428
+        (7.5 each) let a peer exhaust memory through an HTTP/1.1 message with excessive
+        headers, or an oversized HPACK block sent before the HTTP/2 settings limit
+        applies. Both artifacts ship the affected parsers.
+      -->
+      <dependency>
+        <groupId>org.apache.httpcomponents.core5</groupId>
+        <artifactId>httpcore5</artifactId>
+        <version>${httpcore5.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>org.apache.httpcomponents.core5</groupId>
+        <artifactId>httpcore5-h2</artifactId>
+        <version>${httpcore5.version}</version>
       </dependency>
     </dependencies>
   </dependencyManagement>

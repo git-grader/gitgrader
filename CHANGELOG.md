@@ -14,6 +14,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   async client, so a client that believes it is verifying certificates accepts one issued
   for a different domain. This is the client the grading runner talks to the Docker daemon
   with.
+- Pin `httpcore5` and `httpcore5-h2` to 5.4.3 for CVE-2026-54399 and CVE-2026-54428
+  (7.5 each), which `httpclient5` still brought in at 5.4.2. A peer can exhaust memory
+  with an HTTP/1.1 message carrying excessive headers, or with an oversized HPACK block
+  sent before the HTTP/2 settings limit applies.
 - Refuse to start a production instance whose `app.public-url` is plain `http://`.
   Every result link is built from it and the link is the whole credential for a
   student's marks, printed into their terminal after each push, so the default left an
