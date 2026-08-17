@@ -97,12 +97,13 @@ The diagram shows the shape; this table is the contract, and matches each
 
 | Module | May depend on |
 |---|---|
-| `audit`, `configuration`, `courses`, `identity`, `runtimes`, `sshkeys`, `templates` | *nothing* |
+| `audit`, `configuration`, `identity`, `runtimes`, `templates` | *nothing* |
+| `courses`, `sshkeys` | identity |
 | `assignments` | courses, templates, runtimes, identity |
 | `submissions` | identity, assignments, courses, sshkeys |
 | `security` | identity, submissions |
 | `grading` | submissions, assignments, runtimes, templates |
-| `reports` | identity, courses, assignments, submissions |
+| `reports` | identity, courses, assignments, submissions, grading |
 | `registration` | identity, sshkeys, courses, security |
 | `api` | identity, sshkeys, reports, courses, assignments, submissions, grading, security |
 | `git` | identity, sshkeys, courses, assignments, templates, submissions, grading, security, registration |
@@ -180,7 +181,10 @@ implementation runs a short-lived non-root container with network disabled by
 capabilities, and no-new-privileges. To add a runner, implement the runner
 contract, preserve the run’s timeout/resources/artifact/report semantics, select
 it through `grading.runner`, and add integration tests proving hidden tests and
-student work mounts retain their access controls. Do not use process spawning in
+student work mounts retain their access controls. Do not spawn processes from the
+application to run untrusted code: the runner contract is the only sanctioned way
+to execute a submission, and the forbidden-apis rules refuse `Runtime.exec` and
+`ProcessBuilder` for that reason.
 
 ## Data model and history
 

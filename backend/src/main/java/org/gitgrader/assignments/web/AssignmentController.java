@@ -126,8 +126,7 @@ public class AssignmentController {
 
 	@DeleteMapping("/{id}/extensions/{extensionId}")
 	public DeadlineExtensionView revokeExtension(@PathVariable UUID id, @PathVariable UUID extensionId) {
-		detail(id);
-		return this.administration.revokeExtension(extensionId, this.actors.currentActor().id());
+		return this.administration.revokeExtension(id, extensionId, this.actors.currentActor().id());
 	}
 
 	/** Deadline extension request. */

@@ -22,6 +22,7 @@ import java.time.Clock;
 import java.time.Duration;
 import java.util.Arrays;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
@@ -82,21 +83,26 @@ class DockerGradingRunnerExecutionTest {
 	/** Released once the test has handed every log frame to the runner's callback. */
 	private CountDownLatch logsDelivered;
 
+	private GradingProperties properties;
+
+	private StorageProperties storage;
+
 	@BeforeEach
 	void setUp() {
 		this.dockerClient = mock(DockerClient.class);
 		this.logsDelivered = new CountDownLatch(1);
 
-		GradingProperties properties = new GradingProperties("docker", 2, Duration.ofSeconds(120),
-				DataSize.ofMegabytes(512), 1.0, 256, false, DataSize.ofMegabytes(1), false,
+		this.properties = new GradingProperties("docker", 2, Duration.ofSeconds(120), DataSize.ofMegabytes(512), 1.0,
+				256, false, DataSize.ofMegabytes(1), false,
 				new GradingProperties.Docker("unix:///var/run/docker.sock", "", "", "65534:65534",
 						Duration.ofMinutes(5), true, DataSize.ofMegabytes(64), true, true),
 				new GradingProperties.Queue(Duration.ofSeconds(2), Duration.ofMinutes(15), 3, Duration.ofSeconds(30), 3,
 						500, 1000, Duration.ofSeconds(30)));
-		StorageProperties storage = new StorageProperties("/data/git/repositories", "/data/templates", "/data/tests",
+		this.storage = new StorageProperties("/data/git/repositories", "/data/templates", "/data/tests",
 				"/data/artifacts", "/data/tmp");
 
-		this.runner = new DockerGradingRunner(this.dockerClient, properties, Clock.systemUTC(), storage);
+		this.runner = new DockerGradingRunner(this.dockerClient, this.properties, Clock.systemUTC(), this.storage,
+				(image) -> Optional.empty());
 		this.request = new GradingExecutionRequest(Path.of("/data/workspace/student1"), Path.of("/data/tests/suite1"),
 				IMAGE, null, "npm test", Duration.ofSeconds(30), 1024L * 1024 * 256, 1.5, 128, false, 1024 * 1024,
 				"corr-1", Map.of());
@@ -120,31 +126,19 @@ class DockerGradingRunnerExecutionTest {
 	}
 
 	@Test
-	@DisplayName("reports an infrastructure failure when the sandbox mounts did not arrive")
-	void reportsInfrastructureFailureWhenTheMountsAreMissing() {
-		// Docker treats a bind whose source it cannot resolve as a request to create an
-		// empty directory, so the sandbox starts, the install step fails against nothing,
-		// and every declared test is recorded as not executed. That scored the student
-		// zero for a mount the platform got wrong.
-		streamLogsAsynchronously("", "gitgrader-preflight: sandbox mounts are not usable\n");
-		completeWaitWith(97);
+	@DisplayName("refuses to run a submission at all when the mounts cannot be proved")
+	void refusesToRunWhenTheMountsAreUnusable() {
+		// The probe answers before any container of the student's is created, so a broken
+		// mount root costs an infrastructure error rather than a score of zero against an
+		// empty workspace. It cannot be checked from inside the grading container: the
+		// submission controls every channel that container reports through.
+		DockerGradingRunner refusing = new DockerGradingRunner(this.dockerClient, this.properties, Clock.systemUTC(),
+				this.storage, (image) -> Optional.of("the daemon cannot see the workspace"));
 
-		GradingResult result = this.runner.execute(this.request);
+		GradingResult result = refusing.execute(this.request);
 
 		assertThat(result.infrastructureFailure()).isTrue();
-		assertThat(result.failureDetail()).contains("not visible inside the sandbox");
-	}
-
-	@Test
-	@DisplayName("still scores a submission that exits with the preflight code on its own")
-	void doesNotMistakeAStudentExitCodeForAFailedPreflight() {
-		streamLogsAsynchronously("1..1\nnot ok 1 first\n", "");
-		completeWaitWith(97);
-
-		GradingResult result = this.runner.execute(this.request);
-
-		assertThat(result.infrastructureFailure()).isFalse();
-		assertThat(result.exitCode()).isEqualTo(97);
+		assertThat(result.failureDetail()).isEqualTo("the daemon cannot see the workspace");
 	}
 
 	@Test

@@ -34,6 +34,7 @@ import org.gitgrader.assignments.domain.DeadlineExtension;
 import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -130,9 +131,28 @@ class DefaultAssignmentServiceTest {
 				"actor", CLOCK);
 		when(extensions.save(org.mockito.ArgumentMatchers.any(DeadlineExtension.class))).thenReturn(replacement);
 
-		service.revokeExtension(oldId, "actor");
+		service.revokeExtension(assignmentId, oldId, "actor");
 		assertThat(service.grantExtension(assignmentId, studentId, DUE.plusSeconds(7200), "new", "actor").reason())
 			.isEqualTo("new");
+	}
+
+	@Test
+	void refusesToRevokeAnExtensionGrantedOnAnotherAssignment() {
+		// The extension identifier alone used to be enough: naming any assignment in the
+		// URL revoked the extension anyway, so one student lost their deadline because an
+		// instructor was looking at a different assignment.
+		AssignmentRepository assignments = mock(AssignmentRepository.class);
+		DeadlineExtensionRepository extensions = mock(DeadlineExtensionRepository.class);
+		DefaultAssignmentService service = new DefaultAssignmentService(assignments, extensions, CLOCK);
+		UUID grantedOn = UUID.randomUUID();
+		DeadlineExtension extension = new DeadlineExtension(grantedOn, UUID.randomUUID(), DUE.plusSeconds(3600),
+				"granted", "actor", CLOCK);
+		UUID extensionId = extension.toView().id();
+		when(extensions.findById(extensionId)).thenReturn(Optional.of(extension));
+
+		assertThatExceptionOfType(EntityNotFoundException.class)
+			.isThrownBy(() -> service.revokeExtension(UUID.randomUUID(), extensionId, "actor"));
+		assertThat(extension.toView().revokedAt()).isNull();
 	}
 
 	@Test

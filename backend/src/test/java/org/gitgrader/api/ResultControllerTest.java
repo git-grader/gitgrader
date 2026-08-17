@@ -51,6 +51,8 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
+import static org.hamcrest.Matchers.containsString;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -142,11 +144,17 @@ class ResultControllerTest {
 		when(this.gradingResults.findLatestForSubmission(SUBMISSION)).thenReturn(Optional.empty());
 
 		// A student can open the link the moment the push prints it, which is normally
-		// before anything has been graded. That is a page with no results yet, not a 500.
+		// before anything has been graded. That is a page with no results yet, not a 500
+		// -
+		// and not "0 of 0 tests passed" either, which is a sentence about a run that
+		// happened.
 		this.mockMvc.perform(get("/api/v1/results/good-token"))
 			.andExpect(status().isOk())
-			.andExpect(jsonPath("$.total").value(0))
-			.andExpect(jsonPath("$.tests.length()").value(0));
+			.andExpect(jsonPath("$.passed").doesNotExist())
+			.andExpect(jsonPath("$.total").doesNotExist())
+			.andExpect(jsonPath("$.score").doesNotExist())
+			.andExpect(jsonPath("$.tests.length()").value(0))
+			.andExpect(header().string("Cache-Control", containsString("no-store")));
 	}
 
 	private static StudentGradingResult result() {

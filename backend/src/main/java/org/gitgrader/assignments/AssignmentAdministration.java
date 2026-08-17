@@ -59,10 +59,18 @@ public interface AssignmentAdministration {
 
 	/**
 	 * Soft-revokes an extension.
+	 *
+	 * <p>
+	 * Scoped to the assignment on purpose: the extension identifier alone is enough to
+	 * revoke an extension granted on some other assignment, and the caller always knows
+	 * which assignment it means.
+	 * @param assignmentId the assignment the extension was granted on
 	 * @param extensionId extension identifier
 	 * @param actor revoking instructor
 	 * @return revoked extension
+	 * @throws jakarta.persistence.EntityNotFoundException when that assignment has no
+	 * such extension
 	 */
-	DeadlineExtensionView revokeExtension(UUID extensionId, String actor);
+	DeadlineExtensionView revokeExtension(UUID assignmentId, UUID extensionId, String actor);
 
 }

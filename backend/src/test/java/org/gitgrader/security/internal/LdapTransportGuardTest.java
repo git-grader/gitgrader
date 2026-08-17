@@ -32,33 +32,35 @@ import static org.mockito.Mockito.when;
 class LdapTransportGuardTest {
 
 	@Test
-	@DisplayName("refuses to start a production instance that binds over plain LDAP")
-	void refusesPlaintextInProduction() {
+	@DisplayName("refuses plain LDAP wherever it is enabled, not only under a profile named production")
+	void refusesPlaintextByDefault() {
 		// The default URL is ldap://, so enabling LDAP and changing nothing else sent the
-		// instructor password and the manager bind credentials in the clear.
-		assertThatThrownBy(() -> guard("ldap://directory:389", true).afterPropertiesSet())
+		// instructor password and the manager bind credentials in the clear. Keying the
+		// refusal to the profile name let a jar started with no profile, or with one
+		// called "prod", through the same hole.
+		assertThatThrownBy(() -> guard("ldap://directory:389", false).afterPropertiesSet())
 			.isInstanceOf(IllegalStateException.class)
 			.hasMessageContaining("ldaps://");
 	}
 
 	@Test
-	@DisplayName("accepts ldaps:// in production")
-	void acceptsTlsInProduction() {
-		assertThatCode(() -> guard("ldaps://directory:636", true).afterPropertiesSet()).doesNotThrowAnyException();
+	@DisplayName("accepts ldaps://")
+	void acceptsTls() {
+		assertThatCode(() -> guard("ldaps://directory:636", false).afterPropertiesSet()).doesNotThrowAnyException();
 	}
 
 	@Test
-	@DisplayName("leaves other profiles alone, so a development directory still works")
-	void allowsPlaintextElsewhere() {
-		assertThatCode(() -> guard("ldap://localhost:389", false).afterPropertiesSet()).doesNotThrowAnyException();
+	@DisplayName("lets the development profile use a directory without TLS, because the demo ships one")
+	void allowsPlaintextUnderDevelopment() {
+		assertThatCode(() -> guard("ldap://localhost:389", true).afterPropertiesSet()).doesNotThrowAnyException();
 	}
 
-	private static LdapSecurityConfig.LdapTransportGuard guard(String url, boolean production) {
+	private static LdapSecurityConfig.LdapTransportGuard guard(String url, boolean development) {
 		SecurityProperties.Ldap ldap = new SecurityProperties.Ldap(true, url, "dc=example,dc=org", "", "", "ou=people",
 				"(uid={0})", "ou=groups", "(member={0})", "instructors", "admins", "follow");
 		SecurityProperties properties = new SecurityProperties(ldap, null, null, null, "csp", "rcsp");
 		Environment environment = mock(Environment.class);
-		when(environment.acceptsProfiles(any(Profiles.class))).thenReturn(production);
+		when(environment.acceptsProfiles(any(Profiles.class))).thenReturn(development);
 		return new LdapSecurityConfig.LdapTransportGuard(properties, environment);
 	}
 

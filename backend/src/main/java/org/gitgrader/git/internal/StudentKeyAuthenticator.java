@@ -55,6 +55,18 @@ public class StudentKeyAuthenticator implements PublickeyAuthenticator {
 	/** Session attribute holding the authenticated student. */
 	public static final AttributeKey<AuthenticatedStudent> AUTHENTICATED_STUDENT = new AttributeKey<>();
 
+	/**
+	 * Marks a connection as having already paid for its place in the per-IP allowance.
+	 *
+	 * <p>
+	 * An SSH client offers every key it has until one is accepted, and each offer arrives
+	 * here as a separate attempt. Charging per offer meant a student carrying three keys
+	 * spent three of their site's allowance to make one push, and a class behind one
+	 * campus address locked itself out before most of it had connected. A session is
+	 * charged once; the attempts within it are already bounded by MAX_AUTH_REQUESTS.
+	 */
+	private static final AttributeKey<Boolean> RATE_LIMIT_CHARGED = new AttributeKey<>();
+
 	private static final Logger logger = LoggerFactory.getLogger(StudentKeyAuthenticator.class);
 
 	private final SshKeyRegistry keyRegistry;
@@ -78,10 +90,13 @@ public class StudentKeyAuthenticator implements PublickeyAuthenticator {
 		// Checked before the key is even parsed. Every branch below costs a database
 		// lookup, and this endpoint is reachable by anyone who can open a socket, so the
 		// limit has to sit in front of the work rather than behind it.
-		String clientAddress = clientAddressOf(session);
-		if (!this.rateLimiter.tryConsumeSshAuthPerIp(clientAddress)) {
-			logger.info("Refused SSH authentication attempt: rate limit exceeded for this source");
-			return false;
+		if (session.getAttribute(RATE_LIMIT_CHARGED) == null) {
+			String clientAddress = clientAddressOf(session);
+			if (!this.rateLimiter.tryConsumeSshAuthPerIp(clientAddress)) {
+				logger.info("Refused SSH authentication attempt: rate limit exceeded for this source");
+				return false;
+			}
+			session.setAttribute(RATE_LIMIT_CHARGED, Boolean.TRUE);
 		}
 
 		String fingerprint = this.keyParser.fingerprintOf(key);

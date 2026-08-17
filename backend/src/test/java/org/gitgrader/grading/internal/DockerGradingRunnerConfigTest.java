@@ -20,6 +20,7 @@ import java.nio.file.Path;
 import java.time.Clock;
 import java.time.Duration;
 import java.util.Map;
+import java.util.Optional;
 import org.gitgrader.grading.GradingExecutionRequest;
 
 import com.github.dockerjava.api.DockerClient;
@@ -84,7 +85,8 @@ class DockerGradingRunnerConfigTest {
 	void verifySecurityConfig() {
 		DockerGradingRunner runner = new DockerGradingRunner(this.dockerClient, this.properties, this.clock,
 				new StorageProperties("/data/git/repositories", "/data/templates", "/data/tests", "/data/artifacts",
-						"/data/tmp"));
+						"/data/tmp"),
+				(image) -> Optional.empty());
 		runner.createContainerCmd(this.request);
 
 		ArgumentCaptor<HostConfig> hostConfigCaptor = ArgumentCaptor.forClass(HostConfig.class);
@@ -150,7 +152,8 @@ class DockerGradingRunnerConfigTest {
 	private HostConfig hostConfigFor(GradingProperties properties) {
 		DockerGradingRunner runner = new DockerGradingRunner(this.dockerClient, properties, this.clock,
 				new StorageProperties("/data/git/repositories", "/data/templates", "/data/tests", "/data/artifacts",
-						"/data/tmp"));
+						"/data/tmp"),
+				(image) -> Optional.empty());
 		runner.createContainerCmd(this.request);
 
 		ArgumentCaptor<HostConfig> captor = ArgumentCaptor.forClass(HostConfig.class);

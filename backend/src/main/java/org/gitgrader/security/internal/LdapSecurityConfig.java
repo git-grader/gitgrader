@@ -78,8 +78,10 @@ public class LdapSecurityConfig {
 	 *
 	 * <p>
 	 * The default URL is {@code ldap://}, so an operator who enables LDAP and changes
-	 * nothing else gets plaintext binds. That is a silent failure on every other profile
-	 * too, but only production is refused outright.
+	 * nothing else gets plaintext binds. Keying the refusal to the profile named
+	 * "production" was not enough: a jar started with no profile at all, or with one
+	 * called "prod", is just as exposed and was allowed through. Plaintext is refused
+	 * wherever LDAP is enabled, and the development profile has to say so explicitly.
 	 */
 	public static class LdapTransportGuard implements InitializingBean {
 
@@ -94,10 +96,13 @@ public class LdapSecurityConfig {
 
 		@Override
 		public void afterPropertiesSet() {
-			if (this.environment.acceptsProfiles(Profiles.of("production")) && !this.properties.ldap().isSecure()) {
-				throw new IllegalStateException(
-						"LDAP must be reached over ldaps:// under the production profile, but security.ldap.url is not");
+			if (this.properties.ldap().isSecure() || this.environment.acceptsProfiles(Profiles.of("dev", "test"))) {
+				return;
 			}
+			throw new IllegalStateException("security.ldap.url must be an ldaps:// URL. Instructor passwords and the "
+					+ "manager bind credentials cross this connection, and " + this.properties.ldap().url()
+					+ " sends them in the clear. A directory without TLS can only be used under the dev or test "
+					+ "profile.");
 		}
 
 	}

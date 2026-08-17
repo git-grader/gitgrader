@@ -123,7 +123,11 @@ export function PublicResultPage() {
 
         <Box sx={{ mt: 4, mb: 4 }}>
           <Typography variant="h3" component="h2" gutterBottom>Overall</Typography>
-          <Typography variant="body1">{data.passed} of {data.total} tests passed</Typography>
+          {typeof data.passed === 'number' && typeof data.total === 'number' ? (
+            <Typography variant="body1">{data.passed} of {data.total} tests passed</Typography>
+          ) : (
+            <Typography variant="body1">No checks have been recorded for this submission yet.</Typography>
+          )}
           {typeof data.score === 'number' ? (
             <>
               <Typography variant="body1" sx={{ fontWeight: 'bold' }}>Score: {data.score.toFixed(1)} %</Typography>

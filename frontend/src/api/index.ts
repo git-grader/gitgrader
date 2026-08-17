@@ -116,8 +116,10 @@ export const PublicResultSchema = z.object({
   commitSha: z.string(),
   receivedAt: z.string(),
   verified: z.boolean(),
-  passed: z.number(),
-  total: z.number(),
+  // Null until a run produces a result: "0 of 0 passed" is a sentence about a run that
+  // happened, and an ungraded submission has not had one.
+  passed: z.number().nullish(),
+  total: z.number().nullish(),
   score: z.number().nullish(),
   tests: z.array(z.object({
     public: z.boolean(),

@@ -172,6 +172,16 @@ class SpaRoutingIT {
 	}
 
 	@Test
+	@DisplayName("names script-src explicitly rather than leaving it to default-src")
+	void shellPolicyNamesScriptSrc() throws Exception {
+		// Falling back to default-src protects the same thing, but every browser reports
+		// the omission as a console error, and a console that always has an error in it
+		// is a console nobody reads.
+		this.mockMvc.perform(get("/dashboard").with(INSTRUCTOR))
+			.andExpect(header().string("Content-Security-Policy", containsString("script-src 'self'")));
+	}
+
+	@Test
 	@DisplayName("lets the shell be revalidated while the hashed bundles stay cacheable")
 	void shellIsRevalidatedAndHashedAssetsAreNot() throws Exception {
 		// A year-long cache on the one filename that never changes is how a browser ends

@@ -9,6 +9,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Security
 
+- Prove the grading sandbox mounts from outside the sandbox. The check that shipped
+  earlier lived inside the grading container and reported through the exit status and
+  standard error the submission controls, so a student could forge it and have their own
+  run recorded as broken infrastructure rather than graded.
+- Charge the per-IP SSH allowance once per connection rather than once per offered key.
+  A client offers every key it holds until one is accepted, so a student with three keys
+  spent three of their site's allowance on one push and a class behind a single campus
+  address locked itself out before most of it had connected.
+- Scope deadline-extension revocation to the assignment named in the URL, which was
+  otherwise revoking whichever extension id was supplied.
+- Refuse plain LDAP wherever it is enabled. **Breaking:** it was previously refused only
+  under a profile literally named `production`, so an instance started with no profile
+  bound in the clear; `dev` and `test` remain the explicit exceptions. Migration: move
+  the directory to `ldaps://`, or run it under the development profile.
+- Send `Cache-Control: no-store` with a result response. The link is the whole
+  credential, and nothing should keep the page it opens.
 - Enforce LDAP transport security instead of only documenting it.
   `security.ldap.verify-certificate` and `security.ldap.referral` were declared and
   documented but never read, so an operator who enabled LDAP against the default
@@ -83,6 +99,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Breaking:** a result that has not been graded reports `passed` and `total` as null
+  rather than 0. "0 of 10 tests passed" is a sentence about a run that happened, and an
+  ungraded submission has not had one; the score was already null for the same reason.
 - The production profile no longer falls back to the standalone `gitgrader`/`gitgrader`
   database credentials. **Breaking:** `SPRING_DATASOURCE_USERNAME` and
   `SPRING_DATASOURCE_PASSWORD` must be set under the production profile; an instance
