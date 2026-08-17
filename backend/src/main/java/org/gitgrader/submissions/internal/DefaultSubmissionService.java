@@ -146,12 +146,10 @@ public class DefaultSubmissionService implements SubmissionService {
 	 */
 	private void admit(NewSubmission details) {
 		RateLimits limits = this.securityProperties.rateLimits();
-		this.repository.lockForAdmission(admissionKey(details.studentId(), details.assignmentId()));
+		this.repository.lockForAdmission(admissionKey(details.repositoryId()));
 
 		if (this.repository.existsByRepositoryIdAndCommitSha(details.repositoryId(), details.commitSha())) {
-			refuse(details, Reason.DUPLICATE_COMMIT, "submissions.duplicate-commit",
-					"Commit " + shortSha(details.commitSha()) + " has already been submitted for this assignment. "
-							+ "Push a new commit to be graded again.");
+			refuseDuplicate(details);
 		}
 
 		Instant since = Instant.now(this.clock).minus(WINDOW);
@@ -167,6 +165,12 @@ public class DefaultSubmissionService implements SubmissionService {
 					"You have made " + limits.submissionsPerHourPerStudent()
 							+ " submissions in the last hour, which is the limit. Wait before pushing again.");
 		}
+	}
+
+	private void refuseDuplicate(NewSubmission details) {
+		refuse(details, Reason.DUPLICATE_COMMIT, "submissions.duplicate-commit",
+				"Commit " + shortSha(details.commitSha()) + " has already been submitted for this assignment. "
+						+ "Push a new commit to be graded again.");
 	}
 
 	private void refuse(NewSubmission details, Reason reason, String limit, String message) {
@@ -198,10 +202,9 @@ public class DefaultSubmissionService implements SubmissionService {
 	 * @param assignmentId the assignment
 	 * @return a stable key for {@code pg_advisory_xact_lock}
 	 */
-	private static long admissionKey(UUID studentId, UUID assignmentId) {
-		long student = studentId.getMostSignificantBits() ^ studentId.getLeastSignificantBits();
-		long assignment = assignmentId.getMostSignificantBits() ^ assignmentId.getLeastSignificantBits();
-		return student ^ Long.rotateLeft(assignment, KEY_HALF_BITS);
+	private static long admissionKey(UUID repositoryId) {
+		return repositoryId.getMostSignificantBits()
+				^ Long.rotateLeft(repositoryId.getLeastSignificantBits(), KEY_HALF_BITS);
 	}
 
 	private static String shortSha(String commitSha) {

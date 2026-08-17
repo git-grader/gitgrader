@@ -84,6 +84,34 @@ public interface GradingJobRepository extends JpaRepository<GradingJob, UUID> {
 			""", nativeQuery = true)
 	List<UUID> claimNext(@Param("now") Instant now, @Param("limit") int limit);
 
+	@Modifying(clearAutomatically = true, flushAutomatically = true)
+	@Query(value = """
+			UPDATE grading_jobs
+			SET status = 'RUNNING', updated_at = :now, version = version + 1
+			WHERE id = :id AND claimed_by = :worker AND lease_generation = :generation
+			  AND status = 'CLAIMED' AND claim_expires_at > :now
+			""", nativeQuery = true)
+	int markRunningIfOwned(@Param("id") UUID id, @Param("worker") String worker, @Param("generation") long generation,
+			@Param("now") Instant now);
+
+	@Query(value = """
+			SELECT EXISTS (
+				SELECT 1 FROM grading_jobs
+				WHERE id = :id AND claimed_by = :worker AND lease_generation = :generation
+				  AND status = 'RUNNING' AND claim_expires_at > :now)
+			""", nativeQuery = true)
+	boolean isRunningLeaseOwner(@Param("id") UUID id, @Param("worker") String worker,
+			@Param("generation") long generation, @Param("now") Instant now);
+
+	@Query(value = """
+			SELECT id FROM grading_jobs
+			WHERE id = :id AND claimed_by = :worker AND lease_generation = :generation
+			  AND status = 'RUNNING' AND claim_expires_at > :now
+			FOR UPDATE
+			""", nativeQuery = true)
+	Optional<UUID> lockRunningLease(@Param("id") UUID id, @Param("worker") String worker,
+			@Param("generation") long generation, @Param("now") Instant now);
+
 	/**
 	 * Serialises everything that follows in this transaction against one student and
 	 * assignment.

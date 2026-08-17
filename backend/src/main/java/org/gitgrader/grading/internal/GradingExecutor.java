@@ -21,6 +21,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Clock;
 import java.time.Duration;
+import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 
@@ -99,6 +100,10 @@ public class GradingExecutor {
 	 * @return everything needed to persist the outcome
 	 */
 	public Outcome execute(GradingRun run) {
+		return execute(run, Instant.now(this.clock).plus(this.properties.queue().claimTimeout()));
+	}
+
+	public Outcome execute(GradingRun run, Instant claimExpiresAt) {
 		GradingPlan plan = this.plans.resolve(run.submissionId());
 
 		Path workspace;
@@ -110,8 +115,8 @@ public class GradingExecutor {
 		}
 
 		try {
-			GradingResult result = this.runner
-				.execute(buildRequest(run, plan.assignment(), plan.runtime(), workspace, plan.hiddenTests()));
+			GradingResult result = this.runner.execute(buildRequest(run, plan.assignment(), plan.runtime(), workspace,
+					plan.hiddenTests(), claimExpiresAt));
 			return interpret(run, plan.assignment(), result, workspace, plan.hiddenTests());
 		}
 		catch (RuntimeException ex) {
@@ -193,8 +198,8 @@ public class GradingExecutor {
 	 * @param requested the timeout the assignment or the deployment asked for
 	 * @return that timeout, or as much of the lease as can safely be spent
 	 */
-	private Duration boundedByLease(Duration requested) {
-		Duration lease = this.properties.queue().claimTimeout();
+	private Duration boundedByLease(Duration requested, Instant claimExpiresAt) {
+		Duration lease = Duration.between(Instant.now(this.clock), claimExpiresAt);
 		// The remainder covers starting the sandbox, draining its output and writing the
 		// result, all of which happen while the same lease is running down. Never more
 		// than half, so that a deployment with a short lease still gets a usable run.
@@ -202,6 +207,9 @@ public class GradingExecutor {
 		Duration floor = lease.dividedBy(2);
 		if (usable.compareTo(floor) < 0) {
 			usable = floor;
+		}
+		if (usable.isNegative() || usable.isZero()) {
+			throw new IllegalStateException("The grading job lease expired before the sandbox could start");
 		}
 		if (requested.compareTo(usable) <= 0) {
 			return requested;
@@ -228,7 +236,7 @@ public class GradingExecutor {
 	 * @return the request handed to the runner
 	 */
 	private GradingExecutionRequest buildRequest(GradingRun run, AssignmentView assignment, RuntimeView runtime,
-			Path workspace, Path hiddenTests) {
+			Path workspace, Path hiddenTests, Instant claimExpiresAt) {
 		// Each override is read once into a local: calling a @Nullable accessor twice
 		// (null-check, then use) is a pattern static analysis rightly flags, because
 		// nothing guarantees the second call returns what the first one did.
@@ -238,7 +246,8 @@ public class GradingExecutor {
 		Integer pidOverride = assignment.pidLimit();
 
 		Duration timeout = boundedByLease(
-				(timeoutOverride != null) ? Duration.ofSeconds(timeoutOverride) : this.properties.defaultTimeout());
+				(timeoutOverride != null) ? Duration.ofSeconds(timeoutOverride) : this.properties.defaultTimeout(),
+				claimExpiresAt);
 		long memory = (memoryOverride != null) ? memoryOverride : this.properties.defaultMemoryLimit().toBytes();
 		double cpu = (cpuOverride != null) ? cpuOverride.doubleValue() : this.properties.defaultCpuLimit();
 		int pids = (pidOverride != null) ? pidOverride : this.properties.defaultPidLimit();

@@ -104,6 +104,9 @@ public class GradingJob {
 	@Column(name = "claim_expires_at")
 	private @Nullable Instant claimExpiresAt;
 
+	@Column(name = "lease_generation", nullable = false)
+	private long leaseGeneration;
+
 	@Column(name = "finished_at")
 	private @Nullable Instant finishedAt;
 
@@ -176,6 +179,14 @@ public class GradingJob {
 		return this.lastError;
 	}
 
+	public @Nullable Instant claimExpiresAt() {
+		return this.claimExpiresAt;
+	}
+
+	public long leaseGeneration() {
+		return this.leaseGeneration;
+	}
+
 	/**
 	 * Takes a lease on this job.
 	 * @param worker identifies the claiming worker, for diagnostics
@@ -188,6 +199,7 @@ public class GradingJob {
 		this.claimedBy = worker;
 		this.claimedAt = now;
 		this.claimExpiresAt = now.plus(leaseDuration);
+		this.leaseGeneration++;
 		this.attempts++;
 		this.updatedAt = now;
 	}

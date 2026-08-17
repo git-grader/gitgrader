@@ -47,6 +47,13 @@ audit:
   ip-hash-key: test-only-audit-ip-hash-key-not-a-secret
 
 spring:
+  datasource:
+    hikari:
+      # An integration test shares one pool between the application, its grading workers
+      # and the test thread driving them, which the production default of 10 was never
+      # sized for: a loaded machine starved the test thread and failed the run on a
+      # connection timeout rather than on anything the test asserted.
+      maximum-pool-size: 20
   jpa:
     hibernate:
       ddl-auto: validate

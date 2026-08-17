@@ -72,8 +72,8 @@ public final class GradingScorer {
 			.multiply(BigDecimal.valueOf(100))
 			.divide(BigDecimal.valueOf(total), 1, RoundingMode.HALF_UP);
 
-		BigDecimal pointsAwarded = maxPoints.multiply(scorePercent)
-			.divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP);
+		BigDecimal pointsAwarded = maxPoints.multiply(BigDecimal.valueOf(passedCount))
+			.divide(BigDecimal.valueOf(total), 2, RoundingMode.HALF_UP);
 
 		boolean passed = scorePercent.compareTo(passThreshold) >= 0;
 

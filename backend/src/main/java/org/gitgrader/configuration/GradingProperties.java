@@ -37,7 +37,6 @@ import org.springframework.validation.annotation.Validated;
  * answer" in one step. Turning it on is a deliberate, documented decision.
  *
  * @param runner which {@code GradingRunner} implementation to use
- * @param workingDirectory host directory holding per-run scratch space
  * @param maxParallelJobs how many grading containers may run at once
  * @param defaultTimeout wall clock ceiling for one grading run
  * @param defaultMemoryLimit memory ceiling for one grading container
@@ -45,8 +44,6 @@ import org.springframework.validation.annotation.Validated;
  * @param defaultPidLimit process ceiling, which is what actually stops a fork bomb
  * @param networkEnabled whether grading containers get any network at all
  * @param logSizeLimit how much runner output is captured before truncation
- * @param synchronousTimeout how long a push may block waiting for a fast result before
- * the run is handed off to the background and only a link is returned
  * @param retainWorkspaces keep run directories after completion; debugging aid, off by
  * default because student code is untrusted content
  * @param docker settings specific to the Docker runner
@@ -57,8 +54,6 @@ import org.springframework.validation.annotation.Validated;
 public record GradingProperties(
 
 		@DefaultValue("docker") @NotBlank String runner,
-
-		@DefaultValue("/data/grading") @NotBlank String workingDirectory,
 
 		@DefaultValue("2") @Min(1) int maxParallelJobs,
 
@@ -73,8 +68,6 @@ public record GradingProperties(
 		@DefaultValue("false") boolean networkEnabled,
 
 		@DefaultValue("1MB") DataSize logSizeLimit,
-
-		@DefaultValue("20s") Duration synchronousTimeout,
 
 		@DefaultValue("false") boolean retainWorkspaces,
 

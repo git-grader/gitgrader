@@ -30,6 +30,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
+import org.gitgrader.configuration.GradingProperties;
 import org.gitgrader.assignments.AssignmentAdministration;
 import org.gitgrader.assignments.AssignmentDefinition;
 import org.gitgrader.assignments.AssignmentStatus;
@@ -108,6 +109,9 @@ class GradingQueueFairnessIT {
 	private static final Clock CLOCK = Clock.systemUTC();
 
 	private static final String SHUTDOWN_WORKER = "worker-shutdown-gate";
+
+	@Autowired
+	private GradingProperties properties;
 
 	@Autowired
 	private CourseAdministration courses;
@@ -212,7 +216,7 @@ class GradingQueueFairnessIT {
 	void claimedWorkSurvivesANewerPush() {
 		Student student = enrol("s101");
 		SubmissionView running = push(student, this.first, sha('a'));
-		assertThat(this.queue.claimBatch("worker-test")).containsExactly(jobFor(running).id());
+		assertThat(claimIds("worker-test")).containsExactly(jobFor(running).id());
 
 		SubmissionView newer = push(student, this.first, sha('b'));
 
@@ -231,7 +235,7 @@ class GradingQueueFairnessIT {
 		push(busy, this.second, sha('b'));
 		push(other, this.first, sha('c'));
 
-		List<UUID> claimed = this.queue.claimBatch("worker-test");
+		List<UUID> claimed = claimIds("worker-test");
 
 		assertThat(studentsAmong(claimed)).containsOnlyOnce(busy.id());
 		assertThat(studentsAmong(claimed)).containsOnlyOnce(other.id());
@@ -244,8 +248,21 @@ class GradingQueueFairnessIT {
 		push(student, this.first, sha('a'));
 		push(student, this.second, sha('b'));
 
-		assertThat(studentsAmong(this.queue.claimBatch("worker-test"))).containsOnlyOnce(student.id());
-		assertThat(studentsAmong(this.queue.claimBatch("worker-test"))).doesNotContain(student.id());
+		assertThat(studentsAmong(claimIds("worker-test"))).containsOnlyOnce(student.id());
+		assertThat(studentsAmong(claimIds("worker-test"))).doesNotContain(student.id());
+	}
+
+	/**
+	 * Claims as much as the configured worker capacity allows and reduces the leases to
+	 * their job ids.
+	 * @param worker the claiming worker
+	 * @return the ids claimed
+	 */
+	private List<UUID> claimIds(String worker) {
+		return this.queue.claimBatch(worker, this.properties.maxParallelJobs())
+			.stream()
+			.map(GradingQueue.ClaimedJob::jobId)
+			.toList();
 	}
 
 	/**
@@ -267,7 +284,7 @@ class GradingQueueFairnessIT {
 	void shutdownRequeueRefundsTheAttempt() {
 		Student student = enrol("s105");
 		SubmissionView submission = push(student, this.first, sha('a'));
-		this.queue.claimBatch("worker-shutdown");
+		claimIds("worker-shutdown");
 		assertThat(jobFor(submission).attempts()).isOne();
 
 		// Asserted on this job rather than on the returned count: sibling tests share the
@@ -311,7 +328,7 @@ class GradingQueueFairnessIT {
 	void shutdownStopsAcceptingAndReturnsHeldWork() {
 		Student student = enrol("s108");
 		SubmissionView submission = push(student, this.first, sha('a'));
-		this.queue.claimBatch(SHUTDOWN_WORKER);
+		claimIds(SHUTDOWN_WORKER);
 		assertThat(jobFor(submission).status()).isEqualTo(GradingJobStatus.CLAIMED);
 
 		this.dispatcher.start();

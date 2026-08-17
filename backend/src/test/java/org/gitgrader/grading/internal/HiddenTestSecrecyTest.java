@@ -116,6 +116,7 @@ class HiddenTestSecrecyTest {
 				this.results, mock(org.gitgrader.configuration.GradingProperties.class),
 				new tools.jackson.databind.ObjectMapper(), java.time.Clock.systemUTC());
 
+		run.markRunning(java.time.Clock.systemUTC());
 		executor.persist(run,
 				new GradingExecutor.Outcome(java.nio.file.Path.of("/tmp"), List.of(parsed),
 						new org.gitgrader.grading.GradingScore(1, 1, 0, 0, 0, BigDecimal.TEN, BigDecimal.TEN, true), 0,
@@ -135,6 +136,7 @@ class HiddenTestSecrecyTest {
 		GradingRunRepository runs = mock(GradingRunRepository.class);
 		GradingRun run = new GradingRun(UUID.randomUUID(), 1, "PUSH", null, null, null, "correlation",
 				java.time.Clock.systemUTC());
+		run.markRunning(java.time.Clock.systemUTC());
 		run.complete(new org.gitgrader.grading.GradingScore(1, 1, 0, 0, 0, BigDecimal.TEN, BigDecimal.TEN, true), 0, 5L,
 				java.time.Clock.systemUTC());
 		when(runs.findFirstBySubmissionIdOrderByAttemptDesc(any())).thenReturn(Optional.of(run));

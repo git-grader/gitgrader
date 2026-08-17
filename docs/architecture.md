@@ -190,11 +190,12 @@ keys, courses/enrolments, runtimes, templates/test suites, assignments,
 repositories, submissions, grading runs/jobs/results/logs, result tokens, and
 audit events.
 
-`ssh_keys`, `submissions`, `grading_runs`, `template_versions`, and
-`test_suite_versions` preserve history rather than destructively rewriting it.
-Keys are revoked/replaced; submissions have no `updated_at`; regrades append an
-attempt; published templates and test suites retain their content-addressed
-version; runtimes retain the immutable image digest. This makes a historical
+`ssh_keys`, submissions, grading runs, template versions, and test-suite
+versions preserve historical facts rather than destructively replacing them.
+Submission facts are immutable while their status is a versioned projection of
+the latest run; grading runs advance through a state machine, and regrades append
+a new attempt. Published templates and test suites retain their content-addressed
+version, and runtimes retain the immutable image digest. This makes a historical
 grade explainable from the accepted commit, versions, runner image, and run.
 
 Score percentage is `tests_passed / tests_total × 100`. For example, 7 passing
