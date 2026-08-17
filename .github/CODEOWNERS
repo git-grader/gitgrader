@@ -1,0 +1,17 @@
+# Review routing. A path with no entry falls to the default owner.
+#
+# Listed by blast radius rather than by permission: the grading sandbox runs untrusted
+# code, the SSH ingress is the only unauthenticated write path into the system, and an
+# applied migration cannot be edited afterwards.
+
+*                                                 @patbaumgartner
+
+/backend/src/main/java/org/gitgrader/git/         @patbaumgartner
+/backend/src/main/java/org/gitgrader/grading/     @patbaumgartner
+/backend/src/main/java/org/gitgrader/security/    @patbaumgartner
+/backend/src/main/resources/db/migration/         @patbaumgartner
+
+/.github/                                         @patbaumgartner
+/compose.yaml                                     @patbaumgartner
+/scripts/                                         @patbaumgartner
+/SECURITY.md                                      @patbaumgartner

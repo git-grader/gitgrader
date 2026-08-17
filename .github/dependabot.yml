@@ -23,6 +23,12 @@ updates:
     directory: "/deployment/runtimes/node-24"
     schedule:
       interval: weekly
+    ignore:
+      # The major version is this runtime's identity: it names the directory, the seeded
+      # runtime key and the display name, and assignments pin the image by digest. A new
+      # major is a new runtime beside this one, not an edit to it.
+      - dependency-name: "node"
+        update-types: ["version-update:semver-major"]
   - package-ecosystem: docker-compose
     # The "docker" ecosystem above reads Dockerfiles only, so the database, the LDAP
     # server, and the alpine helper that owns the data volumes went unwatched.
