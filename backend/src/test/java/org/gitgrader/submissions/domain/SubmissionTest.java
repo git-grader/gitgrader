@@ -136,6 +136,20 @@ class SubmissionTest {
 	}
 
 	@Test
+	@DisplayName("stores a bounded commit subject, however long the one pushed was")
+	void boundsTheCommitSubject() {
+		// commit_message is unbounded TEXT and a push may carry objects up to
+		// git.max-file-size, so a megabyte-long subject was stored whole and then sent to
+		// every browser that listed the submission.
+		String enormous = "x".repeat(10_000);
+
+		Submission submission = new Submission(base().commit("a".repeat(40), "refs/heads/main", enormous, null).build(),
+				CLOCK);
+
+		assertThat(submission.commitMessage()).hasSize(4096);
+	}
+
+	@Test
 	@DisplayName("abbreviates the commit hash the way git does")
 	void abbreviatesCommitHash() {
 		Submission submission = new Submission(

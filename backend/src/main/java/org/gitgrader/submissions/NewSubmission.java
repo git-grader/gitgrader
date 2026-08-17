@@ -62,6 +62,9 @@ public record NewSubmission(UUID repositoryId, @Nullable String repositoryPath, 
 		@Nullable String runtimeImageDigest, SubmissionStatus status, boolean late, @Nullable Instant effectiveDueAt,
 		@Nullable String rejectionReason) {
 
+	/** Long enough for any subject a person writes, short enough to store and render. */
+	private static final int MAX_COMMIT_MESSAGE_LENGTH = 4096;
+
 	/**
 	 * Starts building a submission record.
 	 * @return a new builder
@@ -159,9 +162,27 @@ public record NewSubmission(UUID repositoryId, @Nullable String repositoryPath, 
 		public Builder commit(String sha, String ref, @Nullable String message, @Nullable Instant authoredAt) {
 			this.commitSha = sha;
 			this.gitRef = ref;
-			this.commitMessage = message;
+			this.commitMessage = truncate(message);
 			this.commitAuthoredAt = authoredAt;
 			return this;
+		}
+
+		/**
+		 * Bounds the stored subject.
+		 *
+		 * <p>
+		 * The column is unbounded TEXT and a push may carry objects up to
+		 * {@code git.max-file-size}, so a commit whose subject was megabytes long was
+		 * stored whole and then serialised into every submissions page that listed it.
+		 * Nothing reads more of a subject than this.
+		 * @param message the subject as the commit carries it
+		 * @return the subject, cut to a length a person would read
+		 */
+		private static @Nullable String truncate(@Nullable String message) {
+			if (message == null || message.length() <= MAX_COMMIT_MESSAGE_LENGTH) {
+				return message;
+			}
+			return message.substring(0, MAX_COMMIT_MESSAGE_LENGTH);
 		}
 
 		/**

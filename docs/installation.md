@@ -86,10 +86,24 @@ forwarded header rather than passing a client-supplied one through.
 
 ## LDAP
 
-Set `SECURITY_LDAP_ENABLED=true`, `SECURITY_LDAP_URL` to an LDAPS or StartTLS
-endpoint, base DN, protected manager credentials, user and group search bases
-and filters, plus instructor/admin group names. Leave
-`SECURITY_LDAP_VERIFY_CERTIFICATE=true`. Test with a non-privileged directory
-account first; then disable local accounts and restart under the `production`
-profile. Never enable LDAP debug logging in production because it may expose
-bind credentials or directory data.
+Set `SECURITY_LDAP_ENABLED=true`, `SECURITY_LDAP_URL` to an `ldaps://` endpoint,
+base DN, protected manager credentials, user and group search bases and filters,
+plus instructor/admin group names. A plain `ldap://` URL is refused at startup
+outside the development and test profiles: the instructor password and the
+manager bind credentials cross that connection. Test with a non-privileged
+directory account first, then disable local accounts. Never enable LDAP debug
+logging in production because it may expose bind credentials or directory data.
+
+## Profiles
+
+The application reads `SPRING_PROFILES_ACTIVE`. The Compose file sets
+`production` for you; a jar deployment has to set it itself:
+
+```sh
+SPRING_PROFILES_ACTIVE=production java -jar gitgrader.jar
+```
+
+`production` disables local accounts, requires the database credentials to be
+supplied, restricts actuator exposure and hides the interactive API console.
+`dev` is the opposite and is what the demo runs. Nothing in `docs/configuration.md`
+is reloaded while the application runs; changing any of it means a restart.

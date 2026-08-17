@@ -17,6 +17,8 @@
 package org.gitgrader.grading.internal;
 
 import java.time.Clock;
+import java.util.EnumSet;
+import java.util.Set;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -65,6 +67,10 @@ public class GradingOrchestrator {
 
 	/** Rotation applied to one half of the lock key so the two ids do not cancel out. */
 	private static final int KEY_HALF_BITS = 32;
+
+	/** A job in any of these is either running or about to be. */
+	private static final Set<GradingJobStatus> ACTIVE_JOB_STATUSES = EnumSet.of(GradingJobStatus.CLAIMED,
+			GradingJobStatus.RUNNING);
 
 	/** The trigger recorded for the run a push itself queues. */
 	private static final String PUSH_TRIGGER = "PUSH";
@@ -163,6 +169,17 @@ public class GradingOrchestrator {
 				logger.debug("Submission {} already has a run for its push; not queueing another", submissionId);
 				return alreadyQueued;
 			}
+		}
+
+		// A second run for a submission that is already being graded gives its status
+		// projection two writers, and the one that finishes last wins: an older attempt
+		// could publish over a newer result, and the newer one then failed its own status
+		// transition. Superseding below withdraws work that has not started; work a
+		// worker
+		// already holds is never withdrawn, so the only safe answer is to refuse.
+		if (this.jobs.existsBySubmissionIdAndStatusIn(submissionId, ACTIVE_JOB_STATUSES)) {
+			logger.info("Submission {} is already being graded; not queueing another run", submissionId);
+			return Optional.empty();
 		}
 
 		supersedePending(studentId, assignmentId, submissionId);

@@ -40,6 +40,7 @@ import org.springframework.util.unit.DataSize;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -100,6 +101,24 @@ class GradingOrchestratorTest {
 
 		verify(this.runs).save(any(GradingRun.class));
 		verify(this.jobs).save(any(GradingJob.class));
+	}
+
+	@Test
+	@DisplayName("refuses a regrade while that submission is already being graded")
+	void refusesToQueueWhileWorkIsStillRunning() {
+		// Two runs for one submission means two writers for its status, and the one that
+		// finishes last wins: an older attempt could publish over a newer result, and the
+		// newer one then failed its own status transition. Work a worker already holds is
+		// never withdrawn, so refusing is the only safe answer.
+		when(this.jobs.existsBySubmissionIdAndStatusIn(eq(SUBMISSION), any())).thenReturn(true);
+
+		Optional<GradingRun> queued = this.orchestrator.enqueue(SUBMISSION, STUDENT, COURSE, ASSIGNMENT,
+				"MANUAL_RETRY");
+
+		assertThat(queued).isEmpty();
+		verify(this.runs, never()).save(any());
+		verify(this.jobs, never()).save(any());
+		verify(this.submissions, never()).markStatus(any(), any());
 	}
 
 	@Test

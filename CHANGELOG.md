@@ -142,6 +142,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- A submission that is already being graded refuses a second run. A regrade queued while
+  the first was still going gave one submission two writers for its status, and the one
+  that finished last won - an older attempt could publish over a newer result.
+- A push of many commits signed with one key asks the key registry once rather than once
+  per commit, and the tip is verified once rather than twice.
+- The stored commit subject is capped at 4 KiB. The column is unbounded and a push may
+  carry 10 MB objects, so one commit could bloat the database and every page that listed
+  it.
 - A sandbox whose mounts did not arrive is an infrastructure failure, not a zero. Docker
   answers a bind whose source it cannot resolve by creating an empty directory and
   starting the container anyway, so the install step failed against an empty workspace,

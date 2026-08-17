@@ -139,6 +139,20 @@ public interface GradingJobRepository extends JpaRepository<GradingJob, UUID> {
 			GradingJobStatus status);
 
 	/**
+	 * Reports whether a submission already has work that has not finished.
+	 *
+	 * <p>
+	 * A second run started while the first is still going produces two writers for one
+	 * status projection, and the loser is whichever finishes first: an older attempt
+	 * could publish its result on top of a newer one, and the newer one then failed its
+	 * own status transition and was retried.
+	 * @param submissionId the submission
+	 * @param statuses the states that count as unfinished
+	 * @return whether any such job exists
+	 */
+	boolean existsBySubmissionIdAndStatusIn(UUID submissionId, Collection<GradingJobStatus> statuses);
+
+	/**
 	 * Counts a student's unstarted work in one course.
 	 * @param studentId the student
 	 * @param courseId the course
