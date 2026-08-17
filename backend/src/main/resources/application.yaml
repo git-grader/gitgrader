@@ -180,7 +180,6 @@ git:
 # =============================================================================
 grading:
   runner: ${GRADING_RUNNER:docker}
-  working-directory: ${GRADING_WORKING_DIRECTORY:/data/grading}
   max-parallel-jobs: ${GRADING_MAX_PARALLEL_JOBS:2}
   default-timeout: ${GRADING_DEFAULT_TIMEOUT:120s}
   default-memory-limit: ${GRADING_DEFAULT_MEMORY_LIMIT:512MB}
@@ -190,7 +189,6 @@ grading:
   # exfiltration and "phone home for the answer" in one step.
   network-enabled: ${GRADING_NETWORK_ENABLED:false}
   log-size-limit: ${GRADING_LOG_SIZE_LIMIT:1MB}
-  synchronous-timeout: ${GRADING_SYNCHRONOUS_TIMEOUT:20s}
   retain-workspaces: ${GRADING_RETAIN_WORKSPACES:false}
   docker:
     host: ${GRADING_DOCKER_HOST:unix:///var/run/docker.sock}

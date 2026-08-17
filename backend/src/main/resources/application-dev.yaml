@@ -21,7 +21,6 @@ git:
   repository-directory: ./target/data/git/repositories
 
 grading:
-  working-directory: ./target/data/grading
   max-parallel-jobs: 1
   docker:
     # When GitGrader runs on the host (not in a container) the engine and the JVM see
