@@ -22,7 +22,9 @@ services:
       - ./config:/config:ro
   database:
     ports:
-      - "5432:5432"
+      # Loopback only: the development password is a known one, and binding to every
+      # interface offered it to whatever network the laptop happened to be on.
+      - "127.0.0.1:5432:5432"
 
   # Directory used to sign in as an instructor during development. The application only
   # reads it, so the data is seeded once from deployment/ldap/bootstrap.ldif.
