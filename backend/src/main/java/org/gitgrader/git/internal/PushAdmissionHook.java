@@ -184,8 +184,8 @@ public class PushAdmissionHook {
 			.repositoryPath(repository.repositoryPath())
 			.commit(tip.name(), "refs/heads/main", tip.getShortMessage(), Instant.ofEpochSecond(tip.getCommitTime()))
 			.receivedAt(receivedAt)
-			.signature(recorded, null, (signature != null) ? signature.keyFingerprint() : null,
-					student.transportKeyId())
+			.signature(recorded, (signature != null) ? signature.signingKeyId() : null,
+					(signature != null) ? signature.keyFingerprint() : null, student.transportKeyId())
 			.pins(assignment.templateVersionId(), assignment.testSuiteVersionId(), assignment.runtimeId(), null)
 			.admission(SubmissionStatus.RECEIVED, decision.late(), decision.effectiveDueAt())
 			.build());

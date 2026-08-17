@@ -16,6 +16,8 @@
 
 package org.gitgrader.git;
 
+import java.util.UUID;
+
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -39,10 +41,14 @@ import org.jspecify.annotations.Nullable;
  * @param status the verdict
  * @param keyFingerprint fingerprint of the key that produced the signature, when one
  * could be recovered
+ * @param signingKeyId the registered key the fingerprint resolved to. Only the ownership
+ * stage can know this, so it is absent on a result that has only been checked
+ * cryptographically. A fingerprint alone does not survive the key being deleted, which is
+ * why the submission records this identifier alongside it.
  * @param detail an instructor-facing explanation; never shown to a student verbatim
  */
 public record CommitSignatureResult(CommitSignatureStatus status, @Nullable String keyFingerprint,
-		@Nullable String detail) {
+		@Nullable UUID signingKeyId, @Nullable String detail) {
 
 	/**
 	 * Whether the commit may be accepted on signature grounds.
@@ -53,12 +59,23 @@ public record CommitSignatureResult(CommitSignatureStatus status, @Nullable Stri
 	}
 
 	/**
-	 * Builds a verified result.
+	 * Builds the result of the cryptographic stage, where the signing key has not yet
+	 * been resolved against the registry.
 	 * @param fingerprint the signing key fingerprint
-	 * @return a verified result
+	 * @return a verified result carrying no key identifier
 	 */
 	public static CommitSignatureResult verified(String fingerprint) {
-		return new CommitSignatureResult(CommitSignatureStatus.VERIFIED, fingerprint, null);
+		return new CommitSignatureResult(CommitSignatureStatus.VERIFIED, fingerprint, null, null);
+	}
+
+	/**
+	 * Builds the result of the ownership stage, naming the registered key.
+	 * @param fingerprint the signing key fingerprint
+	 * @param signingKeyId the registered key the fingerprint resolved to
+	 * @return a verified result
+	 */
+	public static CommitSignatureResult verified(String fingerprint, UUID signingKeyId) {
+		return new CommitSignatureResult(CommitSignatureStatus.VERIFIED, fingerprint, signingKeyId, null);
 	}
 
 	/**
@@ -70,7 +87,7 @@ public record CommitSignatureResult(CommitSignatureStatus status, @Nullable Stri
 	 */
 	public static CommitSignatureResult rejected(CommitSignatureStatus status, @Nullable String fingerprint,
 			@Nullable String detail) {
-		return new CommitSignatureResult(status, fingerprint, detail);
+		return new CommitSignatureResult(status, fingerprint, null, detail);
 	}
 
 	/**

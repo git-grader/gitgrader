@@ -54,13 +54,28 @@ class RegisteredKeyOwnershipTest {
 	@Test
 	@DisplayName("accepts an active key owned by the pushing student")
 	void acceptsOwnActiveKey() {
-		RegisteredKeyOwnership ownership = new RegisteredKeyOwnership(registryWith(key(OWNER, SshKeyStatus.ACTIVE)));
+		SshKeyView registered = key(OWNER, SshKeyStatus.ACTIVE);
+		RegisteredKeyOwnership ownership = new RegisteredKeyOwnership(registryWith(registered));
 
 		CommitSignatureResult result = ownership.authorize(FINGERPRINT, OWNER);
 
 		assertThat(result.status()).isEqualTo(CommitSignatureStatus.VERIFIED);
 		assertThat(result.isAcceptable()).isTrue();
 		assertThat(result.keyFingerprint()).isEqualTo(FINGERPRINT);
+	}
+
+	@Test
+	@DisplayName("names the registered key it resolved, so the submission can record it")
+	void namesTheResolvedKey() {
+		// The fingerprint alone was all that reached the submission, leaving
+		// submissions.signature_key_id null on every row despite the column existing and
+		// the ownership check having had the key in hand.
+		SshKeyView registered = key(OWNER, SshKeyStatus.ACTIVE);
+		RegisteredKeyOwnership ownership = new RegisteredKeyOwnership(registryWith(registered));
+
+		CommitSignatureResult result = ownership.authorize(FINGERPRINT, OWNER);
+
+		assertThat(result.signingKeyId()).isEqualTo(registered.id());
 	}
 
 	@Test
