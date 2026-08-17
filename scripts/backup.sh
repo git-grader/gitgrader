@@ -4,6 +4,9 @@
 
 set -euo pipefail
 
+# shellcheck source=scripts/lib.sh
+source "$(dirname "$0")/lib.sh"
+
 usage() {
   cat <<'EOF'
 Usage: scripts/backup.sh [destination-directory]
@@ -61,7 +64,7 @@ for volume in git-data grading-data templates tests artifacts; do
   docker volume inspect "$resolved_volume" >/dev/null 2>&1 \
     || fail "No such volume: ${resolved_volume}. Refusing to write an empty archive."
   docker run --rm --network none -v "${resolved_volume}:/source:ro" -v "${destination}:/backup" \
-    alpine:3.21 tar -C /source -czf "/backup/${volume}.tar.gz" .
+    "${ALPINE_IMAGE}" tar -C /source -czf "/backup/${volume}.tar.gz" .
 done
 
 # Recorded as bare file names. Listing them by the path they were written to bakes

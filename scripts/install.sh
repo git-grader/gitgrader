@@ -5,6 +5,9 @@
 # Brings up a working GitGrader on this machine.
 set -euo pipefail
 
+# shellcheck source=scripts/lib.sh
+source "$(dirname "$0")/lib.sh"
+
 cd "$(dirname "$0")/.."
 
 WITH_DEMO=false
@@ -207,16 +210,16 @@ printf '    Sandbox reads submissions from %s\n' "$workspace_root"
 # something else there. Proving it now is the difference between a clear message here and
 # every student being scored zero later.
 probe="gitgrader-mount-probe-$$"
-docker run --rm -v "gitgrader_tests:/v" alpine:3.20 sh -c "touch /v/$probe" >/dev/null 2>&1 || fail 'Could not write to the tests volume.'
-if ! docker run --rm -v "${tests_root}:/v" alpine:3.20 sh -c "test -f /v/$probe" >/dev/null 2>&1; then
-  docker run --rm -v "gitgrader_tests:/v" alpine:3.20 sh -c "rm -f /v/$probe" >/dev/null 2>&1 || true
+docker run --rm -v "gitgrader_tests:/v" "${ALPINE_IMAGE}" sh -c "touch /v/$probe" >/dev/null 2>&1 || fail 'Could not write to the tests volume.'
+if ! docker run --rm -v "${tests_root}:/v" "${ALPINE_IMAGE}" sh -c "test -f /v/$probe" >/dev/null 2>&1; then
+  docker run --rm -v "gitgrader_tests:/v" "${ALPINE_IMAGE}" sh -c "rm -f /v/$probe" >/dev/null 2>&1 || true
   fail "This Docker daemon does not resolve ${tests_root} to the volume it reports, so the
 grading sandbox would start against empty directories. That happens when the daemon runs
 in a VM or its own mount namespace (Docker Desktop, Colima, rootless). Run GitGrader on a
 host whose daemon shares its filesystem, or set GRADING_DOCKER_*_MOUNT_ROOT to paths that
 daemon can see."
 fi
-docker run --rm -v "gitgrader_tests:/v" alpine:3.20 sh -c "rm -f /v/$probe" >/dev/null 2>&1 || true
+docker run --rm -v "gitgrader_tests:/v" "${ALPINE_IMAGE}" sh -c "rm -f /v/$probe" >/dev/null 2>&1 || true
 printf '    The daemon can see them.\n'
 
 # Compose reads .env when it creates the container, so the values above only reach the
@@ -263,7 +266,7 @@ if [[ "$WITH_DEMO" == true ]]; then
   tar -C "$example" -cf - template hidden-tests |
     docker run --rm -i \
       -v "${templates_volume}:/t" -v "${tests_volume}:/s" \
-      alpine:3.20 sh -c "
+      "${ALPINE_IMAGE}" sh -c "
         set -e
         mkdir -p /tmp/x && tar -C /tmp/x -xf -
         mkdir -p '/t/${example}' '/s/${example}'

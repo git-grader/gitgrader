@@ -40,7 +40,7 @@ The script uses:
 docker compose exec -T database pg_dump -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Fc
 ```
 
-and mounts each named volume read-only into a short-lived `alpine:3.21` container
+and mounts each named volume read-only into a short-lived Alpine container
 to create a tar archive. Store the resulting directory encrypted and off-host.
 
 ## Restore drill
