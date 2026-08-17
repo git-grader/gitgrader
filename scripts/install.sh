@@ -184,6 +184,45 @@ if [[ "$WITH_DEMO" == true ]]; then
 fi
 "${COMPOSE[@]}" up -d
 
+# The sandbox is bind-mounted by the Docker daemon from an absolute path that has to
+# spell out the volumes compose just created, and .env is kept across runs - so a file
+# written when the project had a different name kept pointing at volumes that no longer
+# exist. Docker creates a missing bind source as an empty directory instead of failing,
+# which graded every submission against no tests. Reading the paths back from the volumes
+# themselves is the only answer that cannot go stale.
+step 'Pointing the grading sandbox at the volumes'
+mount_root() {
+  docker volume inspect "$1" --format '{{.Mountpoint}}' 2>/dev/null || true
+}
+# compose.yaml fixes the project name, so the volumes are named from it.
+workspace_root="$(mount_root 'gitgrader_grading-data')"
+tests_root="$(mount_root 'gitgrader_tests')"
+[[ -n "$workspace_root" && -n "$tests_root" ]] || fail 'Could not read the grading volumes. Is the stack running?'
+set_env GRADING_DOCKER_WORKSPACE_MOUNT_ROOT "$workspace_root"
+set_env GRADING_DOCKER_TESTS_MOUNT_ROOT "$tests_root"
+printf '    Sandbox reads submissions from %s\n' "$workspace_root"
+
+# The daemon resolves that path itself, and it is not always the same filesystem this
+# script sees: a daemon in a VM or its own mount namespace answers with a path that means
+# something else there. Proving it now is the difference between a clear message here and
+# every student being scored zero later.
+probe="gitgrader-mount-probe-$$"
+docker run --rm -v "gitgrader_tests:/v" alpine:3.20 sh -c "touch /v/$probe" >/dev/null 2>&1 || fail 'Could not write to the tests volume.'
+if ! docker run --rm -v "${tests_root}:/v" alpine:3.20 sh -c "test -f /v/$probe" >/dev/null 2>&1; then
+  docker run --rm -v "gitgrader_tests:/v" alpine:3.20 sh -c "rm -f /v/$probe" >/dev/null 2>&1 || true
+  fail "This Docker daemon does not resolve ${tests_root} to the volume it reports, so the
+grading sandbox would start against empty directories. That happens when the daemon runs
+in a VM or its own mount namespace (Docker Desktop, Colima, rootless). Run GitGrader on a
+host whose daemon shares its filesystem, or set GRADING_DOCKER_*_MOUNT_ROOT to paths that
+daemon can see."
+fi
+docker run --rm -v "gitgrader_tests:/v" alpine:3.20 sh -c "rm -f /v/$probe" >/dev/null 2>&1 || true
+printf '    The daemon can see them.\n'
+
+# Compose reads .env when it creates the container, so the values above only reach the
+# application on the next start.
+"${COMPOSE[@]}" up -d >/dev/null
+
 http_port="$(grep -E '^HTTP_PORT=' .env | cut -d= -f2- || true)"
 http_port="${http_port:-8080}"
 ssh_port="$(grep -E '^SSH_PORT=' .env | cut -d= -f2- || true)"

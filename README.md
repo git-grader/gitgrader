@@ -93,6 +93,7 @@ For example, 7 of 10 tests is **70.0 %**.
 - [Upgrade](docs/upgrade.md)
 - [Development](docs/development.md)
 - [Manual testing](docs/manual-testing.md)
+- [End-to-end test](docs/e2e-test.md)
 - [Configuration](docs/configuration.md)
 - [API](docs/api.md)
 - [Release process](docs/release-process.md)

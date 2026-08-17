@@ -67,6 +67,23 @@ class DockerGradingRunner implements GradingRunner {
 	/** Bounded so a stuck log stream delays one run rather than hanging the worker. */
 	private static final Duration LOG_DRAIN_TIMEOUT = Duration.ofSeconds(10);
 
+	/**
+	 * Exit code the in-container preflight uses when the submission or the hidden tests
+	 * did not arrive.
+	 *
+	 * <p>
+	 * A bind whose source the daemon cannot resolve is not an error to Docker: it creates
+	 * an empty directory and starts the container. The install step then fails against an
+	 * empty workspace, no report is produced, and every declared test is recorded as not
+	 * executed - which scores the student zero for a mount the platform got wrong. The
+	 * preflight runs before anything of the student's does, so a failure here is
+	 * unambiguously ours.
+	 */
+	private static final int MOUNT_PREFLIGHT_EXIT = 97;
+
+	/** Printed by the preflight, and the only output a failed preflight can produce. */
+	private static final String MOUNT_PREFLIGHT_MARKER = "gitgrader-preflight: sandbox mounts are not usable";
+
 	private static final Logger logger = LoggerFactory.getLogger(DockerGradingRunner.class);
 
 	private final DockerClient dockerClient;
@@ -130,8 +147,16 @@ class DockerGradingRunner implements GradingRunner {
 					// graded. The wait already carries the code, and needs nothing to
 					// exist.
 					Integer exitCode = waitCallback.awaitStatusCode();
-					return new GradingResult((exitCode != null) ? exitCode : -1, callback.getStdout(),
-							callback.getStderr(), this.clock.millis() - start, false, false, null);
+					int status = (exitCode != null) ? exitCode : -1;
+					if (failedPreflight(status, callback)) {
+						return new GradingResult(status, callback.getStdout(), callback.getStderr(),
+								this.clock.millis() - start, false, true,
+								"The submission or the hidden tests were not visible inside the sandbox. "
+										+ "Check grading.docker.workspace-mount-root and tests-mount-root: the "
+										+ "Docker daemon has to be able to resolve those paths itself");
+					}
+					return new GradingResult(status, callback.getStdout(), callback.getStderr(),
+							this.clock.millis() - start, false, false, null);
 				}
 
 			}
@@ -247,7 +272,7 @@ class DockerGradingRunner implements GradingRunner {
 		if (installCommand != null && !installCommand.isBlank()) {
 			commandStr = installCommand + " && " + commandStr;
 		}
-		cmdArgs.add(commandStr);
+		cmdArgs.add(mountPreflight() + commandStr);
 
 		return this.dockerClient.createContainerCmd(request.runtimeImageDigest())
 			.withHostConfig(hostConfig)
@@ -255,6 +280,37 @@ class DockerGradingRunner implements GradingRunner {
 			.withWorkingDir("/workspace")
 			.withEnv(env)
 			.withCmd(cmdArgs);
+	}
+
+	/**
+	 * Refuses to grade against mounts that did not arrive.
+	 *
+	 * <p>
+	 * Runs before the install command, so nothing of the student's has executed when it
+	 * fails and the output it leaves behind is its own.
+	 * @return a shell prologue for the sandbox command
+	 */
+	private static String mountPreflight() {
+		return "if [ -z \"$(ls -A /workspace 2>/dev/null)\" ] || [ ! -f /opt/hidden-tests/manifest.json ]; then "
+				+ "echo '" + MOUNT_PREFLIGHT_MARKER + "' >&2; exit " + MOUNT_PREFLIGHT_EXIT + "; fi; ";
+	}
+
+	/**
+	 * Distinguishes our preflight from a submission that happens to exit with the same
+	 * code.
+	 *
+	 * <p>
+	 * A failed preflight produces no standard output and exactly one line of standard
+	 * error, because it runs first and stops the command. Misreading a submission as an
+	 * infrastructure failure would cost a regrade; the reverse costs a student their
+	 * marks, so the ambiguity is resolved that way round.
+	 * @param exitCode the sandbox exit code
+	 * @param output what the sandbox wrote
+	 * @return whether the sandbox refused to start work because its mounts were unusable
+	 */
+	private static boolean failedPreflight(int exitCode, LogCaptureCallback output) {
+		return exitCode == MOUNT_PREFLIGHT_EXIT && output.getStdout().isBlank()
+				&& MOUNT_PREFLIGHT_MARKER.equals(output.getStderr().strip());
 	}
 
 	/**

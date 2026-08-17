@@ -120,6 +120,34 @@ class DockerGradingRunnerExecutionTest {
 	}
 
 	@Test
+	@DisplayName("reports an infrastructure failure when the sandbox mounts did not arrive")
+	void reportsInfrastructureFailureWhenTheMountsAreMissing() {
+		// Docker treats a bind whose source it cannot resolve as a request to create an
+		// empty directory, so the sandbox starts, the install step fails against nothing,
+		// and every declared test is recorded as not executed. That scored the student
+		// zero for a mount the platform got wrong.
+		streamLogsAsynchronously("", "gitgrader-preflight: sandbox mounts are not usable\n");
+		completeWaitWith(97);
+
+		GradingResult result = this.runner.execute(this.request);
+
+		assertThat(result.infrastructureFailure()).isTrue();
+		assertThat(result.failureDetail()).contains("not visible inside the sandbox");
+	}
+
+	@Test
+	@DisplayName("still scores a submission that exits with the preflight code on its own")
+	void doesNotMistakeAStudentExitCodeForAFailedPreflight() {
+		streamLogsAsynchronously("1..1\nnot ok 1 first\n", "");
+		completeWaitWith(97);
+
+		GradingResult result = this.runner.execute(this.request);
+
+		assertThat(result.infrastructureFailure()).isFalse();
+		assertThat(result.exitCode()).isEqualTo(97);
+	}
+
+	@Test
 	@DisplayName("keeps standard error separate from standard output")
 	void separatesStandardErrorFromStandardOutput() {
 		streamLogsAsynchronously("ok 1 first\n", "warning: deprecated\n");

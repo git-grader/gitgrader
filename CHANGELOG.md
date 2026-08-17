@@ -104,6 +104,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- A sandbox whose mounts did not arrive is an infrastructure failure, not a zero. Docker
+  answers a bind whose source it cannot resolve by creating an empty directory and
+  starting the container anyway, so the install step failed against an empty workspace,
+  no report was produced, and every declared test was recorded as not executed - which
+  scored the student zero for a mount the platform got wrong. The sandbox now checks its
+  own mounts before running anything of the student's, and `scripts/install.sh` sets the
+  mount roots from the live volumes and proves the daemon can resolve them before it
+  reports success.
 - `grading.max-parallel-jobs` bounds real concurrency. It claimed that many jobs and then
   ran them one at a time on the polling thread, so throughput was one container per
   instance while the surplus leases aged towards expiry before they could start.
