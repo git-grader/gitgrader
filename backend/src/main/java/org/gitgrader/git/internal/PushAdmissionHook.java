@@ -19,7 +19,9 @@ package org.gitgrader.git.internal;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.Collection;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 import org.apache.sshd.server.session.ServerSession;
@@ -128,20 +130,30 @@ public class PushAdmissionHook {
 				receivedAt);
 		PushAdmissionRules rules = new PushAdmissionRules(this.gitProperties, this.signatureVerifier);
 
+		// Every command is judged before any of them is recorded. Recording as we went
+		// meant a push whose second ref was refused had already minted a submission and a
+		// result link for the first, describing an update that then never landed.
+		Map<ReceiveCommand, PushVerdict> verdicts = new LinkedHashMap<>();
 		for (ReceiveCommand command : commands) {
-			PushVerdict verdict = rules.evaluate(pack.getRepository(), command, student, decision.accepted(),
-					describe(decision));
-			if (!verdict.accepted()) {
-				reject(pack, command, student, repository, verdict.message());
-				continue;
-			}
+			verdicts.put(command,
+					rules.evaluate(pack.getRepository(), command, student, decision.accepted(), describe(decision)));
+		}
+		Optional<PushVerdict> refusal = verdicts.values().stream().filter((verdict) -> !verdict.accepted()).findFirst();
+		if (refusal.isPresent()) {
+			verdicts.forEach((command, verdict) -> reject(pack, command, student, repository,
+					verdict.accepted() ? refusal.get().message() : verdict.message()));
+			return;
+		}
+
+		for (Map.Entry<ReceiveCommand, PushVerdict> entry : verdicts.entrySet()) {
 			try {
-				accept(pack, student, repository, assignment.get(), decision, verdict, receivedAt);
+				accept(pack, student, repository, assignment.get(), decision, entry.getValue(), receivedAt,
+						entry.getKey().getRefName());
 			}
 			catch (SubmissionRefusedException ex) {
 				// Recording the submission rolled back, so the ref must not move either.
 				// The audit entry survives: it is written in its own transaction.
-				reject(pack, command, student, repository, ex.getMessage());
+				reject(pack, entry.getKey(), student, repository, ex.getMessage());
 			}
 		}
 	}
@@ -169,9 +181,11 @@ public class PushAdmissionHook {
 	 * @param decision the schedule decision
 	 * @param verdict the admission verdict
 	 * @param receivedAt the single server-side receive time for this push
+	 * @param refName the ref this command updates
 	 */
 	private void accept(ReceivePack pack, AuthenticatedStudent student, RepositoryRecord repository,
-			AssignmentView assignment, AdmissionDecision decision, PushVerdict verdict, Instant receivedAt) {
+			AssignmentView assignment, AdmissionDecision decision, PushVerdict verdict, Instant receivedAt,
+			String refName) {
 		RevCommit tip = verdict.tip();
 		if (tip == null) {
 			throw new IllegalStateException("An accepted push must always carry a branch tip");
@@ -182,7 +196,7 @@ public class PushAdmissionHook {
 		SubmissionView submission = this.submissionService.record(NewSubmission.builder()
 			.target(repository.id(), student.studentId(), assignment.courseId(), assignment.id())
 			.repositoryPath(repository.repositoryPath())
-			.commit(tip.name(), "refs/heads/main", tip.getShortMessage(), Instant.ofEpochSecond(tip.getCommitTime()))
+			.commit(tip.name(), refName, tip.getShortMessage(), Instant.ofEpochSecond(tip.getCommitTime()))
 			.receivedAt(receivedAt)
 			.signature(recorded, (signature != null) ? signature.signingKeyId() : null,
 					(signature != null) ? signature.keyFingerprint() : null, student.transportKeyId())
