@@ -25,6 +25,18 @@ jobs:
       - uses: actions/checkout@v7
       - name: Shellcheck
         run: shellcheck scripts/*.sh deployment/runtimes/*.sh
+      # The scripts reach volumes through a helper image that Compose also names, and
+      # Dependabot only updates the Compose copy. They drifted to three different Alpine
+      # versions before anyone noticed, so the two are compared here.
+      - name: Helper image matches the deployment
+        run: |
+          compose=$(grep -oE 'image: alpine:[0-9.]+' compose.yaml | head -1 | cut -d' ' -f2)
+          scripts=$(grep -oE 'alpine:[0-9.]+' scripts/lib.sh | head -1)
+          if [ "$compose" != "$scripts" ]; then
+            echo "::error::compose.yaml uses $compose but scripts/lib.sh uses $scripts"
+            exit 1
+          fi
+          echo "Both use $compose.
 
   # Static analysis is not repeated here. Build runs the one full `verify` - formatting,
   # Checkstyle, PMD/CPD, SpotBugs, forbidden APIs, frontend lint and licence headers - and

@@ -4,6 +4,9 @@
 
 set -euo pipefail
 
+# shellcheck source=scripts/lib.sh
+source "$(dirname "$0")/lib.sh"
+
 usage() {
   cat <<'EOF'
 Usage: scripts/restore.sh <backup-directory>
@@ -61,7 +64,7 @@ project="$(docker inspect -f '{{index .Config.Labels "com.docker.compose.project
 for volume in git-data grading-data templates tests artifacts; do
   resolved_volume="${project}_${volume}"
   docker volume create "$resolved_volume" >/dev/null
-  docker run --rm --network none -v "${resolved_volume}:/target" -v "$backup:/backup:ro" alpine:3.21 \
+  docker run --rm --network none -v "${resolved_volume}:/target" -v "$backup:/backup:ro" "${ALPINE_IMAGE}" \
     sh -ec 'find /target -mindepth 1 -maxdepth 1 -exec rm -rf {} +; tar -C /target -xzf "/backup/$1.tar.gz"' _ "$volume"
 done
 
