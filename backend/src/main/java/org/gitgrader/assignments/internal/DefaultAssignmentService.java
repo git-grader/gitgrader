@@ -139,8 +139,9 @@ public class DefaultAssignmentService implements AssignmentCatalog, AssignmentAd
 	}
 
 	@Override
-	public DeadlineExtensionView revokeExtension(UUID extensionId, String actor) {
+	public DeadlineExtensionView revokeExtension(UUID assignmentId, UUID extensionId, String actor) {
 		DeadlineExtension extension = this.extensions.findById(extensionId)
+			.filter((candidate) -> candidate.toView().assignmentId().equals(assignmentId))
 			.orElseThrow(() -> new EntityNotFoundException("Deadline extension not found: " + extensionId));
 		extension.revoke(actor, this.clock);
 		return this.extensions.save(extension).toView();

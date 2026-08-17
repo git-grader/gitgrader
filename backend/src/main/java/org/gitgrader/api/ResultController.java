@@ -35,7 +35,9 @@ import org.gitgrader.security.ResultTokenService;
 import org.gitgrader.submissions.SubmissionService;
 import org.gitgrader.submissions.SubmissionView;
 import org.jspecify.annotations.Nullable;
+import org.springframework.http.CacheControl;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -79,7 +81,7 @@ public class ResultController {
 	}
 
 	@GetMapping("/{token}")
-	public PublicResultView result(@PathVariable String token, HttpServletRequest request) {
+	public ResponseEntity<PublicResultView> result(@PathVariable String token, HttpServletRequest request) {
 		if (!this.rateLimiter.tryConsumeResultLookupPerIp(ClientAddress.of(request))) {
 			throw new ResponseStatusException(HttpStatus.TOO_MANY_REQUESTS, "Too many result lookups.");
 		}
@@ -96,12 +98,17 @@ public class ResultController {
 		// Absent rather than zero when there is no score. A run that timed out or broke
 		// leaves it null precisely so that it cannot be read as a mark, and answering
 		// zero here rebuilt on the student's own result page the confusion the domain
-		// refuses to write to the database.
-		return new PublicResultView(assignment.title(), courseName, submission.commitSha(), submission.receivedAt(),
-				submission.signatureVerified(), graded.map(StudentGradingResult::testsPassed).orElse(0),
-				graded.map(StudentGradingResult::testsTotal).orElse(0),
+		// refuses to write to the database. The counts go the same way: "0 of 0 tests
+		// passed" is a sentence about a run that happened, and this one did not.
+		PublicResultView result = new PublicResultView(assignment.title(), courseName, submission.commitSha(),
+				submission.receivedAt(), submission.signatureVerified(),
+				graded.map(StudentGradingResult::testsPassed).orElse(null),
+				graded.map(StudentGradingResult::testsTotal).orElse(null),
 				graded.map(StudentGradingResult::scorePercent).orElse(null),
 				graded.map(StudentGradingResult::tests).orElse(List.of()).stream().map(PublicTestView::of).toList());
+		// The link in the URL is the whole credential, so this response must not be kept
+		// by a shared cache or written to disk by the browser.
+		return ResponseEntity.ok().cacheControl(CacheControl.noStore().cachePrivate()).body(result);
 	}
 
 	private static ResponseStatusException notFound() {
@@ -116,13 +123,15 @@ public class ResultController {
 	 * @param commitSha the graded commit
 	 * @param receivedAt when the push was accepted
 	 * @param verified whether the commit signature was accepted
-	 * @param passed how many checks passed
-	 * @param total how many checks ran
+	 * @param passed how many checks passed, absent when the run produced no result
+	 * @param total how many checks the suite declares, absent when the run produced no
+	 * result
 	 * @param score the percentage recorded for the run
 	 * @param tests the per-check outcomes
 	 */
 	public record PublicResultView(String assignmentTitle, String courseName, String commitSha, Instant receivedAt,
-			boolean verified, int passed, int total, @Nullable BigDecimal score, List<PublicTestView> tests) {
+			boolean verified, @Nullable Integer passed, @Nullable Integer total, @Nullable BigDecimal score,
+			List<PublicTestView> tests) {
 	}
 
 	/**

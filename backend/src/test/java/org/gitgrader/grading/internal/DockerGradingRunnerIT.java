@@ -23,6 +23,7 @@ import java.time.Clock;
 import java.time.Duration;
 import java.util.Comparator;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Stream;
@@ -91,7 +92,8 @@ class DockerGradingRunnerIT {
 
 		GradingResult result = new DockerGradingRunner(client, properties, Clock.systemUTC(),
 				new StorageProperties("/data/git/repositories", "/data/templates", "/data/tests", "/data/artifacts",
-						"/data/tmp"))
+						"/data/tmp"),
+				(image) -> Optional.empty())
 			.execute(new GradingExecutionRequest(workspace, EXAMPLE.resolve("hidden-tests").toAbsolutePath(), IMAGE,
 					null, "node --test --test-reporter=tap /opt/hidden-tests/hidden.test.js", Duration.ofMinutes(3),
 					DataSize.ofMegabytes(512).toBytes(), 1.0, 256, false, DataSize.ofMegabytes(1).toBytes(), "corr-it",
@@ -103,6 +105,27 @@ class DockerGradingRunnerIT {
 		assertThat(result.stdout()).contains("# pass 7").contains("# fail 3").contains("1..10");
 		// A non-zero exit is the student's three failing checks, not a broken runner.
 		assertThat(result.exitCode()).isNotZero();
+	}
+
+	@Test
+	@DisplayName("proves the sandbox can see what this process writes into the workspace")
+	void provesTheSandboxMounts(@TempDir Path tempDir) throws InterruptedException {
+		// Docker answers a bind whose source it cannot resolve by creating an empty
+		// directory, so a wrong mount root graded every submission against nothing. The
+		// probe runs in its own container because a grading container cannot be trusted
+		// to
+		// report this: the submission controls its output and its exit status.
+		GradingProperties properties = properties();
+		DockerClient client = new DockerClientConfiguration().dockerClient(properties);
+		ensureImagePresent(client);
+		StorageProperties storage = new StorageProperties(tempDir.resolve("repositories").toString(),
+				tempDir.resolve("templates").toString(), tempDir.resolve("tests").toString(),
+				tempDir.resolve("artifacts").toString(), tempDir.resolve("tmp").toString());
+
+		assertThat(new DockerSandboxMountProbe(client, properties, storage).unusableReason(IMAGE))
+			.as("the daemon shares this filesystem, so the probe must find its own file")
+			.isEmpty();
+
 	}
 
 	private static void ensureImagePresent(DockerClient client) throws InterruptedException {

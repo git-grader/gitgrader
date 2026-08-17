@@ -48,7 +48,7 @@ public record SecurityProperties(
 
 		@DefaultValue Session session,
 
-		@DefaultValue("default-src 'self'; object-src 'none'; base-uri 'self'; "
+		@DefaultValue("default-src 'self'; script-src 'self'; object-src 'none'; base-uri 'self'; "
 				+ "frame-ancestors 'none'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; "
 				+ "font-src 'self' data:; connect-src 'self'; form-action 'self'") @NotBlank String contentSecurityPolicy,
 

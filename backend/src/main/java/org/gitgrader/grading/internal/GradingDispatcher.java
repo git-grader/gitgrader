@@ -47,9 +47,12 @@ import org.springframework.stereotype.Component;
  * proxy boundary - see that class for what happens when they do not.
  *
  * <p>
- * The worker is deliberately simple: no thread pool, no in-memory queue. All concurrency
- * control lives in the {@code SELECT ... FOR UPDATE SKIP LOCKED} claim, so starting a
- * second instance of the application is a valid way to add grading capacity.
+ * Work is claimed by {@code SELECT ... FOR UPDATE SKIP LOCKED} and run on a pool bounded
+ * by {@code grading.max-parallel-jobs}, and no more is claimed than that pool has free
+ * threads. Every claim carries a lease generation, so a worker that lost its lease - to
+ * expiry, or to a shutdown that handed the job back - cannot write the result it was
+ * still computing. Starting a second instance of the application is therefore a valid way
+ * to add grading capacity.
  */
 @Component
 public class GradingDispatcher implements SmartLifecycle {
