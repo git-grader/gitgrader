@@ -9,6 +9,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Security
 
+- Enforce LDAP transport security instead of only documenting it.
+  `security.ldap.verify-certificate` and `security.ldap.referral` were declared and
+  documented but never read, so an operator who enabled LDAP against the default
+  `ldap://` URL sent instructor passwords and the manager bind credentials in plaintext
+  while believing certificate verification was on. **Breaking:**
+  `security.ldap.verify-certificate` is removed because it never had an effect, and a
+  production instance now refuses to start unless `security.ldap.url` is `ldaps://`.
+  Migration: move the directory to `ldaps://` before upgrading, and delete the removed
+  property from your configuration.
+- Scope SSH key revocation and replacement to the owning student. Both endpoints checked
+  that the student named in the URL existed and then acted on whatever key identifier was
+  supplied, so an instructor could revoke or replace another student's key through a
+  mismatched path and lock them out of pushing.
+- Record the signing key on accepted submissions. The ownership check resolved the
+  fingerprint to a registered key and discarded the identifier, leaving
+  `submissions.signature_key_id` null on every row; a fingerprint alone does not survive
+  the key being deleted.
 - Create `.env` readable only by its owner. It holds the database and directory
   passwords, and both `cp` and an editor leave it readable by every account on the host.
 - Score a submission only against the tests its hidden manifest declares. The sandbox
