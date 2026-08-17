@@ -17,9 +17,12 @@
 package org.gitgrader.security.internal;
 
 import org.gitgrader.configuration.SecurityProperties;
+import org.springframework.beans.factory.InitializingBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.core.env.Environment;
+import org.springframework.core.env.Profiles;
 import org.springframework.security.ldap.DefaultSpringSecurityContextSource;
 import org.springframework.security.ldap.authentication.BindAuthenticator;
 import org.springframework.security.ldap.authentication.LdapAuthenticationProvider;
@@ -34,6 +37,11 @@ import org.springframework.security.ldap.userdetails.DefaultLdapAuthoritiesPopul
 public class LdapSecurityConfig {
 
 	@Bean
+	public LdapTransportGuard ldapTransportGuard(SecurityProperties properties, Environment environment) {
+		return new LdapTransportGuard(properties, environment);
+	}
+
+	@Bean
 	public LdapAuthenticationProvider ldapAuthenticationProvider(SecurityProperties properties) {
 		SecurityProperties.Ldap ldapProps = properties.ldap();
 
@@ -43,6 +51,7 @@ public class LdapSecurityConfig {
 			contextSource.setUserDn(ldapProps.managerDn());
 			contextSource.setPassword(ldapProps.managerPassword());
 		}
+		contextSource.setReferral(ldapProps.referral());
 		contextSource.afterPropertiesSet();
 
 		FilterBasedLdapUserSearch userSearch = new FilterBasedLdapUserSearch(ldapProps.userSearchBase(),
@@ -61,6 +70,36 @@ public class LdapSecurityConfig {
 
 		return new LdapAuthenticationProvider(authenticator,
 				new GroupRoleMapper(groups, ldapProps.instructorGroup(), ldapProps.adminGroup()));
+	}
+
+	/**
+	 * Refuses to start a production instance that would send instructor passwords and the
+	 * manager bind credentials over an unencrypted directory connection.
+	 *
+	 * <p>
+	 * The default URL is {@code ldap://}, so an operator who enables LDAP and changes
+	 * nothing else gets plaintext binds. That is a silent failure on every other profile
+	 * too, but only production is refused outright.
+	 */
+	public static class LdapTransportGuard implements InitializingBean {
+
+		private final SecurityProperties properties;
+
+		private final Environment environment;
+
+		public LdapTransportGuard(SecurityProperties properties, Environment environment) {
+			this.properties = properties;
+			this.environment = environment;
+		}
+
+		@Override
+		public void afterPropertiesSet() {
+			if (this.environment.acceptsProfiles(Profiles.of("production")) && !this.properties.ldap().isSecure()) {
+				throw new IllegalStateException(
+						"LDAP must be reached over ldaps:// under the production profile, but security.ldap.url is not");
+			}
+		}
+
 	}
 
 }

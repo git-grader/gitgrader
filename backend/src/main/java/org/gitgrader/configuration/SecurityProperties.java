@@ -64,7 +64,7 @@ public record SecurityProperties(
 	 * Credentials are never written to a log at any level.
 	 *
 	 * @param enabled whether LDAP authentication is active
-	 * @param url directory URL; {@code ldaps://} is strongly preferred
+	 * @param url directory URL; {@code ldaps://} is required under the production profile
 	 * @param baseDn directory root
 	 * @param managerDn bind account for searches, empty for anonymous bind
 	 * @param managerPassword bind account password
@@ -74,8 +74,6 @@ public record SecurityProperties(
 	 * @param groupSearchFilter filter used to locate a person's groups
 	 * @param instructorGroup group whose members receive the instructor role
 	 * @param adminGroup group whose members receive the administrator role
-	 * @param verifyCertificate validate the directory's TLS certificate; disabling this
-	 * is refused under the production profile
 	 * @param referral JNDI referral handling
 	 */
 	public record Ldap(
@@ -101,8 +99,6 @@ public record SecurityProperties(
 			@DefaultValue("gitgrader-instructors") String instructorGroup,
 
 			@DefaultValue("gitgrader-admins") String adminGroup,
-
-			@DefaultValue("true") boolean verifyCertificate,
 
 			@DefaultValue("follow") String referral) {
 
