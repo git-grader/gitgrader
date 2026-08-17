@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Security
 
+- Refuse to start a production instance whose `app.public-url` is plain `http://`.
+  Every result link is built from it and the link is the whole credential for a
+  student's marks, printed into their terminal after each push, so the default left an
+  operator handing out one bearer token per submission in the clear. Loopback still
+  works, because that is the demo.
 - Answer a refused API call with `403 problem+json` instead of a redirect to the sign-in
   page. A CSRF failure sent `302` with the session identifier in the URL path, which is
   how a session ends up in a proxy log, and the SPA followed it and parsed a login page
@@ -81,6 +86,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- A `CODEOWNERS` file routing review of the grading sandbox, the SSH ingress, the security
+  configuration and the migrations, which are the paths where a mistake is hardest to undo.
 - Fair grading dispatch. A worker now claims at most one job per student and
   skips students who already occupy one, so a single student can no longer put
   an arbitrarily long queue in front of the rest of a course.
@@ -140,6 +147,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Open the assignments page in a fixed number of requests. The form listed the templates
+  and the test suites and then asked each one for its versions, so an established course
+  issued several hundred requests on a cold load and the form waited on all of them. The
+  published set now arrives in one response, and publishing a version refreshes it.
+- Keep the scripts and the deployment on the same helper image. `backup.sh`, `restore.sh`
+  and `install.sh` each named their own Alpine and only Compose was watched for updates,
+  so the three had drifted two releases apart; the version now lives in one place and CI
+  compares it against Compose.
 - Enrol a student on the course they registered for. `CourseAdministration.enroll` had no
   caller and no endpoint, so a self-registered student ended up with a repository per
   assignment and no enrolment - and every course report, which is the instructor's view
