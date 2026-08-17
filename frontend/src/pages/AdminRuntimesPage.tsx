@@ -3,45 +3,56 @@
 
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { api } from '../api';
+import { api, REPORT_FORMATS, RuntimeDefinitionSchema } from '../api';
 import type { RuntimeDefinition } from '../api';
-import { ApiProblem } from '../api/client';
+import { queryKeys } from '../api/queryKeys';
 import { QueryErrorNotice } from '../components/QueryErrorNotice';
-import { Box, Typography, CircularProgress, List, ListItem, ListItemText, Button, Dialog, DialogTitle, DialogContent, TextField, FormControlLabel, Checkbox, Alert } from '@mui/material';
+import { MutationErrorAlert, problemFieldErrors } from '../components/MutationErrorAlert';
+import {
+  Box, Typography, CircularProgress, List, ListItem, ListItemText, Button, Dialog, DialogTitle,
+  DialogContent, DialogActions, TextField, FormControl, InputLabel, Select, MenuItem,
+  FormControlLabel, Checkbox, Alert
+} from '@mui/material';
+
+const EMPTY_FORM: Partial<RuntimeDefinition> = { enabled: true, reportFormat: 'JUNIT_XML' };
 
 export function AdminRuntimesPage() {
   const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
-  const [form, setForm] = useState<Partial<RuntimeDefinition>>({
-    enabled: true,
-    reportFormat: 'JUNIT'
-  });
+  const [form, setForm] = useState<Partial<RuntimeDefinition>>(EMPTY_FORM);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
   const { data: me, isLoading: meLoading, isError: meFailed, refetch: refetchMe } = useQuery({
-    queryKey: ['me'],
-    queryFn: () => api.getMe()
+    queryKey: queryKeys.me,
+    queryFn: api.getMe
   });
 
   const { data: runtimes, isLoading: runtimesLoading, isError: runtimesFailed, refetch: refetchRuntimes } = useQuery({
-    queryKey: ['runtimes'],
-    queryFn: () => api.getRuntimes()
+    queryKey: queryKeys.runtimes,
+    queryFn: api.getRuntimes
   });
 
   const createMutation = useMutation({
     mutationFn: (req: RuntimeDefinition) => api.createRuntime(req),
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ['runtimes'] });
-      setOpen(false);
-      setForm({ enabled: true, reportFormat: 'JUNIT' });
-      setFieldErrors({});
+      void queryClient.invalidateQueries({ queryKey: queryKeys.runtimes });
+      closeDialog();
     }
   });
 
-  if (runtimesLoading || meLoading) return <Box sx={{ p: 4 }}><CircularProgress /></Box>;
+  function closeDialog() {
+    setOpen(false);
+    setForm(EMPTY_FORM);
+    setFieldErrors({});
+    createMutation.reset();
+  }
+
+  if (runtimesLoading || meLoading) {
+    return <Box sx={{ p: 4 }}><CircularProgress aria-label="Loading runtimes" /></Box>;
+  }
   // Who is signed in decides whether the create control appears at all, so a failed
   // `me` call would quietly present a read-only page to an administrator.
-  if (runtimesFailed || meFailed) {
+  if (runtimesFailed || meFailed || !runtimes || !me) {
     return (
       <QueryErrorNotice
         message="The runtimes could not be loaded."
@@ -52,32 +63,34 @@ export function AdminRuntimesPage() {
       />
     );
   }
-  if (!runtimes) return null;
 
-  const isAdmin = me?.roles.includes('ROLE_ADMIN');
-  const err = createMutation.error as ApiProblem | null;
+  const isAdmin = me.roles.includes('ROLE_ADMIN');
+  const serverFieldErrors = problemFieldErrors(createMutation.error);
+  const errorFor = (field: string) => fieldErrors[field] ?? serverFieldErrors[field];
 
-  const validate = (): boolean => {
-    const errors: Record<string, string> = {};
-    if (!form.runtimeKey) errors['runtimeKey'] = 'Required';
-    if (!form.displayName) errors['displayName'] = 'Required';
-    if (!form.image) errors['image'] = 'Required';
-    if (!form.tag) errors['tag'] = 'Required';
-    else if (form.tag === 'latest') errors['tag'] = "tag 'latest' is not reproducible";
-    if (!form.imageDigest) errors['imageDigest'] = 'Required';
-    else if (!/^sha256:[a-f0-9]{64}$/.test(form.imageDigest)) errors['imageDigest'] = 'Must be a valid sha256 digest';
-    if (!form.testCommand) errors['testCommand'] = 'Required';
-    if (!form.reportFormat) errors['reportFormat'] = 'Required';
-    
-    setFieldErrors(errors);
-    return Object.keys(errors).length === 0;
-  };
-
+  /**
+   * Checks the form against the schema that describes the request.
+   *
+   * These rules were written out twice - once here and once in the schema - and only
+   * this copy ever ran, so the digest pattern and the refusal of a `latest` tag could
+   * drift apart without anything noticing.
+   */
   const handleSubmit = (e: React.SyntheticEvent) => {
     e.preventDefault();
-    if (!validate()) return;
-    
-    createMutation.mutate(form as RuntimeDefinition);
+    const parsed = RuntimeDefinitionSchema.safeParse(form);
+    if (!parsed.success) {
+      const errors: Record<string, string> = {};
+      for (const issue of parsed.error.issues) {
+        const field = issue.path[0];
+        if (typeof field === 'string' && !(field in errors)) {
+          errors[field] = issue.message;
+        }
+      }
+      setFieldErrors(errors);
+      return;
+    }
+    setFieldErrors({});
+    createMutation.mutate(parsed.data);
   };
 
   return (
@@ -97,37 +110,61 @@ export function AdminRuntimesPage() {
         <List>
           {runtimes.map(rt => (
             <ListItem key={rt.id}>
-              <ListItemText primary={rt.displayName} secondary={
-                <span style={{ display: 'flex', flexDirection: 'column' }}>
-                  <span>{rt.image}:{rt.tag}</span>
-                  <span style={{ fontFamily: 'monospace', fontSize: '0.875rem' }}>{rt.imageDigest.substring(0, 7)}...{rt.imageDigest.substring(rt.imageDigest.length - 7)}</span>
-                </span>
-              } />
+              <ListItemText
+                primary={rt.displayName}
+                slotProps={{ secondary: { component: 'div' } }}
+                secondary={
+                  <Box sx={{ display: 'flex', flexDirection: 'column' }}>
+                    <Box component="span">{rt.image}:{rt.tag} · {rt.reportFormat}</Box>
+                    <Box component="span" sx={{ fontFamily: 'monospace', fontSize: '0.875rem' }}>
+                      {rt.imageDigest.substring(0, 7)}...{rt.imageDigest.substring(rt.imageDigest.length - 7)}
+                    </Box>
+                  </Box>
+                }
+              />
             </ListItem>
           ))}
         </List>
       )}
 
-      <Dialog open={open} onClose={() => !createMutation.isPending && setOpen(false)} maxWidth="sm" fullWidth>
+      <Dialog open={open} onClose={() => !createMutation.isPending && closeDialog()} maxWidth="sm" fullWidth>
         <form onSubmit={handleSubmit}>
           <DialogTitle>New Runtime</DialogTitle>
           <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 1 }}>
-            {err && <Alert severity="error">{err.detail || err.title}</Alert>}
-            
-            <TextField label="Key" required fullWidth value={form.runtimeKey || ''} onChange={e => setForm({ ...form, runtimeKey: e.target.value })} error={!!fieldErrors['runtimeKey']} helperText={fieldErrors['runtimeKey']} disabled={createMutation.isPending} />
-            <TextField label="Display Name" required fullWidth value={form.displayName || ''} onChange={e => setForm({ ...form, displayName: e.target.value })} error={!!fieldErrors['displayName']} helperText={fieldErrors['displayName']} disabled={createMutation.isPending} />
-            <TextField label="Image" required fullWidth value={form.image || ''} onChange={e => setForm({ ...form, image: e.target.value })} error={!!fieldErrors['image']} helperText={fieldErrors['image']} disabled={createMutation.isPending} />
-            <TextField label="Tag" required fullWidth value={form.tag || ''} onChange={e => setForm({ ...form, tag: e.target.value })} error={!!fieldErrors['tag']} helperText={fieldErrors['tag']} disabled={createMutation.isPending} />
-            <TextField label="Image Digest" required fullWidth value={form.imageDigest || ''} onChange={e => setForm({ ...form, imageDigest: e.target.value })} error={!!fieldErrors['imageDigest']} helperText={fieldErrors['imageDigest']} disabled={createMutation.isPending} />
-            <TextField label="Install Command (Optional)" fullWidth value={form.installCommand || ''} onChange={e => setForm({ ...form, installCommand: e.target.value || null })} disabled={createMutation.isPending} />
-            <TextField label="Test Command" required fullWidth value={form.testCommand || ''} onChange={e => setForm({ ...form, testCommand: e.target.value })} error={!!fieldErrors['testCommand']} helperText={fieldErrors['testCommand']} disabled={createMutation.isPending} />
-            <TextField label="Report Format" required fullWidth value={form.reportFormat || ''} onChange={e => setForm({ ...form, reportFormat: e.target.value })} error={!!fieldErrors['reportFormat']} helperText={fieldErrors['reportFormat']} disabled={createMutation.isPending} />
-            <FormControlLabel control={<Checkbox checked={form.enabled || false} onChange={e => setForm({ ...form, enabled: e.target.checked })} disabled={createMutation.isPending} />} label="Enabled" />
+            <MutationErrorAlert error={createMutation.error} />
+
+            <TextField label="Key" required fullWidth value={form.runtimeKey ?? ''} onChange={e => setForm({ ...form, runtimeKey: e.target.value })} error={!!errorFor('runtimeKey')} helperText={errorFor('runtimeKey')} disabled={createMutation.isPending} />
+            <TextField label="Display Name" required fullWidth value={form.displayName ?? ''} onChange={e => setForm({ ...form, displayName: e.target.value })} error={!!errorFor('displayName')} helperText={errorFor('displayName')} disabled={createMutation.isPending} />
+            <TextField label="Image" required fullWidth value={form.image ?? ''} onChange={e => setForm({ ...form, image: e.target.value })} error={!!errorFor('image')} helperText={errorFor('image')} disabled={createMutation.isPending} />
+            <TextField label="Tag" required fullWidth value={form.tag ?? ''} onChange={e => setForm({ ...form, tag: e.target.value })} error={!!errorFor('tag')} helperText={errorFor('tag')} disabled={createMutation.isPending} />
+            <TextField label="Image Digest" required fullWidth value={form.imageDigest ?? ''} onChange={e => setForm({ ...form, imageDigest: e.target.value })} error={!!errorFor('imageDigest')} helperText={errorFor('imageDigest') ?? 'Pins the image so a rebuild cannot change what students are graded in.'} disabled={createMutation.isPending} />
+            <TextField label="Install Command (Optional)" fullWidth value={form.installCommand ?? ''} onChange={e => setForm({ ...form, installCommand: e.target.value || null })} disabled={createMutation.isPending} />
+            <TextField label="Test Command" required fullWidth value={form.testCommand ?? ''} onChange={e => setForm({ ...form, testCommand: e.target.value })} error={!!errorFor('testCommand')} helperText={errorFor('testCommand')} disabled={createMutation.isPending} />
+
+            {/* Free text here defaulted to `JUNIT`, which the server does not accept, so
+                the prefilled form was rejected on submit and no runtime could be added
+                without guessing the exact spelling of a value it never showed. */}
+            <FormControl fullWidth required error={!!errorFor('reportFormat')}>
+              <InputLabel id="report-format-label">Report Format</InputLabel>
+              <Select
+                labelId="report-format-label"
+                label="Report Format"
+                value={form.reportFormat ?? ''}
+                onChange={e => setForm({ ...form, reportFormat: e.target.value })}
+                disabled={createMutation.isPending}
+              >
+                {REPORT_FORMATS.map(format => (
+                  <MenuItem key={format} value={format}>{format}</MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+
+            <FormControlLabel control={<Checkbox checked={form.enabled ?? false} onChange={e => setForm({ ...form, enabled: e.target.checked })} disabled={createMutation.isPending} />} label="Enabled" />
           </DialogContent>
-          <Box sx={{ p: 2, display: 'flex', justifyContent: 'flex-end', gap: 1 }}>
-            <Button onClick={() => setOpen(false)} disabled={createMutation.isPending}>Cancel</Button>
+          <DialogActions>
+            <Button onClick={closeDialog} disabled={createMutation.isPending}>Cancel</Button>
             <Button type="submit" variant="contained" disabled={createMutation.isPending}>Create Runtime</Button>
-          </Box>
+          </DialogActions>
         </form>
       </Dialog>
     </Box>

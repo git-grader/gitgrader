@@ -4,33 +4,29 @@
 import { useSearchParams } from 'react-router';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '../api';
+import { queryKeys } from '../api/queryKeys';
 import { QueryErrorNotice } from '../components/QueryErrorNotice';
-import { Box, Typography, CircularProgress, Select, MenuItem, InputLabel, FormControl } from '@mui/material';
+import { Box, Chip, Typography, CircularProgress, Select, MenuItem, InputLabel, FormControl } from '@mui/material';
 import { DataGrid } from '@mui/x-data-grid';
-import type { GridColDef } from '@mui/x-data-grid';
+import type { GridColDef, GridRenderCellParams } from '@mui/x-data-grid';
 import { SubmissionStatusChip } from '../components/SubmissionStatusChip';
 import { useIsNarrow } from '../components/responsiveColumns';
 import { useServerPagination, CHOICE_PAGE_SIZE } from '../components/useServerPagination';
 
-interface SubmissionRow {
-  readonly shortCommitSha: string;
-  readonly status: string;
-  readonly commitMessage?: string | null;
-  readonly receivedAt: string;
-}
+import type { Submission } from '../api';
 
 export function SubmissionsPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const selectedCourseId = searchParams.get('courseId') || '';
 
-  const { data: courses } = useQuery({
-    queryKey: ['courses', 'choices'],
+  const { data: courses, isError: coursesFailed, refetch: refetchCourses } = useQuery({
+    queryKey: queryKeys.courses.choices,
     queryFn: () => api.getCourses({ size: CHOICE_PAGE_SIZE })
   });
 
   const { paginationModel, setPaginationModel, params } = useServerPagination();
   const { data, isLoading, isError, refetch } = useQuery({
-    queryKey: ['submissions', selectedCourseId, params.page, params.size],
+    queryKey: queryKeys.submissions.list(selectedCourseId, params.page, params.size),
     queryFn: () => api.getSubmissions(selectedCourseId ? { ...params, courseId: selectedCourseId } : params),
     placeholderData: (previous) => previous
   });
@@ -43,7 +39,31 @@ export function SubmissionsPage() {
       field: 'status',
       headerName: 'Status',
       width: 170,
-      renderCell: (params) => <SubmissionStatusChip status={String(params.value)} />
+      renderCell: (params: GridRenderCellParams<Submission>) => <SubmissionStatusChip status={params.row.status} />
+    },
+    // Whether an attempt arrived late and whether its signature verified are the two
+    // facts this product exists to record, and the list omitted both because the type it
+    // was read through did not mention them.
+    {
+      field: 'late',
+      headerName: 'Late',
+      width: 90,
+      renderCell: (params: GridRenderCellParams<Submission>) => (
+        params.row.late ? <Chip size="small" color="warning" label="Late" /> : null
+      )
+    },
+    {
+      field: 'signatureStatus',
+      headerName: 'Signature',
+      width: 140,
+      renderCell: (params: GridRenderCellParams<Submission>) => (
+        <Chip
+          size="small"
+          variant="outlined"
+          color={params.row.signatureStatus === 'VERIFIED' ? 'success' : 'default'}
+          label={params.row.signatureStatus}
+        />
+      )
     },
     // The API carries no score on a submission - it belongs to the grading run - so the
     // column that used to sit here could never fill. The commit subject is data the list
@@ -55,27 +75,29 @@ export function SubmissionsPage() {
   /**
    * One stacked cell per attempt, used instead of columns on a narrow screen.
    *
-   * Hiding the message and the receive time would put them out of reach entirely: there
-   * is no submission detail page to open, so what the list omits cannot be seen anywhere.
+   * Hiding the message and the receive time would put them out of reach entirely: the
+   * submission detail route has no content yet, so what the list omits cannot be seen
+   * anywhere.
    */
   const narrowColumn: GridColDef = {
     field: 'shortCommitSha',
     headerName: 'Submission',
     flex: 1,
     minWidth: 240,
-    renderCell: (params) => {
-      const row = params.row as SubmissionRow;
+    renderCell: (params: GridRenderCellParams<Submission>) => {
+      const row = params.row;
       return (
         <Box sx={{ py: 1, display: 'flex', flexDirection: 'column', gap: 0.5, minWidth: 0 }}>
           <Box sx={{ display: 'flex', gap: 1, alignItems: 'center', flexWrap: 'wrap' }}>
             <Typography variant="body2" sx={{ fontFamily: 'monospace' }}>{row.shortCommitSha}</Typography>
             <SubmissionStatusChip status={row.status} />
+            {row.late && <Chip size="small" color="warning" label="Late" />}
           </Box>
           {row.commitMessage && (
             <Typography variant="body2" sx={{ overflowWrap: 'anywhere' }}>{row.commitMessage}</Typography>
           )}
           <Typography variant="caption" color="text.secondary">
-            {new Date(row.receivedAt).toLocaleString()}
+            {new Date(row.receivedAt).toLocaleString()} · {row.signatureStatus}
           </Typography>
         </Box>
       );
@@ -83,35 +105,54 @@ export function SubmissionsPage() {
   };
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
+    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 1.5 }}>
         <Typography variant="h4" component="h1">Submissions</Typography>
         <FormControl size="small" sx={{ minWidth: { xs: '100%', sm: 200 } }}>
-          <InputLabel>Course Filter</InputLabel>
+          <InputLabel id="submission-course-filter-label">Course Filter</InputLabel>
           <Select
+            labelId="submission-course-filter-label"
             value={selectedCourseId}
             label="Course Filter"
             onChange={(e) => {
               // A narrower filter has fewer pages, so staying on the current one would
               // ask for a page that no longer exists and show nothing.
               setPaginationModel({ ...paginationModel, page: 0 });
-              setSearchParams(e.target.value ? { courseId: e.target.value } : {});
+              // Rebuilt from the current parameters rather than replacing them, which
+              // dropped every other parameter in the address.
+              const newParams = new URLSearchParams(searchParams);
+              if (e.target.value) {
+                newParams.set('courseId', e.target.value);
+              }
+              else {
+                newParams.delete('courseId');
+              }
+              setSearchParams(newParams);
             }}
           >
             <MenuItem value=""><em>All courses</em></MenuItem>
             {courses?.content.map(c => <MenuItem key={c.id} value={c.id}>{c.name}</MenuItem>)}
           </Select>
         </FormControl>
-      </div>
+      </Box>
+
+      {coursesFailed && (
+        <QueryErrorNotice
+          message="The course list could not be loaded, so submissions cannot be filtered by course."
+          onRetry={() => void refetchCourses()}
+        />
+      )}
 
       {isLoading ? (
-        <div style={{ display: 'flex', justifyContent: 'center', padding: '32px' }}><CircularProgress /></div>
+        <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}>
+          <CircularProgress aria-label="Loading submissions" />
+        </Box>
       ) : isError ? (
         <QueryErrorNotice message="The submissions could not be loaded." onRetry={() => void refetch()} />
       ) : (
-        <div style={{ height: 600, width: '100%' }}>
+        <Box sx={{ height: 600, width: '100%' }}>
           <DataGrid
-            rows={data?.content || []}
+            rows={data?.content ?? []}
             columns={isNarrow ? [narrowColumn] : wideColumns}
             {...(isNarrow ? { getRowHeight: () => 'auto' as const } : {})}
             paginationMode="server"
@@ -124,8 +165,8 @@ export function SubmissionsPage() {
             pageSizeOptions={[20, 50, 100]}
             disableRowSelectionOnClick
           />
-        </div>
+        </Box>
       )}
-    </div>
+    </Box>
   );
 }

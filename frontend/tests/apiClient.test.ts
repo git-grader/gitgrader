@@ -124,8 +124,11 @@ describe('api client', () => {
       await postForm('/login', { username: 'someone', password: 'secret' });
 
       expect(headersOfLastCall().get('X-XSRF-TOKEN')).toBe('token-value');
-      const body = fetchMock.mock.calls[0]?.[1]?.body as string;
-      expect(body).not.toContain('_csrf');
+      const init = fetchMock.mock.calls[0]?.[1] as RequestInit | undefined;
+      // postForm sends a url-encoded string; anything else would not carry the token in
+      // the body either, which is the point being pinned down.
+      expect(typeof init?.body).toBe('string');
+      expect(init?.body).not.toContain('_csrf');
     });
   });
 

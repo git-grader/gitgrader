@@ -6,6 +6,7 @@ import type { ReactNode } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Alert, Box, Button, CircularProgress } from '@mui/material';
 import { api } from '../api';
+import { queryKeys } from '../api/queryKeys';
 import type { Meta } from '../api';
 
 const MetaContext = createContext<Meta | undefined>(undefined);
@@ -20,7 +21,7 @@ const MetaContext = createContext<Meta | undefined>(undefined);
  */
 export function MetaProvider({ children }: { children: ReactNode }) {
   const { data: meta, isPending, isError, refetch } = useQuery({
-    queryKey: ['meta'],
+    queryKey: queryKeys.meta,
     queryFn: () => api.getMeta()
   });
 

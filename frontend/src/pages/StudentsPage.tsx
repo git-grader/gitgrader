@@ -3,26 +3,20 @@
 
 import { useQuery } from '@tanstack/react-query';
 import { api } from '../api';
+import { queryKeys } from '../api/queryKeys';
 import { QueryErrorNotice } from '../components/QueryErrorNotice';
 import { Box, Typography, CircularProgress } from '@mui/material';
 import { DataGrid } from '@mui/x-data-grid';
 import { StudentStatusChip } from '../components/StudentStatusChip';
 import { useIsNarrow } from '../components/responsiveColumns';
 import { useServerPagination } from '../components/useServerPagination';
-import type { GridColDef } from '@mui/x-data-grid';
-
-interface StudentRow {
-  readonly studentNumber: string;
-  readonly firstName: string;
-  readonly lastName: string;
-  readonly email: string;
-  readonly status: string;
-}
+import type { GridColDef, GridRenderCellParams } from '@mui/x-data-grid';
+import type { StudentSummary } from '../api';
 
 export function StudentsPage() {
   const { paginationModel, setPaginationModel, params } = useServerPagination();
   const { data, isLoading, isError, refetch } = useQuery({
-    queryKey: ['students', params.page, params.size],
+    queryKey: queryKeys.students.list(params.page, params.size),
     queryFn: () => api.getStudents(params),
     // Keeps the current rows on screen while the next page loads; without it the row
     // count drops to zero and the grid bounces back to page one.
@@ -32,9 +26,10 @@ export function StudentsPage() {
   // Declared before the early returns below: a hook must run on every render.
   const isNarrow = useIsNarrow();
 
-  if (isLoading) return <Box sx={{ p: 4 }}><CircularProgress /></Box>;
-  if (isError) return <QueryErrorNotice message="The student list could not be loaded." onRetry={() => void refetch()} />;
-  if (!data) return null;
+  if (isLoading) return <Box sx={{ p: 4 }}><CircularProgress aria-label="Loading students" /></Box>;
+  if (isError || !data) {
+    return <QueryErrorNotice message="The student list could not be loaded." onRetry={() => void refetch()} />;
+  }
 
   const wideColumns: GridColDef[] = [
     { field: 'studentNumber', headerName: 'Student No', width: 150 },
@@ -45,23 +40,23 @@ export function StudentsPage() {
       field: 'status',
       headerName: 'Status',
       width: 190,
-      renderCell: (params) => <StudentStatusChip status={String(params.value)} />
+      renderCell: (params: GridRenderCellParams<StudentSummary>) => <StudentStatusChip status={params.row.status} />
     }
   ];
 
   /**
    * One stacked cell per student, used instead of columns on a narrow screen.
    *
-   * Hiding the name and address would put them out of reach entirely: there is no
-   * student detail page to open, so what the list omits cannot be seen anywhere.
+   * Hiding the name and address would put them out of reach entirely: the student detail
+   * route has no content yet, so what the list omits cannot be seen anywhere.
    */
   const narrowColumn: GridColDef = {
     field: 'studentNumber',
     headerName: 'Student',
     flex: 1,
     minWidth: 240,
-    renderCell: (params) => {
-      const row = params.row as StudentRow;
+    renderCell: (params: GridRenderCellParams<StudentSummary>) => {
+      const row = params.row;
       return (
         <Box sx={{ py: 1, display: 'flex', flexDirection: 'column', gap: 0.5, minWidth: 0 }}>
           <Box sx={{ display: 'flex', gap: 1, alignItems: 'center', flexWrap: 'wrap' }}>

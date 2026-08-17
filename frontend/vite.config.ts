@@ -55,6 +55,10 @@ export default defineConfig({
     setupFiles: ['./tests/setup.ts'],
     globals: true,
     restoreMocks: true,
+    // The default is 5s, which the page tests clear comfortably on their own and exceed
+    // once v8 instruments every render. Raised for the suite rather than sprinkled over
+    // the tests that happened to notice first.
+    testTimeout: 20_000,
     // A fixed zone with a real, non-zero offset and a daylight-saving change. The
     // datetime-local conversions are only meaningful where local time differs from UTC,
     // so leaving this to the machine would make those tests pass everywhere except CI,
@@ -70,8 +74,10 @@ export default defineConfig({
       // It only does that job while it is kept there: left at 18/11/8/19 while the
       // suite grew to 29/21/15/30, it had ten points of slack, and every test the
       // frontend has for the result and registration pages could have been deleted
-      // without the build noticing.
-      thresholds: { statements: 29, branches: 21, functions: 15, lines: 30 }
+      // without the build noticing. Now 60/52/45/61, so these sit a couple of points
+      // under - close enough to catch a deletion, not so close that an unrelated
+      // refactor fails the build.
+      thresholds: { statements: 58, branches: 50, functions: 43, lines: 59 }
     }
   }
 });

@@ -18,6 +18,7 @@ import { StudentsPage } from './pages/StudentsPage';
 import { ReportPage } from './pages/ReportPage';
 import { LoginPage } from './pages/LoginPage';
 import { InstructorLayout } from './components/InstructorLayout';
+import { RequireAdmin } from './components/RequireAdmin';
 import { CoursesPage } from './pages/CoursesPage';
 import { AssignmentsPage } from './pages/AssignmentsPage';
 import { SubmissionsPage } from './pages/SubmissionsPage';
@@ -67,14 +68,26 @@ const queryClient = new QueryClient({
   }
 });
 
+/**
+ * Describes whatever was thrown, without assuming it was an Error.
+ *
+ * `useRouteError` is typed `unknown` because anything can be thrown, and casting it to
+ * `Error` to read `.message` rendered the word "undefined" for a thrown string and threw
+ * again inside the error page for a thrown null.
+ */
+function errorMessage(error: unknown): string {
+  if (isRouteErrorResponse(error)) return error.statusText;
+  if (error instanceof Error) return error.message;
+  if (typeof error === 'string' && error) return error;
+  return 'Something went wrong.';
+}
+
 function ErrorBoundary() {
   const error = useRouteError();
   return (
     <Box role="alert" sx={{ p: 4 }}>
       <Typography variant="h4" gutterBottom>Oops!</Typography>
-      <Typography color="error">
-        {isRouteErrorResponse(error) ? error.statusText : (error as Error).message}
-      </Typography>
+      <Typography color="error">{errorMessage(error)}</Typography>
     </Box>
   );
 }
@@ -84,7 +97,9 @@ function ErrorBoundary() {
  *
  * Carries the product's own chrome and a way back. The bare heading it replaced gave a
  * visitor nothing to act on and, with no logo or navigation, read as a broken server
- * rather than a mistyped address.
+ * rather than a mistyped address. It offers sign-in rather than the dashboard because a
+ * student who mistyped a result link has no dashboard: that button sent them to a page
+ * that bounced them straight back to sign-in.
  */
 function NotFound() {
   return (
@@ -105,10 +120,11 @@ function NotFound() {
       <Typography variant="h4" component="h1">Page not found</Typography>
       <Typography color="text.secondary" sx={{ maxWidth: 420 }}>
         The address you opened does not exist. If you followed a result link, it may have
-        been changed or revoked since it was sent to you.
+        been changed or revoked since it was sent to you - ask your instructor for a new
+        one. If you teach here, sign in to continue.
       </Typography>
-      <Button component={Link} to="/dashboard" variant="contained" sx={{ mt: 1 }}>
-        Go to the dashboard
+      <Button component={Link} to="/login" variant="contained" sx={{ mt: 1 }}>
+        Go to sign-in
       </Button>
     </Box>
   );
@@ -150,9 +166,15 @@ const router = createBrowserRouter([
           { path: 'submissions', element: <SubmissionsPage /> },
           { path: 'submissions/:id', element: <SubmissionDetailPage /> },
           { path: 'reports/course/:courseId', element: <ReportPage /> },
-          { path: 'admin/audit', element: <AdminAuditPage /> },
-          { path: 'admin/settings', element: <AdminSettingsPage /> },
-          { path: 'admin/runtimes', element: <AdminRuntimesPage /> }
+          {
+            path: 'admin',
+            element: <RequireAdmin />,
+            children: [
+              { path: 'audit', element: <AdminAuditPage /> },
+              { path: 'settings', element: <AdminSettingsPage /> },
+              { path: 'runtimes', element: <AdminRuntimesPage /> }
+            ]
+          }
         ]
       },
       {

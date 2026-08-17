@@ -5,6 +5,8 @@ import { useEffect } from 'react';
 import { useParams } from 'react-router';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '../api';
+import { queryKeys } from '../api/queryKeys';
+import { ApiProblem } from '../api/client';
 import { BrandMark } from '../components/BrandMark';
 import { Box, Typography, Paper, Chip, CircularProgress, LinearProgress, Table, TableBody, TableCell, TableHead, TableRow, Alert } from '@mui/material';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
@@ -23,38 +25,59 @@ const TEST_OUTCOME_LABELS: Record<string, string> = {
 export function PublicResultPage() {
   const { token } = useParams<{ token: string }>();
 
+  // The referrer policy is declared in index.html as well, because the token is in this
+  // page's address and a policy applied only once React has mounted arrives after the
+  // document and its first subresources have already been requested.
   useEffect(() => {
     const robots = document.createElement('meta');
     robots.name = 'robots';
     robots.content = 'noindex, nofollow';
     document.head.appendChild(robots);
-    const referrer = document.createElement('meta');
-    referrer.name = 'referrer';
-    referrer.content = 'no-referrer';
-    document.head.appendChild(referrer);
     return () => {
-      document.head.removeChild(robots);
-      document.head.removeChild(referrer);
+      robots.remove();
     };
   }, []);
 
   const { data, isLoading, error } = useQuery({
-    queryKey: ['result', token],
-    queryFn: () => api.getResult(token || ''),
+    queryKey: queryKeys.result(token ?? ''),
+    queryFn: () => api.getResult(token ?? ''),
+    // Without a token there is nothing to ask for, and asking anyway requested the
+    // collection rather than a result.
+    enabled: !!token,
     // A token that does not resolve will not start resolving. Retrying left a student
     // who followed a stale link staring at a loading state for eight seconds before
     // being told the link was invalid.
     retry: false
   });
 
+  if (!token) {
+    return <Box sx={{ p: 4 }}><Alert severity="error">This result link is incomplete.</Alert></Box>;
+  }
+
   if (isLoading) {
     return (
-      <Box sx={{ display: 'flex', justifyContent: 'center', p: 8 }}>
+      <Box role="status" sx={{ display: 'flex', justifyContent: 'center', p: 8 }}>
         <CircularProgress aria-label="Loading result" />
       </Box>
     );
   }
-  if (error || !data) return <Box sx={{ p: 4 }}><Alert severity="error">Result not found or invalid token.</Alert></Box>;
+
+  // A link that was revoked and a service that is down are different answers, and
+  // reporting both as an invalid token sent students to ask for a replacement link that
+  // would have worked perfectly well a minute later.
+  if (error) {
+    const missing = error instanceof ApiProblem && error.status === 404;
+    return (
+      <Box sx={{ p: 4 }}>
+        <Alert severity="error">
+          {missing
+            ? 'Result not found. This link may have been revoked or may never have been valid - ask your instructor for a new one.'
+            : 'The result could not be loaded right now. Reload the page in a moment; the link itself is probably fine.'}
+        </Alert>
+      </Box>
+    );
+  }
+  if (!data) return <Box sx={{ p: 4 }}><Alert severity="error">Result not found or invalid token.</Alert></Box>;
 
   // Defensively strip hidden tests
   const safeTests = data.tests.map(test => {
@@ -133,7 +156,7 @@ export function PublicResultPage() {
           </TableHead>
           <TableBody>
             {safeTests.map((test, idx) => (
-              <TableRow key={idx}>
+              <TableRow key={`${test.outcome}-${String(idx)}`}>
                 <TableCell>
                   {test.public ? test.name : (test.category || 'Hidden Test')}
                 </TableCell>

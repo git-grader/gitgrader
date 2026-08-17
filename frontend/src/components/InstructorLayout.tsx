@@ -2,9 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { useState } from 'react';
-import { Outlet, Navigate, Link, useLocation, useNavigate } from 'react-router';
-import { useQuery } from '@tanstack/react-query';
+import { Outlet, Navigate, Link, useLocation } from 'react-router';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '../api';
+import { queryKeys } from '../api/queryKeys';
+import { ApiProblem } from '../api/client';
+import { QueryErrorNotice } from './QueryErrorNotice';
 import {
   Box,
   Drawer,
@@ -50,34 +53,66 @@ const ADMIN_NAV: readonly NavItem[] = [
   { label: 'Runtimes', to: '/admin/runtimes' }
 ];
 
+/**
+ * Whether the failure means the session is over rather than the server is unwell.
+ *
+ * Treating every error as an expired session signed an instructor out on a dropped
+ * connection or a 500, discarding whatever they had typed. Only the two answers that
+ * actually say "not you" send them back to sign in.
+ */
+function isSessionRefusal(error: unknown): boolean {
+  return error instanceof ApiProblem && (error.status === 401 || error.status === 403);
+}
+
 export function InstructorLayout() {
   const meta = useMeta();
   const location = useLocation();
-  const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const theme = useTheme();
   const isDesktop = useMediaQuery(theme.breakpoints.up('md'));
   const [mobileOpen, setMobileOpen] = useState(false);
-  const { data: me, isLoading, error } = useQuery({
-    queryKey: ['me'],
+  const { data: me, isPending, error, refetch } = useQuery({
+    queryKey: queryKeys.me,
     queryFn: api.getMe,
     retry: false
   });
 
-  if (isLoading) return <Box sx={{ p: 4 }}><CircularProgress /></Box>;
-  if (error) return <Navigate to="/login" state={{ from: location }} replace />;
-  if (!me) return null;
+  if (isPending) {
+    return (
+      <Box sx={{ p: 4 }}>
+        <CircularProgress aria-label="Signing you in" />
+      </Box>
+    );
+  }
+  if (error) {
+    if (isSessionRefusal(error)) {
+      return <Navigate to="/login" state={{ from: location }} replace />;
+    }
+    return <QueryErrorNotice message="GitGrader could not be reached." onRetry={() => void refetch()} />;
+  }
 
   const isAdmin = me.roles.includes('ROLE_ADMIN');
 
+  /**
+   * Ends the session and takes the previous user's data with it.
+   *
+   * The navigation replaces the document rather than pushing a route, because that is
+   * what discards the cache: a router push left every student record, submission and
+   * audit entry the previous user had loaded sitting in the query cache, readable by
+   * whoever signed in next. Clearing it explicitly as well means the gap between the two
+   * is not a window either.
+   */
   async function signOut() {
     try {
       await api.logout();
     }
+    catch {
+      // A session that is already gone answers with an error, and stranding the user on
+      // a page they can no longer load would be worse than sending them to sign in.
+    }
     finally {
-      // Navigating regardless of the response: if the session is already gone the
-      // server answers an error, and stranding the user on a page they can no longer
-      // load would be worse than sending them to sign in again.
-      await navigate('/login', { replace: true });
+      queryClient.clear();
+      window.location.assign('/login');
     }
   }
 
@@ -107,6 +142,42 @@ export function InstructorLayout() {
 
   return (
     <Box sx={{ display: 'flex' }}>
+      {/* The drawer repeats every link on every page, so a keyboard or screen-reader
+          user met the whole navigation again before reaching the content each time. */}
+      <Box
+        component="a"
+        href="#main-content"
+        onClick={(event: React.MouseEvent<HTMLAnchorElement>) => {
+          event.preventDefault();
+          document.getElementById('main-content')?.focus();
+        }}
+        sx={{
+          position: 'absolute',
+          width: 1,
+          height: 1,
+          overflow: 'hidden',
+          clip: 'rect(0 0 0 0)',
+          whiteSpace: 'nowrap',
+          zIndex: (t) => t.zIndex.tooltip + 1,
+          '&:focus': {
+            clip: 'auto',
+            width: 'auto',
+            height: 'auto',
+            overflow: 'visible',
+            top: 8,
+            left: 8,
+            px: 2,
+            py: 1,
+            borderRadius: 1,
+            bgcolor: 'background.paper',
+            color: 'text.primary',
+            border: 1,
+            borderColor: 'divider'
+          }
+        }}
+      >
+        Skip to main content
+      </Box>
       <AppBar
         position="fixed"
         sx={{
@@ -178,13 +249,16 @@ export function InstructorLayout() {
 
       <Box
         component="main"
+        id="main-content"
+        tabIndex={-1}
         sx={{
           flexGrow: 1,
           // Without this a flex child refuses to shrink below the intrinsic width of
           // its content, so a wide table pushed the whole page sideways rather than
           // scrolling within itself.
           minWidth: 0,
-          p: { xs: 2, md: 3 }
+          p: { xs: 2, md: 3 },
+          '&:focus': { outline: 'none' }
         }}
       >
         <Toolbar />
