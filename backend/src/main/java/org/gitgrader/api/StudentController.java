@@ -107,14 +107,14 @@ public class StudentController {
 	public SshKeyView revokeKey(@PathVariable UUID id, @PathVariable UUID keyId,
 			@Valid @RequestBody ReasonRequest request) {
 		requireStudent(id);
-		return this.keys.revoke(keyId, request.reason(), this.actors.currentActor().id());
+		return this.keys.revoke(id, keyId, request.reason(), this.actors.currentActor().id());
 	}
 
 	@PostMapping("/{id}/keys/{keyId}/replace")
 	public SshKeyView replaceKey(@PathVariable UUID id, @PathVariable UUID keyId,
 			@Valid @RequestBody KeyRequest request) {
 		requireStudent(id);
-		return this.keys.replace(keyId, request.label(), request.publicKey(), request.reason(),
+		return this.keys.replace(id, keyId, request.label(), request.publicKey(), request.reason(),
 				this.actors.currentActor().id());
 	}
 
