@@ -18,6 +18,7 @@ package org.gitgrader.submissions.internal;
 
 import java.time.Clock;
 import java.time.Duration;
+import java.util.Collection;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
@@ -25,6 +26,7 @@ import java.util.Optional;
 import java.util.UUID;
 
 import io.micrometer.core.instrument.MeterRegistry;
+import jakarta.persistence.EntityNotFoundException;
 import jakarta.persistence.criteria.CriteriaBuilder;
 import jakarta.persistence.criteria.Path;
 import jakarta.persistence.criteria.Predicate;
@@ -39,6 +41,7 @@ import org.gitgrader.configuration.SecurityProperties.RateLimits;
 import org.gitgrader.submissions.NewSubmission;
 import org.gitgrader.submissions.SubmissionRecorded;
 import org.gitgrader.submissions.SubmissionRefusedException;
+import org.gitgrader.submissions.SubmissionAssessmentView;
 import org.gitgrader.submissions.SubmissionRefusedException.Reason;
 import org.gitgrader.submissions.SubmissionSearch;
 import org.gitgrader.submissions.SubmissionService;
@@ -214,7 +217,7 @@ public class DefaultSubmissionService implements SubmissionService {
 	@Override
 	public SubmissionView markStatus(UUID submissionId, SubmissionStatus status) {
 		Submission submission = this.repository.findById(submissionId)
-			.orElseThrow(() -> new IllegalArgumentException("No submission with id " + submissionId));
+			.orElseThrow(() -> new EntityNotFoundException("No submission with id " + submissionId));
 		submission.updateStatus(status);
 		return toView(this.repository.save(submission));
 	}
@@ -294,6 +297,12 @@ public class DefaultSubmissionService implements SubmissionService {
 	@Transactional(readOnly = true)
 	public long countAttempts(UUID studentId, UUID assignmentId) {
 		return this.repository.countByStudentIdAndAssignmentId(studentId, assignmentId);
+	}
+
+	@Override
+	@Transactional(readOnly = true)
+	public List<SubmissionAssessmentView> findAssessments(UUID courseId, Collection<UUID> assignmentIds) {
+		return assignmentIds.isEmpty() ? List.of() : this.repository.findAssessments(courseId, assignmentIds);
 	}
 
 	private static SubmissionView toView(Submission submission) {

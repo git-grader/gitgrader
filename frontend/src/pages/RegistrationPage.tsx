@@ -27,7 +27,7 @@ export function RegistrationPage() {
   const mutation = useMutation({
     mutationFn: api.register,
     onSuccess: (data) => {
-      void navigate('/register/success', { state: { result: data } });
+      void navigate('/register/success', { state: { result: data, courseKey: form.courseKey } });
     }
   });
 

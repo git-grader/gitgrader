@@ -17,11 +17,13 @@
 package org.gitgrader.submissions.internal;
 
 import java.time.Instant;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
 import org.gitgrader.submissions.SubmissionStatus;
+import org.gitgrader.submissions.SubmissionAssessmentView;
 import org.gitgrader.submissions.domain.Submission;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -124,6 +126,15 @@ public interface SubmissionRepository extends JpaRepository<Submission, UUID>, J
 	 * @return the number of submissions inside the window
 	 */
 	long countByStudentIdAndReceivedAtAfter(UUID studentId, Instant since);
+
+	@Query("""
+			SELECT new org.gitgrader.submissions.SubmissionAssessmentView(
+				s.id, s.studentId, s.assignmentId, s.status, s.receivedAt)
+			FROM Submission s
+			WHERE s.courseId = :courseId AND s.assignmentId IN :assignmentIds
+			""")
+	List<SubmissionAssessmentView> findAssessments(@Param("courseId") UUID courseId,
+			@Param("assignmentIds") Collection<UUID> assignmentIds);
 
 	/**
 	 * Counts submissions in a course grouped by status.

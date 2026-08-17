@@ -21,6 +21,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
+import jakarta.persistence.EntityNotFoundException;
 import org.gitgrader.audit.AuditEventType;
 import org.gitgrader.audit.AuditRecord;
 import org.gitgrader.audit.AuditService;
@@ -202,7 +203,7 @@ public class DefaultSshKeyRegistry implements SshKeyRegistry {
 
 	private SshKeyRecord require(UUID keyId) {
 		return this.repository.findById(keyId)
-			.orElseThrow(() -> new IllegalArgumentException("No SSH key with id " + keyId));
+			.orElseThrow(() -> new EntityNotFoundException("No SSH key with id " + keyId));
 	}
 
 	/**
@@ -218,7 +219,7 @@ public class DefaultSshKeyRegistry implements SshKeyRegistry {
 	private SshKeyRecord require(UUID studentId, UUID keyId) {
 		SshKeyRecord record = require(keyId);
 		if (!record.studentId().equals(studentId)) {
-			throw new IllegalArgumentException("No SSH key with id " + keyId + " for student " + studentId);
+			throw new EntityNotFoundException("No SSH key with id " + keyId + " for student " + studentId);
 		}
 		return record;
 	}

@@ -26,7 +26,7 @@ public interface RuntimeAdministration {
 	 * @param definition validated runtime values
 	 * @return created runtime
 	 */
-	RuntimeView create(RuntimeDefinition definition);
+	RuntimeView create(NewRuntime definition);
 
 	/**
 	 * Replaces mutable runtime metadata while preserving its identity.
@@ -34,6 +34,6 @@ public interface RuntimeAdministration {
 	 * @param definition replacement values
 	 * @return updated runtime
 	 */
-	RuntimeView update(UUID id, RuntimeDefinition definition);
+	RuntimeView update(UUID id, NewRuntime definition);
 
 }

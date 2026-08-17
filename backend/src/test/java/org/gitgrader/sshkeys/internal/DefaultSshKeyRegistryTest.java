@@ -37,6 +37,7 @@ import org.gitgrader.sshkeys.SshKeyRejectionReason;
 import org.gitgrader.sshkeys.SshKeyStatus;
 import org.gitgrader.sshkeys.SshKeyView;
 import org.gitgrader.sshkeys.domain.SshKeyRecord;
+import jakarta.persistence.EntityNotFoundException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -181,9 +182,9 @@ class DefaultSshKeyRegistryTest {
 		UUID somebodyElse = UUID.randomUUID();
 		when(this.repository.findById(stored.id())).thenReturn(Optional.of(stored));
 
-		assertThatExceptionOfType(IllegalArgumentException.class)
+		assertThatExceptionOfType(EntityNotFoundException.class)
 			.isThrownBy(() -> this.registry.revoke(somebodyElse, stored.id(), "not mine", "instructor.a"));
-		assertThatExceptionOfType(IllegalArgumentException.class).isThrownBy(
+		assertThatExceptionOfType(EntityNotFoundException.class).isThrownBy(
 				() -> this.registry.replace(somebodyElse, stored.id(), "new", ED25519, "rotation", "instructor.a"));
 		assertThat(stored.status()).isEqualTo(SshKeyStatus.ACTIVE);
 	}

@@ -21,6 +21,7 @@ import java.security.Principal;
 import java.util.List;
 import java.util.UUID;
 
+import jakarta.persistence.EntityNotFoundException;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import org.gitgrader.configuration.StorageProperties;
@@ -144,7 +145,7 @@ public class TemplateController {
 	}
 
 	private ProjectTemplateView findTemplate(UUID id) {
-		return this.catalog.findTemplate(id).orElseThrow(() -> new IllegalArgumentException("Template not found"));
+		return this.catalog.findTemplate(id).orElseThrow(() -> new EntityNotFoundException("Template not found"));
 	}
 
 	private static String safeSegment(String value) {

@@ -9,7 +9,7 @@ import { api } from '../api';
 import { queryKeys } from '../api/queryKeys';
 import type { Meta } from '../api';
 
-const MetaContext = createContext<Meta | undefined>(undefined);
+export const MetaContext = createContext<Meta | undefined>(undefined);
 
 /**
  * Loads the deployment's identity before the router renders.

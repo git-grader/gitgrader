@@ -31,6 +31,6 @@ import org.jspecify.annotations.Nullable;
  * @param reportFormat test report format
  * @param enabled whether assignments may select the runtime
  */
-public record RuntimeDefinition(String runtimeKey, String displayName, String image, String tag, String imageDigest,
+public record NewRuntime(String runtimeKey, String displayName, String image, String tag, String imageDigest,
 		@Nullable String installCommand, String testCommand, ReportFormat reportFormat, boolean enabled) {
 }

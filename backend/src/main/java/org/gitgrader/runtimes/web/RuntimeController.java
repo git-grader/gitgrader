@@ -22,7 +22,7 @@ import jakarta.validation.Valid;
 
 import org.gitgrader.runtimes.RuntimeAdministration;
 import org.gitgrader.runtimes.RuntimeCatalog;
-import org.gitgrader.runtimes.RuntimeDefinition;
+import org.gitgrader.runtimes.NewRuntime;
 import org.gitgrader.runtimes.RuntimeView;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -56,7 +56,7 @@ public class RuntimeController {
 	@PostMapping
 	@ResponseStatus(HttpStatus.CREATED)
 	@PreAuthorize("hasRole('ADMIN')")
-	public RuntimeView create(@Valid @RequestBody RuntimeDefinition definition) {
+	public RuntimeView create(@Valid @RequestBody NewRuntime definition) {
 		return this.administration.create(definition);
 	}
 

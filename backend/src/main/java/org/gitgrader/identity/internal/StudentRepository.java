@@ -16,6 +16,8 @@
 
 package org.gitgrader.identity.internal;
 
+import java.util.Collection;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -26,5 +28,7 @@ import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 interface StudentRepository extends JpaRepository<Student, UUID>, JpaSpecificationExecutor<Student> {
 
 	Optional<Student> findByStudentNumberIgnoreCase(String studentNumber);
+
+	List<Student> findByIdIn(Collection<UUID> ids);
 
 }

@@ -21,6 +21,7 @@ import java.security.Principal;
 import java.util.List;
 import java.util.UUID;
 
+import jakarta.persistence.EntityNotFoundException;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
@@ -115,7 +116,7 @@ public class TestSuiteController {
 	public TestSuiteVersionView upload(@PathVariable UUID id, @RequestParam("file") MultipartFile file,
 			@RequestParam @NotBlank String versionLabel) {
 		TestSuiteView suite = this.catalog.findTestSuite(id)
-			.orElseThrow(() -> new IllegalArgumentException("Test suite not found"));
+			.orElseThrow(() -> new EntityNotFoundException("Test suite not found"));
 		String relative = safeSegment(suite.suiteKey()) + "/" + safeSegment(versionLabel);
 		Path destination = StorageProperties.resolveInside(this.storage.tests(), relative);
 		this.extractor.extract(file, destination);

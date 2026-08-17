@@ -20,6 +20,7 @@ import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 
+import jakarta.persistence.EntityNotFoundException;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Future;
 import jakarta.validation.constraints.NotBlank;
@@ -100,7 +101,7 @@ public class AssignmentController {
 
 	@GetMapping("/{id}")
 	public AssignmentView detail(@PathVariable UUID id) {
-		return this.catalog.findAssignment(id).orElseThrow(() -> new IllegalArgumentException("Assignment not found"));
+		return this.catalog.findAssignment(id).orElseThrow(() -> new EntityNotFoundException("Assignment not found"));
 	}
 
 	@PostMapping("/{id}/publish")

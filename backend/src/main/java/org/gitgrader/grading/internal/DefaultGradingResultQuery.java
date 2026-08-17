@@ -16,6 +16,7 @@
 
 package org.gitgrader.grading.internal;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -23,6 +24,7 @@ import java.util.UUID;
 import org.gitgrader.grading.GradingResultQuery;
 import org.gitgrader.grading.StudentGradingResult;
 import org.gitgrader.grading.StudentTestResultView;
+import org.gitgrader.grading.SubmissionScoreView;
 import org.gitgrader.grading.domain.GradingRun;
 import org.gitgrader.grading.domain.TestResultRecord;
 import org.springframework.stereotype.Service;
@@ -47,6 +49,12 @@ class DefaultGradingResultQuery implements GradingResultQuery {
 	@Transactional(readOnly = true)
 	public Optional<StudentGradingResult> findLatestForSubmission(UUID submissionId) {
 		return this.runs.findFirstBySubmissionIdOrderByAttemptDesc(submissionId).map(this::toStudentResult);
+	}
+
+	@Override
+	@Transactional(readOnly = true)
+	public List<SubmissionScoreView> findLatestScores(Collection<UUID> submissionIds) {
+		return submissionIds.isEmpty() ? List.of() : this.runs.findLatestScores(submissionIds);
 	}
 
 	private StudentGradingResult toStudentResult(GradingRun run) {

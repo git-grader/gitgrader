@@ -24,7 +24,9 @@ import java.util.UUID;
 import jakarta.persistence.EntityNotFoundException;
 import org.gitgrader.runtimes.RuntimeAdministration;
 import org.gitgrader.runtimes.RuntimeCatalog;
+import org.gitgrader.runtimes.NewRuntime;
 import org.gitgrader.runtimes.RuntimeView;
+import org.gitgrader.runtimes.domain.RuntimeDefinition;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -45,26 +47,23 @@ public class DefaultRuntimeService implements RuntimeCatalog, RuntimeAdministrat
 	@Override
 	@Transactional(readOnly = true)
 	public Optional<RuntimeView> findRuntime(UUID id) {
-		return this.runtimes.findById(id).map(org.gitgrader.runtimes.domain.RuntimeDefinition::toView);
+		return this.runtimes.findById(id).map(RuntimeDefinition::toView);
 	}
 
 	@Override
 	@Transactional(readOnly = true)
 	public List<RuntimeView> findAll() {
-		return this.runtimes.findAllByOrderByRuntimeKeyAsc()
-			.stream()
-			.map(org.gitgrader.runtimes.domain.RuntimeDefinition::toView)
-			.toList();
+		return this.runtimes.findAllByOrderByRuntimeKeyAsc().stream().map(RuntimeDefinition::toView).toList();
 	}
 
 	@Override
-	public RuntimeView create(org.gitgrader.runtimes.RuntimeDefinition definition) {
-		return this.runtimes.save(new org.gitgrader.runtimes.domain.RuntimeDefinition(definition, this.clock)).toView();
+	public RuntimeView create(NewRuntime definition) {
+		return this.runtimes.save(new RuntimeDefinition(definition, this.clock)).toView();
 	}
 
 	@Override
-	public RuntimeView update(UUID id, org.gitgrader.runtimes.RuntimeDefinition definition) {
-		org.gitgrader.runtimes.domain.RuntimeDefinition runtime = this.runtimes.findById(id)
+	public RuntimeView update(UUID id, NewRuntime definition) {
+		RuntimeDefinition runtime = this.runtimes.findById(id)
 			.orElseThrow(() -> new EntityNotFoundException("Runtime not found: " + id));
 		runtime.update(definition, this.clock);
 		return this.runtimes.save(runtime).toView();

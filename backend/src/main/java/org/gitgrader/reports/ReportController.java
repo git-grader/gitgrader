@@ -19,19 +19,21 @@ package org.gitgrader.reports;
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
+import jakarta.persistence.EntityNotFoundException;
 import org.gitgrader.assignments.AssignmentCatalog;
 import org.gitgrader.assignments.AssignmentView;
 import org.gitgrader.courses.CourseCatalog;
-import org.gitgrader.courses.EnrollmentView;
 import org.gitgrader.grading.GradingResultQuery;
-import org.gitgrader.grading.StudentGradingResult;
+import org.gitgrader.grading.SubmissionScoreView;
 import org.gitgrader.identity.StudentDirectory;
 import org.gitgrader.identity.StudentView;
+import org.gitgrader.submissions.SubmissionAssessmentView;
 import org.gitgrader.submissions.SubmissionService;
 import org.springframework.core.io.ByteArrayResource;
-import org.springframework.data.domain.Pageable;
 import org.springframework.http.ContentDisposition;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
@@ -73,14 +75,21 @@ public class ReportController {
 
 	@GetMapping("/{courseId}")
 	public CourseReport report(@PathVariable UUID courseId) {
-		this.courses.findCourse(courseId).orElseThrow(() -> new IllegalArgumentException("Course not found"));
+		this.courses.findCourse(courseId).orElseThrow(() -> new EntityNotFoundException("Course not found"));
 		List<AssignmentView> courseAssignments = this.assignments.findByCourse(courseId);
-		List<StudentProgressRow> rows = this.students
-			.search(new org.gitgrader.identity.StudentSearch(null, null, null), Pageable.unpaged())
-			.getContent()
+		List<StudentView> enrolledStudents = this.students.findByIds(this.courses.findEnrolledStudentIds(courseId));
+		List<SubmissionAssessmentView> assessments = this.submissions.findAssessments(courseId,
+				courseAssignments.stream().map(AssignmentView::id).toList());
+		Map<UUID, BigDecimal> scores = this.gradingResults
+			.findLatestScores(assessments.stream()
+				.filter((assessment) -> assessment.status().isGraded())
+				.map(SubmissionAssessmentView::submissionId)
+				.toList())
 			.stream()
-			.filter((student) -> enrolledIn(student.id(), courseId))
-			.map((student) -> calculate(student, courseAssignments))
+			.collect(Collectors.toMap(SubmissionScoreView::submissionId,
+					(score) -> score.scorePercent() == null ? BigDecimal.ZERO : score.scorePercent()));
+		List<StudentProgressRow> rows = enrolledStudents.stream()
+			.map((student) -> calculate(student, courseAssignments, assessments, scores))
 			.toList();
 		int mandatory = (int) courseAssignments.stream().filter(AssignmentView::mandatory).count();
 		BigDecimal points = courseAssignments.stream()
@@ -101,44 +110,22 @@ public class ReportController {
 		return ResponseEntity.ok().headers(headers).body(new ByteArrayResource(content));
 	}
 
-	private boolean enrolledIn(UUID studentId, UUID courseId) {
-		return this.courses.findEnrollments(studentId)
-			.stream()
-			.map(EnrollmentView::courseId)
-			.anyMatch(courseId::equals);
-	}
-
-	private StudentProgressRow calculate(StudentView student, List<AssignmentView> assignments) {
+	private static StudentProgressRow calculate(StudentView student, List<AssignmentView> assignments,
+			List<SubmissionAssessmentView> assessments, Map<UUID, BigDecimal> scores) {
 		List<ReportCalculator.Assignment> definitions = assignments.stream()
 			.map((item) -> new ReportCalculator.Assignment(item.id(), item.assignmentKey(), item.mandatory(),
 					item.maxPoints(), item.passThreshold()))
 			.toList();
-		List<ReportCalculator.Assessment> assessments = assignments.stream()
-			.flatMap((assignment) -> this.submissions.findHistory(student.id(), assignment.id()).stream())
-			.map((submission) -> new ReportCalculator.Assessment(submission.assignmentId(), submission.status(),
-					submission.status().isGraded() ? scoreOf(submission.id()) : null, submission.receivedAt()))
+		List<ReportCalculator.Assessment> studentAssessments = assessments.stream()
+			.filter((assessment) -> assessment.studentId().equals(student.id()))
+			.map((assessment) -> new ReportCalculator.Assessment(assessment.assignmentId(), assessment.status(),
+					assessment.status().isGraded() ? scores.getOrDefault(assessment.submissionId(), BigDecimal.ZERO)
+							: null,
+					assessment.receivedAt()))
 			.toList();
 		return ReportCalculator.calculate(
 				new ReportCalculator.Student(student.id(), student.studentNumber(), student.fullName()), definitions,
-				assessments);
-	}
-
-	/**
-	 * The percentage a graded submission actually earned.
-	 *
-	 * <p>
-	 * Read from the run rather than inferred from the submission's status. A status only
-	 * says whether the run cleared the assignment's pass threshold, so deriving a
-	 * percentage from it awards all of an assignment's points or none of them: 70 against
-	 * a threshold of 80 is FAILED, and reporting that as zero understates both the
-	 * student's points and the course's points rate.
-	 * @param submissionId the graded submission
-	 * @return the recorded percentage, or zero when no run recorded one
-	 */
-	private BigDecimal scoreOf(UUID submissionId) {
-		return this.gradingResults.findLatestForSubmission(submissionId)
-			.map(StudentGradingResult::scorePercent)
-			.orElse(BigDecimal.ZERO);
+				studentAssessments);
 	}
 
 }

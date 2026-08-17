@@ -17,7 +17,6 @@
 package org.gitgrader.registration.web;
 
 import java.util.UUID;
-import java.util.List;
 
 import org.gitgrader.identity.StudentStatus;
 import org.gitgrader.registration.internal.DuplicateRegistrationException;
@@ -57,7 +56,7 @@ class RegistrationControllerTest {
 	@Test
 	void successfulRegistrationReturns201() throws Exception {
 		RegistrationResponse response = new RegistrationResponse(UUID.randomUUID(), "12345", "John Doe",
-				StudentStatus.SELF_REGISTERED, "SHA256:fingerprint", List.of());
+				StudentStatus.SELF_REGISTERED, "SHA256:fingerprint");
 		when(registrationService.register(any(), anyString())).thenReturn(response);
 
 		mockMvc.perform(post("/api/v1/registration").contentType(MediaType.APPLICATION_JSON).content("""
