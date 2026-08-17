@@ -62,6 +62,7 @@ import org.testcontainers.postgresql.PostgreSQLContainer;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
@@ -90,6 +91,10 @@ import static org.assertj.core.api.Assumptions.assumeThat;
 @ActiveProfiles("test")
 @Testcontainers
 @EnabledIfDockerAvailable
+// The context is closed with the class, while this container is still up. Left cached,
+// it outlived the database it was pointed at and every shutdown hook then blocked for
+// the full connection timeout, which is what made the JVM miss its own exit.
+@DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_CLASS)
 class GitPushOverSshIT {
 
 	@Container
