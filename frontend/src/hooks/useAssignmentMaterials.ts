@@ -1,3 +1,6 @@
+// Copyright the GitGrader contributors.
+// SPDX-License-Identifier: Apache-2.0
+
 import { useQuery, useQueries } from '@tanstack/react-query';
 import { api } from '../api';
 import { CHOICE_PAGE_SIZE } from '../components/useServerPagination';
