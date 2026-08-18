@@ -102,7 +102,7 @@
 
     <spring-boot.build-image.imageName>ghcr.io/git-grader/gitgrader:${project.version}</spring-boot.build-image.imageName>
     <spring-javaformat.validate.skip>${skipQuality}</spring-javaformat.validate.skip>
-    <spring-javaformat.version>0.0.47</spring-javaformat.version>
+    <spring-javaformat.version>0.0.48</spring-javaformat.version>
 
     <!-- Dependency versions not managed by the Spring Boot BOM. -->
     <spring-modulith.version>2.1.0</spring-modulith.version>
