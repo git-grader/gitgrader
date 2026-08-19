@@ -5,8 +5,11 @@
 Use a Linux host with Docker Engine and Docker Compose plugin, DNS for the public
 HTTP name, an HTTPS reverse proxy, and firewall access to TCP 443 and TCP 2222
 (or your chosen SSH port). TCP 80 is normally needed only for ACME HTTP-01.
-The grading design requires Docker access; read [security guidance](security.md)
-before using the default socket mount.
+Grading needs Docker access, but the application does not get it: the socket is
+held by a separate runner service that only ever grades a submission. Set
+`GRADING_RUNNER_SECRET` in `.env` — both halves refuse to start without it — and
+read the [security guidance](security.md) for what that boundary does and does
+not cover.
 
 ## Compose
 

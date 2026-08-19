@@ -96,8 +96,9 @@ class DockerGradingRunnerExecutionTest {
 				256, false, DataSize.ofMegabytes(1), false,
 				new GradingProperties.Docker("unix:///var/run/docker.sock", "", "", "65534:65534",
 						Duration.ofMinutes(5), true, DataSize.ofMegabytes(64), true, true),
-				new GradingProperties.Queue(Duration.ofSeconds(2), Duration.ofMinutes(15), 3, Duration.ofSeconds(30), 3,
-						500, 1000, Duration.ofSeconds(30)));
+				new GradingProperties.RunnerApi(false, "", "", Duration.ofSeconds(10), Duration.ofSeconds(30)),
+				new GradingProperties.Queue(true, Duration.ofSeconds(2), Duration.ofMinutes(15), 3,
+						Duration.ofSeconds(30), 3, 500, 1000, Duration.ofSeconds(30)));
 		this.storage = new StorageProperties("/data/git/repositories", "/data/templates", "/data/tests",
 				"/data/artifacts", "/data/tmp");
 

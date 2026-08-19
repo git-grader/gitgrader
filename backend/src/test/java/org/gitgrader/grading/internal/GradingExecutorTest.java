@@ -102,8 +102,9 @@ class GradingExecutorTest {
 				DataSize.ofMegabytes(512), 1.0, 256, false, DataSize.ofMegabytes(1), false,
 				new GradingProperties.Docker("unix:///var/run/docker.sock", "", "", "65534:65534",
 						Duration.ofMinutes(5), true, DataSize.ofMegabytes(64), true, true),
-				new GradingProperties.Queue(Duration.ofSeconds(2), Duration.ofMinutes(15), 3, Duration.ofSeconds(30), 3,
-						500, 1000, Duration.ofSeconds(30)));
+				new GradingProperties.RunnerApi(false, "", "", Duration.ofSeconds(10), Duration.ofSeconds(30)),
+				new GradingProperties.Queue(true, Duration.ofSeconds(2), Duration.ofMinutes(15), 3,
+						Duration.ofSeconds(30), 3, 500, 1000, Duration.ofSeconds(30)));
 		Clock clock = Clock.fixed(Instant.parse("2026-04-01T10:00:00Z"), ZoneOffset.UTC);
 
 		this.executor = new GradingExecutor(this.runner, this.workspaces, this.plans, this.reportParser, testResults,
@@ -197,8 +198,9 @@ class GradingExecutorTest {
 				DataSize.ofMegabytes(512), 1.0, 256, false, DataSize.ofMegabytes(1), true,
 				new GradingProperties.Docker("unix:///var/run/docker.sock", "", "", "65534:65534",
 						Duration.ofMinutes(5), true, DataSize.ofMegabytes(64), true, true),
-				new GradingProperties.Queue(Duration.ofSeconds(2), Duration.ofMinutes(15), 3, Duration.ofSeconds(30), 3,
-						500, 1000, Duration.ofSeconds(30)));
+				new GradingProperties.RunnerApi(false, "", "", Duration.ofSeconds(10), Duration.ofSeconds(30)),
+				new GradingProperties.Queue(true, Duration.ofSeconds(2), Duration.ofMinutes(15), 3,
+						Duration.ofSeconds(30), 3, 500, 1000, Duration.ofSeconds(30)));
 		return new GradingExecutor(this.runner, this.workspaces, plans, this.reportParser,
 				mock(TestResultRepository.class), retaining, new tools.jackson.databind.ObjectMapper(),
 				Clock.fixed(Instant.parse("2026-04-01T10:00:00Z"), ZoneOffset.UTC));

@@ -33,6 +33,8 @@ import com.github.dockerjava.api.command.CreateContainerCmd;
 import com.github.dockerjava.api.command.CreateContainerResponse;
 import com.github.dockerjava.api.command.WaitContainerResultCallback;
 import com.github.dockerjava.api.model.Bind;
+import com.github.dockerjava.api.exception.ConflictException;
+import com.github.dockerjava.api.exception.NotFoundException;
 import com.github.dockerjava.api.model.Capability;
 import com.github.dockerjava.api.model.HostConfig;
 import com.github.dockerjava.api.model.Volume;
@@ -149,6 +151,15 @@ class DockerGradingRunner implements GradingRunner {
 			finally {
 				try {
 					this.dockerClient.removeContainerCmd(containerId).withForce(true).exec();
+				}
+				catch (NotFoundException | ConflictException expected) {
+					// Containers are created with auto-remove, so Docker is usually
+					// already removing this one by the time we ask: the answer is 404 if
+					// it finished and 409 if it is still going. Both mean the container
+					// is gone or going, which is what was wanted. Logged as a warning
+					// with a stack trace, this printed one on every successful run and
+					// taught an operator to ignore the warnings from this class.
+					logger.debug("Container {} was already being removed by Docker", containerId);
 				}
 				catch (RuntimeException ex) {
 					logger.warn("Failed to remove container {}", containerId, ex);

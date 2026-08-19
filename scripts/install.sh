@@ -71,6 +71,17 @@ socket_gid="$(stat -c '%g' /var/run/docker.sock 2>/dev/null || echo '')"
 set_env DOCKER_GID "$socket_gid"
 printf '    Docker socket group is %s.\n' "$socket_gid"
 
+# What the application presents to the runner when it asks for a sandbox. Both halves
+# refuse to start without it, and the shipped placeholder is the same on every checkout,
+# so it is generated here rather than left for the operator to notice later.
+current_secret="$(grep -E '^GRADING_RUNNER_SECRET=' .env | cut -d= -f2- || true)"
+if [[ -z "$current_secret" || "$current_secret" == 'change-me-before-production' ]]; then
+  runner_secret="$(openssl rand -hex 32 2>/dev/null || head -c 32 /dev/urandom | od -An -tx1 | tr -d ' \n')"
+  [[ -n "$runner_secret" ]] || fail 'Could not generate a runner secret.'
+  set_env GRADING_RUNNER_SECRET "$runner_secret"
+  printf '    Generated a grading runner secret.\n'
+fi
+
 # --demo starts a directory to sign in against, so it has to be switched on. The
 # example configuration ships it off, which is right for a real deployment and wrong
 # here: without this the only authentication left is a local account list that is

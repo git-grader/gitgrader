@@ -29,6 +29,7 @@ import org.springframework.security.web.AuthenticationEntryPoint;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.security.web.authentication.www.BasicAuthenticationFilter;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.security.web.csrf.CookieCsrfTokenRepository;
 import org.springframework.security.web.header.writers.ReferrerPolicyHeaderWriter;
 
@@ -49,6 +50,33 @@ public class WebSecurityConfig {
 	public WebSecurityConfig(SecurityProperties properties, RateLimiter rateLimiter) {
 		this.properties = properties;
 		this.rateLimiter = rateLimiter;
+	}
+
+	/**
+	 * The runner role's one endpoint, which authenticates a peer rather than a person.
+	 *
+	 * <p>
+	 * Exists only where {@code grading.runner-api.enabled} is set, which is the container
+	 * holding the Docker socket and nothing else. It carries no session and no user: the
+	 * controller checks a shared secret in constant time and refuses anything else. Form
+	 * login would be meaningless here, and leaving it on the default chain would have
+	 * answered the web tier with a redirect to a sign-in page.
+	 * @param http the chain being built
+	 * @return the chain serving the runner API
+	 * @throws Exception when the chain cannot be built
+	 */
+	@Bean
+	@Order(-1)
+	@ConditionalOnProperty(name = "grading.runner-api.enabled", havingValue = "true")
+	public SecurityFilterChain runnerApiFilterChain(HttpSecurity http) throws Exception {
+		http.securityMatcher("/internal/**")
+			.authorizeHttpRequests((authz) -> authz.anyRequest().permitAll())
+			// No browser reaches this: it is a service-to-service call on an internal
+			// network, published on no host port, carrying a secret rather than a cookie.
+			// There is no ambient authority for a forged request to borrow.
+			.csrf((csrf) -> csrf.disable())
+			.sessionManagement((session) -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS));
+		return http.build();
 	}
 
 	@Bean
