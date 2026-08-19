@@ -93,25 +93,48 @@ the result page shows a category and a hint, never a name. Closing it entirely
 requires running the reporter and the submission in separate containers, which
 the current single-sandbox design does not do.
 
-## Docker socket: effective host root
+## The Docker socket, and what is on each side of it
 
-Mounting `/var/run/docker.sock` into the application container is effectively
-host-root access. The Docker API permits creating privileged containers, mounting
-host paths, changing namespaces, or running commands with access equivalent to
-the Docker daemon. Application compromise can therefore become host compromise.
-The default Compose file includes the mount only because the current in-process
-Docker runner requires it; do not mistake container hardening for protection from
-that socket.
+Access to `/var/run/docker.sock` is effectively host root. The Docker API can be
+asked for a privileged container with the host filesystem mounted, so anything
+holding that socket can take the machine. No amount of container hardening
+changes that; it is a property of the API, not of the container asking.
 
-Hardening options:
+The application therefore does not hold it. The topology is:
 
-1. Put a Docker socket proxy between the application and engine, with a minimal
-   API allow-list for the runner. This reduces accidental API reach but the exact
-   allowed API set must be reviewed as privileged.
-2. Prefer a separate runner service on isolated infrastructure. The hardened
-   topology is: **Web app → internal API → Runner service → Docker Engine**.
-   The web app receives no Docker socket; mutual authentication, authorization,
-   network policy, and an explicit job/artifact protocol protect the internal API.
+**Web app → internal API → runner service → Docker Engine**
+
+The runner service is the only container with the socket. It runs the same image
+as the application with two things switched off — it claims no jobs from the
+queue and serves no SSH — and it publishes no host port, so only the internal
+network can reach it. The web application is configured with
+`grading.runner=remote` and builds no Docker client at all: there is no code path
+from a request to the daemon.
+
+What the runner will do is deliberately one thing: *grade this submission*. It is
+not a proxy for the Docker API, and the request does not get to decide the
+dangerous parts. Before a container exists, the runner:
+
+- resolves the workspace and hidden-test paths against its own volumes and
+  refuses anything outside them, traversal included;
+- clamps the timeout, memory, CPU, PID and log limits to its own ceilings, so a
+  caller can ask for less and never for more;
+- applies its own hardening — no network, all capabilities dropped, read-only
+  root, `no-new-privileges`, unprivileged user — none of which is in the request.
+
+A shared secret (`GRADING_RUNNER_SECRET`) authenticates the caller, compared in
+constant time. That secret is what stops something else on the internal network
+asking for a run; it is not what makes this a boundary. The boundary is how
+little the operation offered can be talked into doing. Both halves refuse to
+start misconfigured: a runner without a secret would accept runs from anything
+that reached it, and a web tier without one could not grade at all.
+
+A compromised web application can therefore ask for a sandboxed run of a
+digest-pinned image, and cannot ask for anything else.
+
+A socket proxy with an API allow-list is a weaker version of this and remains an
+option for an existing deployment, but it narrows reach rather than removing it:
+the allowed API set still has to be reviewed as privileged.
 
 ## Identity, keys, and attribution
 

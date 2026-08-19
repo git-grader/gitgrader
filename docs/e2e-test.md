@@ -46,8 +46,14 @@ point the mount roots at them:
 
 ```yaml
 # /tmp/e2e/compose.e2e.yaml, added with a third -f
+# Both services need the same two paths: the app writes a workspace and the runner hands
+# that path to the daemon, which resolves it on the host.
 services:
   app:
+    volumes:
+      - /tmp/e2e/data/grading:/data/grading
+      - /tmp/e2e/data/tests:/data/tests
+  runner:
     volumes:
       - /tmp/e2e/data/grading:/data/grading
       - /tmp/e2e/data/tests:/data/tests

@@ -36,6 +36,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.SmartLifecycle;
 import org.springframework.scheduling.annotation.Scheduled;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 
 /**
@@ -55,6 +56,10 @@ import org.springframework.stereotype.Component;
  * to add grading capacity.
  */
 @Component
+// A runner-role instance serves sandboxes and must not also claim jobs: two workers on
+// one queue is not wrong, but a runner that grades is a runner that needs the database,
+// the repositories and the workspaces, which is the opposite of why it was split out.
+@ConditionalOnProperty(name = "grading.queue.enabled", havingValue = "true", matchIfMissing = true)
 public class GradingDispatcher implements SmartLifecycle {
 
 	/**

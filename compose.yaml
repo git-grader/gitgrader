@@ -15,6 +15,8 @@ services:
         condition: service_healthy
       init-permissions:
         condition: service_completed_successfully
+      runner:
+        condition: service_started
     environment:
       SPRING_PROFILES_ACTIVE: production
       SPRING_DATASOURCE_URL: ${SPRING_DATASOURCE_URL:-jdbc:postgresql://database:5432/gitgrader}
@@ -37,6 +39,11 @@ services:
       GRADING_DEFAULT_CPU_LIMIT: ${GRADING_DEFAULT_CPU_LIMIT:-1.0}
       GRADING_DEFAULT_PID_LIMIT: ${GRADING_DEFAULT_PID_LIMIT:-256}
       GRADING_NETWORK_ENABLED: ${GRADING_NETWORK_ENABLED:-false}
+      # Grading happens on the other side of a boundary: this container has no route to
+      # the Docker API and asks the runner service for a sandbox instead.
+      GRADING_RUNNER: remote
+      GRADING_RUNNER_API_URL: http://runner:8080
+      GRADING_RUNNER_API_SECRET: ${GRADING_RUNNER_SECRET:?Set GRADING_RUNNER_SECRET in .env - any long random string, shared with the runner}
       STORAGE_REPOSITORIES_DIRECTORY: /data/git/repositories
       STORAGE_TEMPLATES_DIRECTORY: /data/templates
       STORAGE_TESTS_DIRECTORY: /data/tests
@@ -115,13 +122,10 @@ services:
       - tests:/data/tests
       - artifacts:/data/artifacts
       - ./config:/config:ro
-      # DANGER: Docker socket access grants effective host-root control. A process able
-      # to call this socket can start privileged containers and mount host paths. See
-      # docs/security.md. Prefer the documented socket proxy or runner-service split.
-      - /var/run/docker.sock:/var/run/docker.sock
-      # To use a restricted proxy, enable a proxy service, remove the socket line above,
-      # and set GRADING_DOCKER_HOST=tcp://docker-socket-proxy:2375. A proxy must allow
-      # only the runner's required Docker API methods; it is not a complete security boundary.
+      # No Docker socket here, deliberately. This container faces students and
+      # instructors, and the socket is effective host root: one flaw in it would
+      # otherwise have been enough to start a privileged container mounting /. It asks
+      # the runner service below for a sandbox instead, over one narrow operation.
     # No container healthcheck: the image is built by buildpacks onto a minimal run
     # image that contains no shell and no HTTP client, so any in-container probe simply
     # fails to exec. A probe that can never succeed is worse than none, because the
@@ -137,11 +141,88 @@ services:
     # on every redeploy, stranding the job until its 15 minute lease expired. This must
     # stay above spring.lifecycle.timeout-per-shutdown-phase.
     stop_grace_period: 90s
-    # The socket above is owned by the host's docker group, and this container runs
-    # unprivileged, so without membership of that group every grading run fails with a
-    # permission error long after startup looked fine. The gid differs per host, so it
-    # has no safe default and is required here in order to fail at "up" rather than at
-    # the first submission. Find it with: stat -c '%g' /var/run/docker.sock
+    security_opt:
+      - no-new-privileges:true
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 2G
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: '3'
+
+  # The only container with the Docker socket, and the only reason it exists.
+  #
+  # Access to that socket is access to the host: a container can be asked for with the
+  # root filesystem mounted and every capability held. Keeping it here means a flaw in
+  # the web application - a dependency, an injection, a stolen instructor session next to
+  # a later bug - reaches an API that will do exactly one thing, "grade this", with the
+  # limits and the hardening this service decides rather than the ones it is handed.
+  #
+  # It runs the same image as the app with two things switched off: it claims no jobs
+  # from the queue, and it serves no SSH. It publishes no host port, so nothing outside
+  # the internal network can ask it for anything at all.
+  runner:
+    image: ghcr.io/git-grader/gitgrader:${GITGRADER_VERSION:-0.1.0-SNAPSHOT}
+    restart: unless-stopped
+    depends_on:
+      database:
+        condition: service_healthy
+      init-permissions:
+        condition: service_completed_successfully
+    environment:
+      SPRING_PROFILES_ACTIVE: production
+      SPRING_DATASOURCE_URL: ${SPRING_DATASOURCE_URL:-jdbc:postgresql://database:5432/gitgrader}
+      SPRING_DATASOURCE_USERNAME: ${SPRING_DATASOURCE_USERNAME:-gitgrader}
+      SPRING_DATASOURCE_PASSWORD: ${SPRING_DATASOURCE_PASSWORD:?Set SPRING_DATASOURCE_PASSWORD in .env}
+      # This is the runner: it serves sandboxes, claims nothing, and accepts no pushes.
+      GRADING_RUNNER_API_ENABLED: "true"
+      GRADING_RUNNER_API_SECRET: ${GRADING_RUNNER_SECRET:?Set GRADING_RUNNER_SECRET in .env - any long random string, shared with the app}
+      GRADING_QUEUE_ENABLED: "false"
+      GIT_ENABLED: "false"
+      # The ceilings a run is clamped to. The caller may ask for less and never for more,
+      # so these are the real limits regardless of what the web tier sends.
+      GRADING_DEFAULT_TIMEOUT: ${GRADING_DEFAULT_TIMEOUT:-120s}
+      GRADING_DEFAULT_MEMORY_LIMIT: ${GRADING_DEFAULT_MEMORY_LIMIT:-512MB}
+      GRADING_DEFAULT_CPU_LIMIT: ${GRADING_DEFAULT_CPU_LIMIT:-1.0}
+      GRADING_DEFAULT_PID_LIMIT: ${GRADING_DEFAULT_PID_LIMIT:-256}
+      GRADING_NETWORK_ENABLED: ${GRADING_NETWORK_ENABLED:-false}
+      GRADING_LOG_SIZE_LIMIT: ${GRADING_LOG_SIZE_LIMIT:-1MB}
+      # Binds are resolved by the daemon on the host, so the runner has to know the host
+      # paths of the volumes it mounts, exactly as the app did when it held the socket.
+      GRADING_DOCKER_WORKSPACE_MOUNT_ROOT: ${GRADING_DOCKER_WORKSPACE_MOUNT_ROOT:-}
+      GRADING_DOCKER_TESTS_MOUNT_ROOT: ${GRADING_DOCKER_TESTS_MOUNT_ROOT:-}
+      # Both roots are also what a request is checked against: a workspace or a test path
+      # outside them is refused before a container exists.
+      STORAGE_TESTS_DIRECTORY: /data/tests
+      STORAGE_TEMP_DIRECTORY: /data/grading
+      STORAGE_REPOSITORIES_DIRECTORY: /data/git/repositories
+      STORAGE_TEMPLATES_DIRECTORY: /data/templates
+      STORAGE_ARTIFACTS_DIRECTORY: /data/artifacts
+      LOG_LEVEL_GITGRADER: ${LOG_LEVEL_GITGRADER:-INFO}
+      SPRING_SHUTDOWN_PHASE_TIMEOUT: ${SPRING_SHUTDOWN_PHASE_TIMEOUT:-60s}
+      XDG_CONFIG_HOME: /tmp
+    volumes:
+      - grading-data:/data/grading
+      - tests:/data/tests
+      - git-data:/data/git
+      - templates:/data/templates
+      - artifacts:/data/artifacts
+      # The socket lives here and nowhere else.
+      - /var/run/docker.sock:/var/run/docker.sock
+    read_only: true
+    tmpfs:
+      - /tmp
+    # A run in progress is worth waiting for, for the same reason the app waits.
+    stop_grace_period: 90s
+    # The socket is owned by the host's docker group and this container runs
+    # unprivileged, so without membership of that group every run fails with a permission
+    # error long after startup looked fine. The gid differs per host, so it has no safe
+    # default and is required here in order to fail at "up" rather than at the first
+    # submission. Find it with: stat -c '%g' /var/run/docker.sock
     group_add:
       - "${DOCKER_GID:?Set DOCKER_GID in .env - see stat -c '%g' /var/run/docker.sock}"
     security_opt:
@@ -150,7 +231,7 @@ services:
       resources:
         limits:
           cpus: '2.0'
-          memory: 2G
+          memory: 1G
     logging:
       driver: json-file
       options:

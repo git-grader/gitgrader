@@ -16,6 +16,7 @@ flowchart TB
     app["<b>Application</b><br/>Spring Boot, Java 25<br/><i>One process: web interface, REST API,<br/>Git over SSH, and grading on a schedule</i>"]:::container
     db[("<b>PostgreSQL</b><br/><i>Coursework, submissions, grading runs,<br/>audit trail, job queue</i>")]:::store
     vols[("<b>Storage volumes</b><br/><i>Bare repositories, templates,<br/>hidden tests, artifacts</i>")]:::store
+    runner["<b>Runner</b><br/><i>Same image, claims no jobs,<br/>the only holder of the Docker socket</i>"]:::container
   end
 
   directory["<b>Directory</b><br/><i>LDAP</i>"]:::external
@@ -26,7 +27,8 @@ flowchart TB
   app -->|"JDBC"| db
   app -->|"file I/O"| vols
   app -->|"checks credentials<br/>LDAP"| directory
-  app -->|"starts one per submission<br/>Docker API"| sandbox
+  app -->|"grade this submission<br/>internal HTTP"| runner
+  runner -->|"starts one per submission<br/>Docker API"| sandbox
 
   classDef person fill:#0D162C,color:#fff,stroke:#0D162C
   classDef container fill:#2563EB,color:#fff,stroke:#1e4fc4

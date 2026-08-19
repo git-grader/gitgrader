@@ -17,8 +17,9 @@ does not verify identity either. Use assessment policy, supervision, and review
 for authorship claims.
 
 It also runs untrusted student code, which needs careful runner/host isolation.
-In particular, the default Docker socket mount is effectively host root:
-compromising the application compromises the host. Read the
+The Docker socket is held by a separate runner service that will only ever grade a
+submission, so the web application has no route to the engine; the sandbox itself
+runs with no network, no capabilities and a read-only root. Read the
 [security model](docs/security.md) before letting anyone else near an instance.
 
 ## Quick start

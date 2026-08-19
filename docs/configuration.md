@@ -37,7 +37,12 @@ listed in the second table.
 | `grading.network-enabled` | `GRADING_NETWORK_ENABLED` | `false` | Permit runner network access. |
 | `grading.log-size-limit` | `GRADING_LOG_SIZE_LIMIT` | `1MB` | Captured log limit. |
 | `grading.retain-workspaces` | `GRADING_RETAIN_WORKSPACES` | `false` | Retain workspaces for diagnosis. |
-| `grading.docker.host` | `GRADING_DOCKER_HOST` | `unix:///var/run/docker.sock` | Docker API endpoint. |
+| `grading.runner` | `GRADING_RUNNER` | `docker` | Where sandboxes come from. `remote` asks the runner service and builds no Docker client at all; the shipped Compose file sets it on the application. |
+| `grading.runner-api.enabled` | `GRADING_RUNNER_API_ENABLED` | `false` | Serve the grading API. This is what makes a container the runner, and it is the only one given the Docker socket. |
+| `grading.runner-api.url` | `GRADING_RUNNER_API_URL` | empty | Where the application reaches the runner. Required when `grading.runner` is `remote`; startup fails without it. |
+| `grading.runner-api.secret` | `GRADING_RUNNER_API_SECRET` | empty | Shared secret both sides present and check, compared in constant time. Required on either side; a runner without one would accept a run from anything that reached it, so it refuses to start. |
+| `grading.queue.enabled` | `GRADING_QUEUE_ENABLED` | `true` | Claim jobs from the queue. The runner sets this to `false`: it serves sandboxes rather than deciding what to grade. |
+| `grading.docker.host` | `GRADING_DOCKER_HOST` | `unix:///var/run/docker.sock` | Docker API endpoint, read by whichever process holds the socket — the runner service. |
 | `grading.docker.workspace-mount-root` | `GRADING_DOCKER_WORKSPACE_MOUNT_ROOT` | empty | Host-visible workspace root. |
 | `grading.docker.tests-mount-root` | `GRADING_DOCKER_TESTS_MOUNT_ROOT` | empty | Host-visible hidden-test root. Required whenever the application itself runs in a container: the Docker daemon resolves sandbox mounts on the host, so leaving this empty passes the application's own path through, the daemon creates it empty rather than failing, and every submission is graded against no tests and scored zero. |
 | `grading.docker.user` | `GRADING_DOCKER_USER` | `65534:65534` | Sandbox UID:GID. |

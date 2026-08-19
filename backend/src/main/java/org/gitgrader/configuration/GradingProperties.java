@@ -47,6 +47,7 @@ import org.springframework.validation.annotation.Validated;
  * @param retainWorkspaces keep run directories after completion; debugging aid, off by
  * default because student code is untrusted content
  * @param docker settings specific to the Docker runner
+ * @param runnerApi the boundary between the web tier and whatever holds the Docker socket
  * @param queue settings of the database backed job queue
  */
 @ConfigurationProperties(prefix = "grading")
@@ -72,6 +73,8 @@ public record GradingProperties(
 		@DefaultValue("false") boolean retainWorkspaces,
 
 		@DefaultValue Docker docker,
+
+		@DefaultValue RunnerApi runnerApi,
 
 		@DefaultValue Queue queue) {
 
@@ -111,6 +114,43 @@ public record GradingProperties(
 	}
 
 	/**
+	 * The boundary between the web tier and the process that holds the Docker socket.
+	 *
+	 * <p>
+	 * Access to the Docker API is access to the host: any container it is asked for can
+	 * mount the root filesystem and run as root. While the web application held the
+	 * socket, every flaw in it - a dependency, an injection, a stolen instructor session
+	 * next to a later bug - reached that far. The socket now lives in a separate service
+	 * that accepts one operation, "grade this", and applies its own limits and its own
+	 * hardening to it rather than taking the caller's word.
+	 *
+	 * <p>
+	 * The secret is what stops anything else on the internal network asking for a run. It
+	 * is not what makes the boundary: that is the narrowness of the operation offered.
+	 *
+	 * @param enabled whether this instance serves the runner API, which is what the
+	 * runner role turns on and the web tier leaves off
+	 * @param url where the web tier reaches the runner; unused by the runner itself
+	 * @param secret shared secret both sides present and check
+	 * @param connectTimeout how long the web tier waits to reach the runner at all
+	 * @param responseMargin added to a run's own timeout before the web tier stops
+	 * waiting for the answer, so the runner is always the one that decides a run has
+	 * overrun
+	 */
+	public record RunnerApi(
+
+			@DefaultValue("false") boolean enabled,
+
+			@DefaultValue("") String url,
+
+			@DefaultValue("") String secret,
+
+			@DefaultValue("10s") Duration connectTimeout,
+
+			@DefaultValue("30s") Duration responseMargin) {
+	}
+
+	/**
 	 * Database backed job queue.
 	 *
 	 * <p>
@@ -119,6 +159,8 @@ public record GradingProperties(
 	 * sees, and it removes an entire service from the self-hosting story. The interface
 	 * is narrow enough that a broker can be slid underneath later.
 	 *
+	 * @param enabled whether this instance claims jobs at all; the runner role turns it
+	 * off, because it serves sandboxes rather than deciding what to grade
 	 * @param pollInterval how often an idle worker looks for new work
 	 * @param claimTimeout after how long a claimed job is considered abandoned and
 	 * returned to the queue, which is what makes a crashed worker recoverable
@@ -135,6 +177,8 @@ public record GradingProperties(
 	 * handing their jobs back to the queue
 	 */
 	public record Queue(
+
+			@DefaultValue("true") boolean enabled,
 
 			@DefaultValue("2s") Duration pollInterval,
 
