@@ -10,7 +10,7 @@ VALUES ('10000000-0000-4000-8000-000000000002', '10000000-0000-4000-8000-0000000
 ON CONFLICT DO NOTHING;
 
 INSERT INTO runtimes (id, runtime_key, display_name, image, tag, image_digest, install_command, test_command, report_format, enabled, created_at, updated_at)
-VALUES ('10000000-0000-4000-8000-000000000003', 'node-24', 'Node.js 24', 'node', '24-bookworm-slim', 'sha256:6f7b03f7c2c8e2e784dcf9295400527b9b1270fd37b7e9a7285cf83b6951452d', 'npm ci --ignore-scripts', 'node --test --test-reporter=tap /opt/hidden-tests/hidden.test.js', 'TAP', TRUE, now(), now())
+VALUES ('10000000-0000-4000-8000-000000000003', 'node-24', 'Node.js 24', 'node', '24-bookworm-slim', 'sha256:3638d9a6fe4030bd716be989438248074489337ba3275657f93595428be4fc03', 'npm ci --ignore-scripts', 'node --test --test-reporter=tap /opt/hidden-tests/hidden.test.js', 'TAP', TRUE, now(), now())
 ON CONFLICT DO NOTHING;
 
 INSERT INTO project_templates (id, template_key, name, description, created_at, updated_at)

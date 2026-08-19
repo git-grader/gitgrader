@@ -28,6 +28,18 @@ jobs:
       # The scripts reach volumes through a helper image that Compose also names, and
       # Dependabot only updates the Compose copy. They drifted to three different Alpine
       # versions before anyone noticed, so the two are compared here.
+      # Dependabot bumps the runtime's digest in the Dockerfile and knows nothing about
+      # the seeded runtime that pins the same image, so the two drifted apart on the
+      # first bump: the demo would then pull an image the repository never built.
+      - name: Seeded runtime matches the runtime image
+        run: |
+          dockerfile=$(grep -oE 'sha256:[a-f0-9]+' deployment/runtimes/node-24/Dockerfile | head -1)
+          seeded=$(grep -oE 'sha256:[a-f0-9]+' examples/seed-data.sql | head -1)
+          if [ "$dockerfile" != "$seeded" ]; then
+            echo "::error::deployment/runtimes/node-24/Dockerfile pins $dockerfile but examples/seed-data.sql pins $seeded"
+            exit 1
+          fi
+          echo "Both pin $dockerfile."
       - name: Helper image matches the deployment
         run: |
           compose=$(grep -oE 'image: alpine:[0-9.]+' compose.yaml | head -1 | cut -d' ' -f2)
