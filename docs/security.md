@@ -71,6 +71,20 @@ OpenAPI examples; or diagnostic/support logs. Store them only below the separate
 tests directory and mount them read-only for a single grading run. Raw hidden
 test names, assertion output, and grading logs are instructor-only.
 
+**"Hidden" means withheld from the result, not confidential from the submission.**
+The suite executes the submitted code in its own process — a test imports the
+student's module and calls it — so while a run is in progress that code can read
+the assertions and the expected values, whether or not the sources are still on
+disk. Removing the mount would not change this: in the same interpreter, a test
+callback's source is available from the function object itself.
+
+Read-only mounting stops modification, and the manifest below stops an undeclared
+test inflating a score, so this is a confidentiality limit rather than a scoring
+one. Closing it needs the submission and the suite in separate processes, which is
+a change to the runner contract and to how a suite is packaged; it is tracked in
+issue #40. Set assessment policy accordingly: treat a hidden suite as unreadable
+by a marker, not as unreadable by a determined student.
+
 ## Grading integrity: the manifest decides what exists
 
 A sandbox runs the reporter and the submission in one container, so both write
