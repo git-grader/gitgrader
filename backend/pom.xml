@@ -96,7 +96,7 @@
 
     <!-- SonarQube / IDE friendly aggregate report location. -->
     <sonar.coverage.jacoco.xmlReportPaths>${project.build.directory}/site/jacoco/jacoco.xml</sonar.coverage.jacoco.xmlReportPaths>
-    <spotbugs-maven-plugin.version>4.10.3.0</spotbugs-maven-plugin.version>
+    <spotbugs-maven-plugin.version>4.10.4.0</spotbugs-maven-plugin.version>
     <spotbugs.skip>${skipQuality}</spotbugs.skip>
     <spotbugs.version>4.10.4</spotbugs.version>
 
