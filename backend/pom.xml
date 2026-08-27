@@ -68,7 +68,7 @@
     <jacoco.line.coverage>0.55</jacoco.line.coverage>
     <java.version>25</java.version>
     <jgit.version>7.7.1.202607240634-r</jgit.version>
-    <license-maven-plugin.version>5.1.1</license-maven-plugin.version>
+    <license-maven-plugin.version>5.1.2</license-maven-plugin.version>
     <maven-checkstyle-plugin.version>3.6.0</maven-checkstyle-plugin.version>
     <maven-enforcer-plugin.version>3.6.3</maven-enforcer-plugin.version>
     <maven-pmd-plugin.version>3.28.0</maven-pmd-plugin.version>
