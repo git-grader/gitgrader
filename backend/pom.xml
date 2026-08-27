@@ -98,7 +98,7 @@
     <sonar.coverage.jacoco.xmlReportPaths>${project.build.directory}/site/jacoco/jacoco.xml</sonar.coverage.jacoco.xmlReportPaths>
     <spotbugs-maven-plugin.version>4.10.3.0</spotbugs-maven-plugin.version>
     <spotbugs.skip>${skipQuality}</spotbugs.skip>
-    <spotbugs.version>4.10.3</spotbugs.version>
+    <spotbugs.version>4.10.4</spotbugs.version>
 
     <spring-boot.build-image.imageName>ghcr.io/git-grader/gitgrader:${project.version}</spring-boot.build-image.imageName>
     <spring-javaformat.validate.skip>${skipQuality}</spring-javaformat.validate.skip>
