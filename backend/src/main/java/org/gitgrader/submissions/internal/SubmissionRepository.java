@@ -22,6 +22,8 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
+import jakarta.persistence.LockModeType;
+
 import org.gitgrader.submissions.SubmissionStatus;
 import org.gitgrader.submissions.SubmissionAssessmentView;
 import org.gitgrader.submissions.domain.Submission;
@@ -29,6 +31,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -74,6 +77,23 @@ public interface SubmissionRepository extends JpaRepository<Submission, UUID>, J
 	 * @return number of matching submissions
 	 */
 	long countByStatus(SubmissionStatus status);
+
+	/**
+	 * Loads a submission for a status write, holding its row until the transaction ends.
+	 *
+	 * <p>
+	 * The cached status is a read-then-write guarded by an {@code @Version} column, and
+	 * two grading runs for the same submission finish independently of each other: a
+	 * regrade landing beside the original leaves the second writer holding a stale
+	 * version, and its result is thrown away as an optimistic-locking failure. The lock
+	 * makes the two queue rather than collide, and is transaction scoped like the
+	 * admission lock above.
+	 * @param id the submission being written
+	 * @return the locked submission, if it still exists
+	 */
+	@Lock(LockModeType.PESSIMISTIC_WRITE)
+	@Query("select s from Submission s where s.id = :id")
+	Optional<Submission> findByIdForStatusUpdate(@Param("id") UUID id);
 
 	/**
 	 * Counts how many submissions a student made for an assignment.

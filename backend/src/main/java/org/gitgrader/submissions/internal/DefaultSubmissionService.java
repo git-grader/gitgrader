@@ -216,7 +216,7 @@ public class DefaultSubmissionService implements SubmissionService {
 
 	@Override
 	public SubmissionView markStatus(UUID submissionId, SubmissionStatus status) {
-		Submission submission = this.repository.findById(submissionId)
+		Submission submission = this.repository.findByIdForStatusUpdate(submissionId)
 			.orElseThrow(() -> new EntityNotFoundException("No submission with id " + submissionId));
 		submission.updateStatus(status);
 		return toView(this.repository.save(submission));

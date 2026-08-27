@@ -136,7 +136,7 @@ dangerous parts. Before a container exists, the runner:
 - applies its own hardening — no network, all capabilities dropped, read-only
   root, `no-new-privileges`, unprivileged user — none of which is in the request.
 
-A shared secret (`GRADING_RUNNER_SECRET`) authenticates the caller, compared in
+A shared secret (`GRADING_RUNNER_API_SECRET`) authenticates the caller, compared in
 constant time. That secret is what stops something else on the internal network
 asking for a run; it is not what makes this a boundary. The boundary is how
 little the operation offered can be talked into doing. Both halves refuse to
