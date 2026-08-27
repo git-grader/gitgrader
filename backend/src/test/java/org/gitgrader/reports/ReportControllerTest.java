@@ -78,6 +78,10 @@ class ReportControllerTest {
 		registry.add("spring.datasource.username", POSTGRES::getUsername);
 		registry.add("spring.datasource.password", POSTGRES::getPassword);
 		registry.add("spring.jpa.properties.hibernate.generate_statistics", () -> "true");
+		// The grading dispatcher polls every two seconds and its reap query runs through
+		// the same SessionFactory, so a tick landing inside the measurement window used
+		// to make the asserted statement count flap between 6 and 7.
+		registry.add("grading.queue.poll-interval", () -> "1h");
 	}
 
 	@BeforeEach
