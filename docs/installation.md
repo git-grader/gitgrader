@@ -7,7 +7,7 @@ HTTP name, an HTTPS reverse proxy, and firewall access to TCP 443 and TCP 2222
 (or your chosen SSH port). TCP 80 is normally needed only for ACME HTTP-01.
 Grading needs Docker access, but the application does not get it: the socket is
 held by a separate runner service that only ever grades a submission. Set
-`GRADING_RUNNER_SECRET` in `.env` — both halves refuse to start without it — and
+`GRADING_RUNNER_API_SECRET` in `.env` — both halves refuse to start without it — and
 read the [security guidance](security.md) for what that boundary does and does
 not cover.
 

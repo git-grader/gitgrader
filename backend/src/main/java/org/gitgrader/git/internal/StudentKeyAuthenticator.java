@@ -105,7 +105,11 @@ public class StudentKeyAuthenticator implements PublickeyAuthenticator {
 		if (registered.isEmpty()) {
 			// Deliberately identical handling for "never seen" and "revoked": the client
 			// learns only that the key was refused, never whether it is known here.
-			logger.info("Rejected SSH authentication for unknown or unusable key {}", fingerprint);
+			// The fingerprint stays at debug: an unenrolled key belongs to nobody this
+			// service has a record of, so at info it would write the public key material
+			// of arbitrary scanners into the operational log.
+			logger.info("Rejected SSH authentication for an unknown or unusable key");
+			logger.debug("Rejected SSH authentication for unknown or unusable key {}", fingerprint);
 			return false;
 		}
 
