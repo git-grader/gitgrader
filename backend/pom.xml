@@ -79,7 +79,7 @@
     <node.version>v24.18.1</node.version>
     <npm.version>11.16.0</npm.version>
     <pmd.skip>${skipQuality}</pmd.skip>
-    <pmd.version>7.26.0</pmd.version>
+    <pmd.version>7.27.0</pmd.version>
     <poi.version>5.5.1</poi.version>
 
     <!-- Ahead of the version Spring Boot manages: 42.7.11 silently downgrades a
