@@ -105,7 +105,7 @@
     <spring-javaformat.version>0.0.48</spring-javaformat.version>
 
     <!-- Dependency versions not managed by the Spring Boot BOM. -->
-    <spring-modulith.version>2.1.0</spring-modulith.version>
+    <spring-modulith.version>2.1.1</spring-modulith.version>
     <springdoc.version>3.1.0</springdoc.version>
     <sshd.version>2.19.0</sshd.version>
     <taikai.version>1.66.0</taikai.version>
