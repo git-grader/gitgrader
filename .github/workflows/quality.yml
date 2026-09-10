@@ -102,8 +102,13 @@ jobs:
             exit 1
           fi
           ./mvnw -B -Psecurity verify -DskipTests
+      # Saving on failure is the point: the job fails when it finds something and the
+      # feed it just downloaded is still good. Cancellation is the exception, because it
+      # stops the download wherever it happens to be and can leave the H2 database
+      # locked. Saving that cost run 34476731361 forty-two minutes of waiting on
+      # "Unable to obtain an exclusive lock" before it gave up having scanned nothing.
       - uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
-        if: always() && steps.nvd-cache.outputs.cache-hit != 'true'
+        if: ${{ !cancelled() && steps.nvd-cache.outputs.cache-hit != 'true' }}
         with:
           path: ~/.m2/repository/org/owasp/dependency-check-data
           key: dependency-check-data-${{ github.run_id }}
