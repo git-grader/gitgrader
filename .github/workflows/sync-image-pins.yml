@@ -1,0 +1,54 @@
+name: Sync image pins
+
+# Dependabot bumps the runtime Dockerfile and compose.yaml, and knows nothing about the
+# two files that repeat those pins. Every bump therefore arrived half-applied: the Quality
+# gate caught it, but someone still had to edit the second file by hand before main went
+# green again. This closes that gap on the branch, before the bump is ever merged.
+on:
+  pull_request:
+    paths:
+      - deployment/runtimes/node-24/Dockerfile
+      - compose.yaml
+
+# Workflows that Dependabot triggers get a read-only token by default; this is what lets
+# the repair be pushed back onto its branch.
+permissions:
+  contents: write
+
+concurrency:
+  group: sync-image-pins-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  sync:
+    # Dependabot's branches live in this repository rather than a fork, so the push below
+    # has somewhere to go. Nothing else gets a workflow that rewrites its files: on a fork
+    # the checked-out code would be untrusted, and a human touching these pins should be
+    # told by the Quality gate rather than corrected silently.
+    if: >-
+      github.event.pull_request.user.login == 'dependabot[bot]' &&
+      github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ github.event.pull_request.head.ref }}
+          # A push made with GITHUB_TOKEN deliberately starts no further workflow runs, so
+          # the branch is repaired but its checks still describe the commit before the
+          # repair. Storing a personal access token as a *Dependabot* secret named
+          # SYNC_PINS_TOKEN (Actions secrets are not readable from a Dependabot event)
+          # makes the push re-run every check against the fixed commit instead.
+          token: ${{ secrets.SYNC_PINS_TOKEN || secrets.GITHUB_TOKEN }}
+      - name: Sync the copies Dependabot cannot reach
+        run: scripts/sync-image-pins.sh --fix
+      - name: Push the repair
+        run: |
+          if git diff --quiet; then
+            printf 'The pins were already in step; nothing to push.\n'
+            exit 0
+          fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit --all --message 'build(deps): reseed the pins this bump left behind'
+          git push
