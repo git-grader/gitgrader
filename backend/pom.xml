@@ -3,7 +3,9 @@
   Copyright the GitGrader contributors.
   SPDX-License-Identifier: Apache-2.0
 -->
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
   <modelVersion>4.0.0</modelVersion>
 
   <!--
@@ -110,12 +112,13 @@
     <sshd.version>2.19.0</sshd.version>
     <taikai.version>1.66.0</taikai.version>
 
-    <!-- Ahead of the version Spring Boot manages. 11.0.22 is the servlet container
-		     every request is served by, and it carries CVE-2026-55276, CVE-2026-53434 and
-		     CVE-2026-53404 (fixed in 11.0.23) along with CVE-2026-59083, a RewriteValve
-		     decoding flaw that can bypass a security control, and CVE-2026-59084 (both
-		     fixed in 11.0.24). Drop this once the managed version reaches 11.0.24. -->
-    <tomcat.version>11.0.24</tomcat.version>
+    <!-- Ahead of the version Spring Boot manages. 11.0.24 is the servlet container
+		     every request is served by, and the dependency check fails the build on it:
+		     CVE-2026-65905 and CVE-2026-65637 (9.8), CVE-2026-65182 and CVE-2026-68525
+		     (9.1), CVE-2026-65183, CVE-2026-66422 and CVE-2026-68569 (8.1), CVE-2026-65927
+		     and CVE-2026-68763 (7.5), all fixed in 11.0.25, which carries no known
+		     vulnerability. Drop this once the managed version reaches 11.0.25. -->
+    <tomcat.version>11.0.25</tomcat.version>
   </properties>
 
   <dependencyManagement>
@@ -712,7 +715,7 @@
 					  method that is currently a warning and is set to become an error.
 					-->
           <argLine>@{argLine} -javaagent:${org.mockito:mockito-core:jar}
-						--enable-native-access=ALL-UNNAMED</argLine>
+            --enable-native-access=ALL-UNNAMED</argLine>
           <excludes>
             <exclude>**/*IT.java</exclude>
             <exclude>**/*IntegrationTest.java</exclude>
@@ -895,7 +898,8 @@
                 </goals>
                 <phase>process-resources</phase>
                 <configuration>
-                  <arguments>run build -- --outDir ${project.build.outputDirectory}/static --emptyOutDir</arguments>
+                  <arguments>run build -- --outDir ${project.build.outputDirectory}/static
+                    --emptyOutDir</arguments>
                 </configuration>
               </execution>
             </executions>
