@@ -16,13 +16,12 @@
 
 package org.gitgrader.reports;
 
+import java.util.List;
 import java.util.Locale;
 import java.util.UUID;
 
-import jakarta.persistence.EntityManagerFactory;
-import org.hibernate.SessionFactory;
-import org.hibernate.stat.Statistics;
 import org.gitgrader.testsupport.EnabledIfDockerAvailable;
+import org.gitgrader.testsupport.RecordingStatementInspector;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -69,18 +68,17 @@ class ReportControllerTest {
 	@Autowired
 	private JdbcTemplate jdbc;
 
-	@Autowired
-	private EntityManagerFactory entityManagerFactory;
-
 	@DynamicPropertySource
 	static void properties(DynamicPropertyRegistry registry) {
 		registry.add("spring.datasource.url", POSTGRES::getJdbcUrl);
 		registry.add("spring.datasource.username", POSTGRES::getUsername);
 		registry.add("spring.datasource.password", POSTGRES::getPassword);
-		registry.add("spring.jpa.properties.hibernate.generate_statistics", () -> "true");
+		registry.add("spring.jpa.properties.hibernate.session_factory.statement_inspector",
+				RecordingStatementInspector.class::getName);
 		// The grading dispatcher polls every two seconds and its reap query runs through
 		// the same SessionFactory, so a tick landing inside the measurement window used
-		// to make the asserted statement count flap between 6 and 7.
+		// to make the asserted statement count flap between 6 and 7. The measurement no
+		// longer counts other threads, but there is no reason to let it churn either.
 		registry.add("grading.queue.poll-interval", () -> "1h");
 	}
 
@@ -150,21 +148,31 @@ class ReportControllerTest {
 		// a constant is only meaningful against two different class sizes, so the count
 		// is
 		// taken once and then again with the class doubled.
-		Statistics statistics = this.entityManagerFactory.unwrap(SessionFactory.class).getStatistics();
-		statistics.clear();
-		this.controller.report(COURSE);
-		long forFourStudents = statistics.getPrepareStatementCount();
+		List<String> forFourStudents = recordReport();
 
 		for (int extra = 0; extra < 4; extra++) {
 			student(String.format(Locale.ROOT, "00000000-0000-0000-0000-0000000000%02d", 20 + extra),
 					"s1" + (20 + extra), "Extra", "Student" + extra);
 		}
-		statistics.clear();
-		this.controller.report(COURSE);
+		List<String> forEightStudents = recordReport();
 
-		assertThat(forFourStudents).isEqualTo(6);
-		assertThat(statistics.getPrepareStatementCount()).as("the query count must not follow the class size")
-			.isEqualTo(forFourStudents);
+		// One statement each for the course, its assignments, the enrolled student ids,
+		// those students, their assessments, and the scores of the graded ones.
+		assertThat(forFourStudents).as("the report should need one query per collection it loads").hasSize(6);
+		assertThat(forEightStudents).as("the query count must not follow the class size")
+			.hasSameSizeAs(forFourStudents);
+	}
+
+	/**
+	 * Builds the report and returns the SQL that this thread issued doing so. Recording
+	 * per thread keeps the grading dispatcher and the Spring Modulith event-completion
+	 * listeners, which share the SessionFactory, out of the measurement.
+	 * @return the SQL the report ran, in order
+	 */
+	private List<String> recordReport() {
+		RecordingStatementInspector.start();
+		this.controller.report(COURSE);
+		return RecordingStatementInspector.stop();
 	}
 
 	private void student(String id, String number, String firstName, String lastName) {
