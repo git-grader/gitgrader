@@ -30,6 +30,7 @@
 
   <properties>
     <archunit.version>1.5.0</archunit.version>
+    <bouncycastle.version>1.86</bouncycastle.version>
     <bucket4j.version>8.10.1</bucket4j.version>
     <checkstyle.skip>${skipQuality}</checkstyle.skip>
     <checkstyle.version>14.1.0</checkstyle.version>
@@ -163,6 +164,34 @@
         <groupId>org.apache.httpcomponents.core5</groupId>
         <artifactId>httpcore5-h2</artifactId>
         <version>${httpcore5.version}</version>
+      </dependency>
+      <!--
+        Ahead of sshd-git, which still resolves 1.84. CVE-2026-8763 (critical: a
+        double-free through the jcec ASN.1 parser) and CVE-2026-13506 (high: a
+        denial of service via excessive recursion in the certificate parser) are
+        both fixed only in 1.85, and 1.86 is the current line. The full jdk18on
+        family is pinned together so a bump cannot leave bcprov and its siblings
+        out of step. Drop these once sshd manages 1.85 or newer itself.
+      -->
+      <dependency>
+        <groupId>org.bouncycastle</groupId>
+        <artifactId>bcprov-jdk18on</artifactId>
+        <version>${bouncycastle.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>org.bouncycastle</groupId>
+        <artifactId>bcpg-jdk18on</artifactId>
+        <version>${bouncycastle.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>org.bouncycastle</groupId>
+        <artifactId>bcpkix-jdk18on</artifactId>
+        <version>${bouncycastle.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>org.bouncycastle</groupId>
+        <artifactId>bcutil-jdk18on</artifactId>
+        <version>${bouncycastle.version}</version>
       </dependency>
     </dependencies>
   </dependencyManagement>
