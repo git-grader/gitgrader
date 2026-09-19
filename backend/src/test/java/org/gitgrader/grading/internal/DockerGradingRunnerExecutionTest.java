@@ -45,6 +45,7 @@ import org.gitgrader.grading.GradingResult;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 import org.springframework.util.unit.DataSize;
 
@@ -53,6 +54,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -69,6 +71,10 @@ import static org.mockito.Mockito.when;
 class DockerGradingRunnerExecutionTest {
 
 	private static final String CONTAINER_ID = "container-1";
+
+	private static final String SANDBOX_ID = "sandbox-1";
+
+	private static final String SUITE_ID = "suite-1";
 
 	private static final String IMAGE = "image@sha256:1234";
 
@@ -87,6 +93,9 @@ class DockerGradingRunnerExecutionTest {
 
 	private StorageProperties storage;
 
+	@TempDir
+	Path tempDir;
+
 	@BeforeEach
 	void setUp() {
 		this.dockerClient = mock(DockerClient.class);
@@ -95,12 +104,14 @@ class DockerGradingRunnerExecutionTest {
 		this.properties = new GradingProperties("docker", 2, Duration.ofSeconds(120), DataSize.ofMegabytes(512), 1.0,
 				256, false, DataSize.ofMegabytes(1), false,
 				new GradingProperties.Docker("unix:///var/run/docker.sock", "", "", "65534:65534",
-						Duration.ofMinutes(5), true, DataSize.ofMegabytes(64), true, true),
+						Duration.ofMinutes(5), true, DataSize.ofMegabytes(64), true, true, ""),
 				new GradingProperties.RunnerApi(false, "", "", Duration.ofSeconds(10), Duration.ofSeconds(30)),
 				new GradingProperties.Queue(true, Duration.ofSeconds(2), Duration.ofMinutes(15), 3,
 						Duration.ofSeconds(30), 3, 500, 1000, Duration.ofSeconds(30)));
+		// The shimmed runs create their shared socket directory under the storage temp
+		// root, which must exist for the mock daemon to be reached at all.
 		this.storage = new StorageProperties("/data/git/repositories", "/data/templates", "/data/tests",
-				"/data/artifacts", "/data/tmp");
+				"/data/artifacts", this.tempDir.toString());
 
 		this.runner = new DockerGradingRunner(this.dockerClient, this.properties, Clock.systemUTC(), this.storage,
 				(image) -> Optional.empty());
@@ -245,6 +256,175 @@ class DockerGradingRunnerExecutionTest {
 		this.runner.execute(this.request);
 
 		verify(stream).close();
+	}
+
+	@Test
+	@DisplayName("reports a shimmed round from the suite's output alone, never the sandbox's")
+	void shimmedRoundReportsOnlyTheSuiteOutput() throws Exception {
+		stubTwoContainerLifecycle();
+		streamTwoContainerLogs("1..2\nok 1 - first\nok 2 - second\n", "1..9001\nok 9001 - leaked\n");
+		completeTwoContainerWait(0);
+
+		GradingResult result = this.runner.execute(shimmedRequest(30));
+
+		assertThat(this.logsDelivered.await(5, TimeUnit.SECONDS)).isTrue();
+		assertThat(result.stdout()).isEqualTo("1..2\nok 1 - first\nok 2 - second\n");
+		assertThat(result.stdout()).doesNotContain("9001", "leaked");
+		assertThat(result.exitCode()).isZero();
+		assertThat(result.infrastructureFailure()).isFalse();
+
+		verify(this.dockerClient).removeContainerCmd(SANDBOX_ID);
+		verify(this.dockerClient).removeContainerCmd(SUITE_ID);
+	}
+
+	@Test
+	@DisplayName("starts the sandbox before the suite in a shimmed round")
+	void shimmedRoundStartsTheSandboxFirst() throws Exception {
+		stubTwoContainerLifecycle();
+		StartContainerCmd sandboxStart = mock(StartContainerCmd.class);
+		when(this.dockerClient.startContainerCmd(SANDBOX_ID)).thenReturn(sandboxStart);
+		StartContainerCmd suiteStart = mock(StartContainerCmd.class);
+		when(this.dockerClient.startContainerCmd(SUITE_ID)).thenReturn(suiteStart);
+		streamTwoContainerLogs("1..1\nok 1 - first\n", "");
+		completeTwoContainerWait(0);
+
+		this.runner.execute(shimmedRequest(30));
+
+		var order = inOrder(sandboxStart, suiteStart);
+		order.verify(sandboxStart).exec();
+		order.verify(suiteStart).exec();
+	}
+
+	@Test
+	@DisplayName("kills both containers when a shimmed round outlives its limit")
+	void shimmedRoundKillsBothContainersOnTimeout() throws Exception {
+		stubTwoContainerLifecycle();
+		streamTwoContainerLogs("1..1\n", "");
+		WaitContainerCmd waitCmd = mock(WaitContainerCmd.class);
+		when(waitCmd.exec(any())).thenAnswer((invocation) -> invocation.getArgument(0));
+		when(this.dockerClient.waitContainerCmd(SUITE_ID)).thenReturn(waitCmd);
+
+		GradingResult result = this.runner.execute(shimmedRequest(50));
+
+		assertThat(result.timedOut()).isTrue();
+		assertThat(result.infrastructureFailure()).isFalse();
+		verify(this.dockerClient.killContainerCmd(SUITE_ID)).exec();
+		verify(this.dockerClient.killContainerCmd(SANDBOX_ID)).exec();
+		verify(this.dockerClient).removeContainerCmd(SANDBOX_ID);
+		verify(this.dockerClient).removeContainerCmd(SUITE_ID);
+	}
+
+	@Test
+	@DisplayName("removes both containers when a shimmed round fails to start")
+	void shimmedRoundRemovesBothContainersWhenStartFails() {
+		stubTwoContainerLifecycle();
+		StartContainerCmd sandboxStart = mock(StartContainerCmd.class);
+		when(sandboxStart.exec()).thenThrow(new IllegalStateException("engine refused"));
+		when(this.dockerClient.startContainerCmd(SANDBOX_ID)).thenReturn(sandboxStart);
+
+		GradingResult result = this.runner.execute(shimmedRequest(30));
+
+		assertThat(result.infrastructureFailure()).isTrue();
+		verify(this.dockerClient).removeContainerCmd(SANDBOX_ID);
+		verify(this.dockerClient).removeContainerCmd(SUITE_ID);
+	}
+
+	private GradingExecutionRequest shimmedRequest(long timeoutMillis) {
+		return new GradingExecutionRequest(this.request.workspaceDirectory(), this.request.hiddenTestsDirectory(),
+				IMAGE, null, "npm test", Duration.ofMillis(timeoutMillis), 1024L * 1024 * 256, 1.5, 128, false,
+				1024 * 1024, "corr-1", Map.of(), "node-ipc", null);
+	}
+
+	/**
+	 * Stubs the life of a shimmed round: two containers created from the one image, named
+	 * so the two halves can be asserted separately, and removable when done.
+	 */
+	private void stubTwoContainerLifecycle() {
+		CreateContainerResponse sandboxCreated = mock(CreateContainerResponse.class);
+		when(sandboxCreated.getId()).thenReturn(SANDBOX_ID);
+		CreateContainerCmd sandboxCreate = createCommandReturning(sandboxCreated);
+
+		CreateContainerResponse suiteCreated = mock(CreateContainerResponse.class);
+		when(suiteCreated.getId()).thenReturn(SUITE_ID);
+		CreateContainerCmd suiteCreate = createCommandReturning(suiteCreated);
+
+		when(this.dockerClient.createContainerCmd(IMAGE)).thenReturn(sandboxCreate, suiteCreate);
+
+		for (String containerId : new String[] { SANDBOX_ID, SUITE_ID }) {
+			StartContainerCmd startCmd = mock(StartContainerCmd.class);
+			when(this.dockerClient.startContainerCmd(containerId)).thenReturn(startCmd);
+			KillContainerCmd killCmd = mock(KillContainerCmd.class);
+			when(this.dockerClient.killContainerCmd(containerId)).thenReturn(killCmd);
+			RemoveContainerCmd removeCmd = mock(RemoveContainerCmd.class);
+			when(removeCmd.withForce(anyBoolean())).thenReturn(removeCmd);
+			when(this.dockerClient.removeContainerCmd(containerId)).thenReturn(removeCmd);
+		}
+	}
+
+	private CreateContainerCmd createCommandReturning(CreateContainerResponse created) {
+		CreateContainerCmd createCmd = mock(CreateContainerCmd.class);
+		when(createCmd.withHostConfig(any())).thenReturn(createCmd);
+		when(createCmd.withUser(anyString())).thenReturn(createCmd);
+		when(createCmd.withWorkingDir(anyString())).thenReturn(createCmd);
+		when(createCmd.withEnv(anyList())).thenReturn(createCmd);
+		when(createCmd.withCmd(anyList())).thenReturn(createCmd);
+		when(createCmd.exec()).thenReturn(created);
+		return createCmd;
+	}
+
+	/**
+	 * Delivers the suite's report after a pause, like the separate log connection a real
+	 * engine opens, and the sandbox's chatter straight away; only the suite's output may
+	 * become the score.
+	 * @param suiteStdout what the suite wrote to standard output
+	 * @param sandboxStdout what the sandbox wrote to standard output
+	 */
+	private void streamTwoContainerLogs(String suiteStdout, String sandboxStdout) {
+		stubLogStreamFor(SANDBOX_ID, (callback) -> {
+			if (!sandboxStdout.isEmpty()) {
+				callback.onNext(frame(StreamType.STDOUT, sandboxStdout));
+			}
+			callback.onComplete();
+		});
+		stubLogStreamFor(SUITE_ID, (callback) -> {
+			Thread deliver = new Thread(() -> {
+				sleepBriefly();
+				if (!suiteStdout.isEmpty()) {
+					callback.onNext(frame(StreamType.STDOUT, suiteStdout));
+				}
+				callback.onComplete();
+				this.logsDelivered.countDown();
+			}, "log-stream");
+			deliver.setDaemon(true);
+			deliver.start();
+		});
+	}
+
+	private void stubLogStreamFor(String containerId, java.util.function.Consumer<ResultCallback<Frame>> delivery) {
+		LogContainerCmd logCmd = mock(LogContainerCmd.class);
+		when(logCmd.withStdOut(anyBoolean())).thenReturn(logCmd);
+		when(logCmd.withStdErr(anyBoolean())).thenReturn(logCmd);
+		when(logCmd.withFollowStream(anyBoolean())).thenReturn(logCmd);
+		when(logCmd.exec(any())).thenAnswer((invocation) -> {
+			ResultCallback<Frame> callback = invocation.getArgument(0);
+			delivery.accept(callback);
+			return callback;
+		});
+		when(this.dockerClient.logContainerCmd(containerId)).thenReturn(logCmd);
+	}
+
+	private void completeTwoContainerWait(int statusCode) {
+		WaitResponse response = mock(WaitResponse.class);
+		when(response.getStatusCode()).thenReturn(statusCode);
+
+		WaitContainerCmd waitCmd = mock(WaitContainerCmd.class);
+		when(waitCmd.exec(any())).thenAnswer((invocation) -> {
+			ResultCallback<WaitResponse> callback = invocation.getArgument(0);
+			callback.onNext(response);
+			callback.onComplete();
+			return callback;
+		});
+		when(this.dockerClient.waitContainerCmd(SUITE_ID)).thenReturn(waitCmd);
 	}
 
 	private void stubContainerLifecycle() {

@@ -1,11 +1,11 @@
-# Node 24 grading runtime
+# Node 26 grading runtime
 
-This image runs zero-dependency Node ESM assignments on Node 24. It pins the
-official multi-architecture `node:24-bookworm-slim` OCI index at
-`sha256:2fe369e969550cde8e867afc3fe370b260140cab4a23d467074295b42163d553`.
+This image runs zero-dependency Node ESM assignments on Node 26. It pins the
+official multi-architecture `node:26-bookworm-slim` OCI index at
+`sha256:582460f614631b59b824ac6020533b9bf339c7fdf3a6d7db31abb6b4065f0212`.
 This digest was resolved with `docker buildx imagetools inspect` on 2026-09-19.
 
-Sibling runtimes cover the other supported majors: `node-22` and `node-26`.
+Sibling runtimes cover the other supported majors: `node-22` and `node-24`.
 All Node runtimes share one version-agnostic shim in
 `deployment/runtimes/node-shim/`, which the runner bind-mounts into both
 containers of a shimmed round.
@@ -13,9 +13,9 @@ containers of a shimmed round.
 ## Resolve and build
 
 ```sh
-docker buildx imagetools inspect node:24-bookworm-slim
-docker pull node:24-bookworm-slim
-docker inspect --format='{{index .RepoDigests 0}}' node:24-bookworm-slim
+docker buildx imagetools inspect node:26-bookworm-slim
+docker pull node:26-bookworm-slim
+docker inspect --format='{{index .RepoDigests 0}}' node:26-bookworm-slim
 ./deployment/runtimes/build-runtimes.sh
 ```
 

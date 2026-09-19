@@ -37,9 +37,31 @@ import org.jspecify.annotations.Nullable;
  * @param logSizeLimitBytes the maximum size of log output to capture in bytes
  * @param correlationId the correlation identifier for logging
  * @param environment any environment variables to set
+ * @param shimKind the flag that selects the two-container topology for a given runtime
+ * (the submitted code and the hidden suite in separate containers, bridged by the grading
+ * runtime protocol), or {@code null} for the legacy single-container run
+ * @param shimCommand the command that starts the per-runtime shim server inside the
+ * sandbox; the submitted module is the only code that container can reach
  */
 public record GradingExecutionRequest(Path workspaceDirectory, Path hiddenTestsDirectory, String runtimeImageDigest,
 		@Nullable String installCommand, String testCommand, Duration timeout, long memoryLimitBytes, double cpuLimit,
 		int pidLimit, boolean networkEnabled, long logSizeLimitBytes, String correlationId,
-		Map<String, String> environment) {
+		Map<String, String> environment, @Nullable String shimKind, @Nullable String shimCommand) {
+
+	/**
+	 * Legacy constructor without the shim topology, kept for callers that have not been
+	 * wired to a shimmed runtime yet; the compiler works, but a request built here runs
+	 * the submission and the suite in one container until the runtime record carries a
+	 * shim kind (issue #40).
+	 */
+	@SuppressWarnings("PMD.ExcessiveParameterList") // mirrors the one record component
+													// per field, pre-shim
+	public GradingExecutionRequest(Path workspaceDirectory, Path hiddenTestsDirectory, String runtimeImageDigest,
+			@Nullable String installCommand, String testCommand, Duration timeout, long memoryLimitBytes,
+			double cpuLimit, int pidLimit, boolean networkEnabled, long logSizeLimitBytes, String correlationId,
+			Map<String, String> environment) {
+		this(workspaceDirectory, hiddenTestsDirectory, runtimeImageDigest, installCommand, testCommand, timeout,
+				memoryLimitBytes, cpuLimit, pidLimit, networkEnabled, logSizeLimitBytes, correlationId, environment,
+				null, null);
+	}
 }

@@ -16,32 +16,27 @@
 
 package org.gitgrader.grading.internal;
 
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.time.Clock;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 
 import com.github.dockerjava.api.DockerClient;
+import com.github.dockerjava.api.async.ResultCallback;
 import com.github.dockerjava.api.command.CreateContainerCmd;
 import com.github.dockerjava.api.command.CreateContainerResponse;
 import com.github.dockerjava.api.command.WaitContainerResultCallback;
 import com.github.dockerjava.api.model.Bind;
 import com.github.dockerjava.api.exception.ConflictException;
 import com.github.dockerjava.api.exception.NotFoundException;
-import com.github.dockerjava.api.model.Capability;
+import com.github.dockerjava.api.model.AccessMode;
+import com.github.dockerjava.api.model.Frame;
 import com.github.dockerjava.api.model.HostConfig;
 import com.github.dockerjava.api.model.Volume;
-import com.github.dockerjava.api.model.AccessMode;
-import com.github.dockerjava.api.async.ResultCallback;
-import com.github.dockerjava.api.model.Frame;
-import com.github.dockerjava.api.model.StreamType;
 import org.gitgrader.configuration.GradingProperties;
 import org.gitgrader.configuration.StorageProperties;
 import org.gitgrader.grading.GradingExecutionRequest;
@@ -53,25 +48,15 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 
 /**
- * Executes untrusted student code using Docker.
+ * Executes untrusted student code using Docker, in one container until the runtime's
+ * {@code shimKind} asks for the submission and the hidden tests to be split in two.
  */
 @Component
 @ConditionalOnProperty(name = "grading.runner", havingValue = "docker", matchIfMissing = true)
 class DockerGradingRunner implements GradingRunner {
 
-	/** Linux CFS scheduling period in microseconds; one full period equals one CPU. */
-	private static final long CPU_PERIOD_MICROS = 100_000L;
-
-	/**
-	 * Floor on the quota so a very small cpu-limit cannot round down to no CPU at all.
-	 */
-	private static final long MINIMUM_CPU_QUOTA_MICROS = 1_000L;
-
 	/** Bounded so a stuck log stream delays one run rather than hanging the worker. */
 	private static final Duration LOG_DRAIN_TIMEOUT = Duration.ofSeconds(10);
-
-	/** The probe only starts a container and tests one file. */
-	private static final Duration PROBE_TIMEOUT = Duration.ofSeconds(60);
 
 	private static final Logger logger = LoggerFactory.getLogger(DockerGradingRunner.class);
 
@@ -101,20 +86,22 @@ class DockerGradingRunner implements GradingRunner {
 		if (unusable.isPresent()) {
 			return new GradingResult(-1, "", "", this.clock.millis() - start, false, true, unusable.get());
 		}
+		if (ShimmedGradingContainer.isShimmed(request)) {
+			return executeTwoContainer(request, start);
+		}
+		return executeSingleContainer(request, start);
+	}
+
+	private GradingResult executeSingleContainer(GradingExecutionRequest request, long start) {
 		try {
-			CreateContainerCmd cmd = createContainerCmd(request);
-			CreateContainerResponse container = cmd.exec();
+			CreateContainerResponse container = createContainerCmd(request).exec();
 			String containerId = container.getId();
 			try (LogCaptureCallback callback = new LogCaptureCallback(request.logSizeLimitBytes());
 					WaitContainerResultCallback waitCallback = new WaitContainerResultCallback()) {
 
 				this.dockerClient.startContainerCmd(containerId).exec();
 
-				ResultCallback<Frame> logStream = this.dockerClient.logContainerCmd(containerId)
-					.withStdOut(true)
-					.withStdErr(true)
-					.withFollowStream(true)
-					.exec(callback);
+				ResultCallback<Frame> logStream = logStream(containerId, callback);
 				try (logStream) {
 					this.dockerClient.waitContainerCmd(containerId).exec(waitCallback);
 					boolean completed = waitCallback.awaitCompletion(request.timeout().toMillis(),
@@ -149,21 +136,7 @@ class DockerGradingRunner implements GradingRunner {
 
 			}
 			finally {
-				try {
-					this.dockerClient.removeContainerCmd(containerId).withForce(true).exec();
-				}
-				catch (NotFoundException | ConflictException expected) {
-					// Containers are created with auto-remove, so Docker is usually
-					// already removing this one by the time we ask: the answer is 404 if
-					// it finished and 409 if it is still going. Both mean the container
-					// is gone or going, which is what was wanted. Logged as a warning
-					// with a stack trace, this printed one on every successful run and
-					// taught an operator to ignore the warnings from this class.
-					logger.debug("Container {} was already being removed by Docker", containerId);
-				}
-				catch (RuntimeException ex) {
-					logger.warn("Failed to remove container {}", containerId, ex);
-				}
+				removeContainer(containerId);
 			}
 		}
 		catch (InterruptedException ex) {
@@ -173,12 +146,153 @@ class DockerGradingRunner implements GradingRunner {
 			// its whole timeout before giving up on a worker that had already been told.
 			Thread.currentThread().interrupt();
 			logger.warn("Grading run interrupted; the job returns to the queue");
-			return new GradingResult(-1, "", "", this.clock.millis() - start, false, true,
-					"The grading worker was interrupted before the sandbox finished");
+			return interrupted(start);
 		}
 		catch (IOException | RuntimeException ex) {
 			logger.error("Infrastructure error during grading execution", ex);
 			return new GradingResult(-1, "", "", this.clock.millis() - start, false, true, ex.getMessage());
+		}
+	}
+
+	/**
+	 * Runs a shimmed grading round over the grading runtime protocol: the sandbox
+	 * (submission, no tests mounted) and the suite (hidden tests, no workspace) in two
+	 * separate containers, talking over a Unix socket, with only the suite's output read
+	 * as the report.
+	 *
+	 * <p>
+	 * The two are created, started and torn down together on every path. The sandbox is
+	 * first, so that when the suite starts its shim client's connect-retry has a readily
+	 * listening server rather than a sockets-in-yet race.
+	 * @param request the graded shim request
+	 * @param start clock reading when the run was accepted
+	 * @return the result of the run, from the suite's report
+	 */
+	GradingResult executeTwoContainer(GradingExecutionRequest request, long start) {
+		// Graded over a Unix socket they share, not a filesystem they must not share.
+		ShimmedGradingContainer shim = new ShimmedGradingContainer(this.dockerClient, this.properties.docker(),
+				this.storage);
+		Path socketDir = null;
+		String sandboxId = null;
+		String suiteId = null;
+		try {
+			socketDir = shim.createSocketDirectory();
+			sandboxId = shim.createSandbox(request, socketDir).exec().getId();
+			suiteId = shim.createSuite(request, socketDir).exec().getId();
+			return awaitReport(request, start, sandboxId, suiteId);
+		}
+		catch (InterruptedException ex) {
+			Thread.currentThread().interrupt();
+			logger.warn("Grading run interrupted; the job returns to the queue");
+			return interrupted(start);
+		}
+		catch (IOException | RuntimeException ex) {
+			logger.error("Infrastructure error during grading execution", ex);
+			return new GradingResult(-1, "", "", this.clock.millis() - start, false, true, ex.getMessage());
+		}
+		finally {
+			removeContainer(sandboxId);
+			removeContainer(suiteId);
+			shim.deleteSocketDirectory(socketDir);
+		}
+	}
+
+	/**
+	 * Drives a running sandbox-suite pair to completion.
+	 * @param request the graded shim request
+	 * @param start clock reading when the run was accepted
+	 * @param sandboxId the created sandbox container
+	 * @param suiteId the created suite container
+	 * @return the result, reported from the suite's output
+	 * @throws InterruptedException when the worker is interrupted mid-run
+	 * @throws IOException when a resource cannot be closed
+	 */
+	private GradingResult awaitReport(GradingExecutionRequest request, long start, String sandboxId, String suiteId)
+			throws InterruptedException, IOException {
+		try (LogCaptureCallback sandboxLogs = new LogCaptureCallback(request.logSizeLimitBytes());
+				LogCaptureCallback suiteLogs = new LogCaptureCallback(request.logSizeLimitBytes());
+				WaitContainerResultCallback suiteWait = new WaitContainerResultCallback()) {
+
+			this.dockerClient.startContainerCmd(sandboxId).exec();
+			this.dockerClient.startContainerCmd(suiteId).exec();
+
+			ResultCallback<Frame> sandboxStream = logStream(sandboxId, sandboxLogs);
+			ResultCallback<Frame> suiteStream = logStream(suiteId, suiteLogs);
+			try (sandboxStream; suiteStream) {
+				this.dockerClient.waitContainerCmd(suiteId).exec(suiteWait);
+				boolean completed = suiteWait.awaitCompletion(request.timeout().toMillis(), TimeUnit.MILLISECONDS);
+
+				if (!completed) {
+					// The bound is the suite's own run; once both are stopped the report
+					// arrives in full, which is all a timeout is allowed to keep from the
+					// student.
+					this.dockerClient.killContainerCmd(suiteId).exec();
+					this.dockerClient.killContainerCmd(sandboxId).exec();
+					drain(suiteLogs, suiteId);
+					return new GradingResult(-1, suiteLogs.getStdout(), suiteLogs.getStderr(),
+							this.clock.millis() - start, true, false, null);
+				}
+
+				if (!drain(suiteLogs, suiteId)) {
+					return new GradingResult(-1, suiteLogs.getStdout(), suiteLogs.getStderr(),
+							this.clock.millis() - start, false, true,
+							"The sandbox exited but its output never finished arriving, "
+									+ "so the test report would have been incomplete");
+				}
+
+				// The sandbox's chatter is diagnostic only; it can never be the annotated
+				// report, so it is captured for the log and dropped.
+				Integer exitCode = suiteWait.awaitStatusCode();
+				return new GradingResult((exitCode != null) ? exitCode : -1, suiteLogs.getStdout(),
+						suiteLogs.getStderr(), this.clock.millis() - start, false, false, null);
+			}
+		}
+	}
+
+	/**
+	 * Connects a container's log stream to a bounded collector.
+	 * @param containerId the container to follow
+	 * @param callback the collector the frames feed
+	 * @return the stream handle, closed when the run is done with it
+	 */
+	private ResultCallback<Frame> logStream(String containerId, LogCaptureCallback callback) {
+		return this.dockerClient.logContainerCmd(containerId)
+			.withStdOut(true)
+			.withStdErr(true)
+			.withFollowStream(true)
+			.exec(callback);
+	}
+
+	private GradingResult interrupted(long start) {
+		return new GradingResult(-1, "", "", this.clock.millis() - start, false, true,
+				"The grading worker was interrupted before the sandbox finished");
+	}
+
+	/**
+	 * Removes a container, tolerating the races auto-remove creates.
+	 * @param containerId the container to remove, or {@code null} when none was created
+	 */
+	private void removeContainer(String containerId) {
+		if (containerId == null) {
+			return;
+		}
+		try {
+			this.dockerClient.removeContainerCmd(containerId).withForce(true).exec();
+		}
+		catch (NotFoundException | ConflictException expected) {
+			// Containers are created with auto-remove, so Docker is usually already
+			// removing this one by the time we ask: the answer is 404 if it finished and
+			// 409 if it is still going. Both mean the container is gone or going, which
+			// is
+			// what was wanted. Logged as a warning with a stack trace, this printed one
+			// on
+			// every successful run and taught an operator to ignore the warnings from
+			// this
+			// class.
+			logger.debug("Container {} was already being removed by Docker", containerId);
+		}
+		catch (RuntimeException ex) {
+			logger.warn("Failed to remove container {}", containerId, ex);
 		}
 	}
 
@@ -214,49 +328,17 @@ class DockerGradingRunner implements GradingRunner {
 	}
 
 	/**
-	 * Creates the container configuration. Package-private for testing.
+	 * Creates the legacy single-container configuration. Package-private for testing.
 	 * @param request the grading execution request
 	 * @return the configured create container command
 	 */
 	CreateContainerCmd createContainerCmd(GradingExecutionRequest request) {
-		HostConfig hostConfig = HostConfig.newHostConfig()
-			.withAutoRemove(true)
-			.withReadonlyRootfs(this.properties.docker().readOnlyRootFilesystem())
-			.withTmpFs(Map.of("/tmp", "size=" + this.properties.docker().tmpfsSize().toBytes()))
-			.withMemory(request.memoryLimitBytes())
-			// Docker reads an unset swap limit as twice the memory limit, so a memory
-			// ceiling on its own is not one: a submission that allocates past it is
-			// swapped rather than killed, and gets double what the assignment allowed at
-			// the cost of the host's disk. Equal values leave the container no swap.
-			.withMemorySwap(request.memoryLimitBytes())
-			.withCpuQuota(Math.max(MINIMUM_CPU_QUOTA_MICROS, (long) (request.cpuLimit() * CPU_PERIOD_MICROS)))
-			.withCpuPeriod(CPU_PERIOD_MICROS)
-			.withPidsLimit((long) request.pidLimit());
-
-		if (this.properties.docker().noNewPrivileges()) {
-			hostConfig.withSecurityOpts(List.of("no-new-privileges=true"));
-		}
-
-		if (this.properties.docker().dropAllCapabilities()) {
-			hostConfig.withCapDrop(Capability.ALL);
-		}
-
-		if (!request.networkEnabled()) {
-			hostConfig.withNetworkMode("none");
-		}
-
-		String hostWorkspace = request.workspaceDirectory().toAbsolutePath().toString();
-		if (!this.properties.docker().workspaceMountRoot().isEmpty()) {
-			Path workspaceName = request.workspaceDirectory().getFileName();
-			if (workspaceName == null) {
-				throw new IllegalStateException(
-						"Grading workspace path has no directory name: " + request.workspaceDirectory());
-			}
-			hostWorkspace = this.properties.docker().workspaceMountRoot() + "/" + workspaceName;
-		}
-
-		hostConfig.withBinds(new Bind(hostWorkspace, new Volume("/workspace"), AccessMode.rw),
-				new Bind(hostHiddenTests(request), new Volume("/opt/hidden-tests"), AccessMode.ro));
+		HostConfig hostConfig = SandboxConfig.baseHostConfig(this.properties.docker(), request);
+		hostConfig.withBinds(
+				new Bind(SandboxConfig.hostWorkspace(this.properties.docker(), request), new Volume("/workspace"),
+						AccessMode.rw),
+				new Bind(SandboxConfig.hostHiddenTests(this.properties.docker(), this.storage, request),
+						new Volume("/opt/hidden-tests"), AccessMode.ro));
 
 		List<String> env = new ArrayList<>();
 		request.environment().forEach((k, v) -> env.add(k + "=" + v));
@@ -277,83 +359,6 @@ class DockerGradingRunner implements GradingRunner {
 			.withWorkingDir("/workspace")
 			.withEnv(env)
 			.withCmd(cmdArgs);
-	}
-
-	/**
-	 * Resolves where the hidden tests live as the Docker daemon sees them.
-	 *
-	 * <p>
-	 * Binds are resolved by the daemon on the host, not inside this process. When the
-	 * application is itself containerised its own path for the tests means nothing there,
-	 * and Docker answers a missing bind source by creating an empty directory rather than
-	 * by failing. The tests then simply are not present, the runner reports no results at
-	 * all, and every submission is scored zero without anything going wrong visibly.
-	 * @param request the execution request
-	 * @return the path to bind, translated onto the host when a root is configured
-	 */
-	private String hostHiddenTests(GradingExecutionRequest request) {
-		Path tests = request.hiddenTestsDirectory().toAbsolutePath();
-		String mountRoot = this.properties.docker().testsMountRoot();
-		if (mountRoot.isEmpty()) {
-			return tests.toString();
-		}
-		return mountRoot + "/" + this.storage.tests().relativize(tests);
-	}
-
-	/**
-	 * Collects the sandbox output, up to a limit.
-	 *
-	 * <p>
-	 * Frames arrive on a Docker client thread while the worker thread reads the result,
-	 * so every access is synchronised: without it the reader is not merely racing for the
-	 * last few frames, it has no guarantee of seeing any of them.
-	 *
-	 * <p>
-	 * Bytes are kept as bytes and decoded once, at the end. Decoding each frame on its
-	 * own splits any character whose UTF-8 encoding straddles a frame boundary - which is
-	 * decided by how the engine happened to chunk the stream, not by the output - and
-	 * both halves become replacement characters. An assertion message naming a variable
-	 * in Greek or a test whose name contains an em dash came back mangled, in the one
-	 * place an instructor reads to explain a failure.
-	 */
-	private static final class LogCaptureCallback extends ResultCallback.Adapter<Frame> {
-
-		private final long limitBytes;
-
-		private final ByteArrayOutputStream stdout = new ByteArrayOutputStream();
-
-		private final ByteArrayOutputStream stderr = new ByteArrayOutputStream();
-
-		private long currentBytes;
-
-		LogCaptureCallback(long limitBytes) {
-			this.limitBytes = limitBytes;
-		}
-
-		@Override
-		public synchronized void onNext(Frame frame) {
-			if (this.currentBytes >= this.limitBytes) {
-				return;
-			}
-			byte[] payload = frame.getPayload();
-			int allowed = (int) Math.min(payload.length, this.limitBytes - this.currentBytes);
-			if (frame.getStreamType() == StreamType.STDOUT) {
-				this.stdout.write(payload, 0, allowed);
-			}
-			else if (frame.getStreamType() == StreamType.STDERR) {
-				this.stderr.write(payload, 0, allowed);
-			}
-			this.currentBytes += allowed;
-		}
-
-		synchronized String getStdout() {
-			return this.stdout.toString(StandardCharsets.UTF_8);
-		}
-
-		synchronized String getStderr() {
-			return this.stderr.toString(StandardCharsets.UTF_8);
-		}
-
 	}
 
 }

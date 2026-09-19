@@ -19,6 +19,7 @@ package org.gitgrader.grading.internal;
 import java.nio.file.Path;
 import java.time.Clock;
 import java.time.Duration;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import org.gitgrader.grading.GradingExecutionRequest;
@@ -47,6 +48,8 @@ import static org.mockito.ArgumentMatchers.anyList;
 
 class DockerGradingRunnerConfigTest {
 
+	private static final Path SOCKET_DIR = Path.of("/data/tmp/gitgrader-shim-abc");
+
 	private DockerClient dockerClient;
 
 	private GradingProperties properties;
@@ -63,7 +66,7 @@ class DockerGradingRunnerConfigTest {
 		this.properties = new GradingProperties("docker", 2, Duration.ofSeconds(120), DataSize.ofMegabytes(512), 1.0,
 				256, false, DataSize.ofMegabytes(1), false,
 				new GradingProperties.Docker("unix:///var/run/docker.sock", "", "", "65534:65534",
-						Duration.ofMinutes(5), true, DataSize.ofMegabytes(64), true, true),
+						Duration.ofMinutes(5), true, DataSize.ofMegabytes(64), true, true, ""),
 				new GradingProperties.RunnerApi(false, "", "", Duration.ofSeconds(10), Duration.ofSeconds(30)),
 				new GradingProperties.Queue(true, Duration.ofSeconds(2), Duration.ofMinutes(15), 3,
 						Duration.ofSeconds(30), 3, 500, 1000, Duration.ofSeconds(30)));
@@ -84,9 +87,7 @@ class DockerGradingRunnerConfigTest {
 
 	@Test
 	void verifySecurityConfig() {
-		DockerGradingRunner runner = new DockerGradingRunner(this.dockerClient, this.properties, this.clock,
-				new StorageProperties("/data/git/repositories", "/data/templates", "/data/tests", "/data/artifacts",
-						"/data/tmp"),
+		DockerGradingRunner runner = new DockerGradingRunner(this.dockerClient, this.properties, this.clock, storage(),
 				(image) -> Optional.empty());
 		runner.createContainerCmd(this.request);
 
@@ -126,7 +127,7 @@ class DockerGradingRunnerConfigTest {
 	@DisplayName("leaves the no-new-privileges option off when the deployment turns it off")
 	void honoursTheNoNewPrivilegesSwitch() {
 		GradingProperties relaxed = withDocker(new GradingProperties.Docker("unix:///var/run/docker.sock", "", "",
-				"65534:65534", Duration.ofMinutes(5), true, DataSize.ofMegabytes(64), true, false));
+				"65534:65534", Duration.ofMinutes(5), true, DataSize.ofMegabytes(64), true, false, ""));
 
 		HostConfig hostConfig = hostConfigFor(relaxed);
 
@@ -137,11 +138,137 @@ class DockerGradingRunnerConfigTest {
 	@DisplayName("keeps every capability when the deployment turns the capability drop off")
 	void honoursTheCapabilityDropSwitch() {
 		GradingProperties relaxed = withDocker(new GradingProperties.Docker("unix:///var/run/docker.sock", "", "",
-				"65534:65534", Duration.ofMinutes(5), true, DataSize.ofMegabytes(64), false, true));
+				"65534:65534", Duration.ofMinutes(5), true, DataSize.ofMegabytes(64), false, true, ""));
 
 		HostConfig hostConfig = hostConfigFor(relaxed);
 
 		assertThat(hostConfig.getCapDrop()).isNullOrEmpty();
+	}
+
+	@Test
+	@DisplayName("sandbox mounts the workspace and the socket, never the hidden tests")
+	void sandboxContainerConfiguration() {
+		shim().createSandbox(this.request, SOCKET_DIR);
+
+		ArgumentCaptor<HostConfig> hostConfigCaptor = ArgumentCaptor.forClass(HostConfig.class);
+		verify(this.cmd).withHostConfig(hostConfigCaptor.capture());
+		verify(this.cmd).withUser("65534:65534");
+		verify(this.cmd).withWorkingDir("/workspace");
+
+		Bind[] binds = hostConfigCaptor.getValue().getBinds();
+		assertThat(binds).hasSize(2);
+		assertThat(binds[0].getPath()).isEqualTo(Path.of("/data/workspace/student1").toAbsolutePath().toString());
+		assertThat(binds[0].getVolume().getPath()).isEqualTo("/workspace");
+		assertThat(binds[0].getAccessMode()).isEqualTo(AccessMode.rw);
+
+		assertThat(binds[1].getPath()).isEqualTo(Path.of("/data/tmp/gitgrader-shim-abc").toAbsolutePath().toString());
+		assertThat(binds[1].getVolume().getPath()).isEqualTo("/gitgrader-shim");
+		assertThat(binds[1].getAccessMode()).isEqualTo(AccessMode.rw);
+
+		ArgumentCaptor<List<String>> envCaptor = ArgumentCaptor.forClass(List.class);
+		verify(this.cmd).withEnv(envCaptor.capture());
+		assertThat(envCaptor.getValue()).containsExactlyInAnyOrder("FOO=BAR",
+				"SHIM_SOCKET=/gitgrader-shim/runner.sock");
+
+		ArgumentCaptor<List<String>> cmdCaptor = ArgumentCaptor.forClass(List.class);
+		verify(this.cmd).withCmd(cmdCaptor.capture());
+		assertThat(cmdCaptor.getValue()).isEqualTo(List.of("sh", "-c", "node /opt/gitgrader-shim/server.js"));
+	}
+
+	@Test
+	@DisplayName("sandbox runs the install before the shim server when both are present")
+	void sandboxRunsTheInstallCommandBeforeTheShimServer() {
+		GradingExecutionRequest shimmed = new GradingExecutionRequest(this.request.workspaceDirectory(),
+				this.request.hiddenTestsDirectory(), this.request.runtimeImageDigest(), "npm ci --ignore-scripts",
+				this.request.testCommand(), this.request.timeout(), this.request.memoryLimitBytes(),
+				this.request.cpuLimit(), this.request.pidLimit(), this.request.networkEnabled(),
+				this.request.logSizeLimitBytes(), this.request.correlationId(), this.request.environment(), "node-ipc",
+				"node /opt/gitgrader-shim/server.js");
+		shim().createSandbox(shimmed, SOCKET_DIR);
+
+		ArgumentCaptor<List<String>> cmdCaptor = ArgumentCaptor.forClass(List.class);
+		verify(this.cmd).withCmd(cmdCaptor.capture());
+		assertThat(cmdCaptor.getValue())
+			.isEqualTo(List.of("sh", "-c", "npm ci --ignore-scripts && node /opt/gitgrader-shim/server.js"));
+	}
+
+	@Test
+	@DisplayName("sandbox is not handed the hidden-tests environment the suite needs")
+	void sandboxStripsTheHiddenTestsEnvironmentVariable() {
+		GradingExecutionRequest shimmed = new GradingExecutionRequest(this.request.workspaceDirectory(),
+				this.request.hiddenTestsDirectory(), this.request.runtimeImageDigest(), null,
+				this.request.testCommand(), this.request.timeout(), this.request.memoryLimitBytes(),
+				this.request.cpuLimit(), this.request.pidLimit(), this.request.networkEnabled(),
+				this.request.logSizeLimitBytes(), this.request.correlationId(),
+				Map.of("HIDDEN_TESTS", "/opt/hidden-tests", "FOO", "BAR"), "node-ipc", null);
+		shim().createSandbox(shimmed, SOCKET_DIR);
+
+		ArgumentCaptor<List<String>> envCaptor = ArgumentCaptor.forClass(List.class);
+		verify(this.cmd).withEnv(envCaptor.capture());
+		assertThat(envCaptor.getValue()).containsExactlyInAnyOrder("FOO=BAR",
+				"SHIM_SOCKET=/gitgrader-shim/runner.sock");
+	}
+
+	@Test
+	@DisplayName("suite mounts the hidden tests and the socket, never the workspace")
+	void suiteContainerConfiguration() {
+		shim().createSuite(this.request, SOCKET_DIR);
+
+		ArgumentCaptor<HostConfig> hostConfigCaptor = ArgumentCaptor.forClass(HostConfig.class);
+		verify(this.cmd).withHostConfig(hostConfigCaptor.capture());
+		verify(this.cmd).withUser("65534:65534");
+		verify(this.cmd).withWorkingDir("/workspace");
+
+		Bind[] binds = hostConfigCaptor.getValue().getBinds();
+		assertThat(binds).hasSize(2);
+		assertThat(binds[0].getPath()).isEqualTo(Path.of("/data/tests/suite1").toAbsolutePath().toString());
+		assertThat(binds[0].getVolume().getPath()).isEqualTo("/opt/hidden-tests");
+		assertThat(binds[0].getAccessMode()).isEqualTo(AccessMode.ro);
+
+		assertThat(binds[1].getPath()).isEqualTo(Path.of("/data/tmp/gitgrader-shim-abc").toAbsolutePath().toString());
+		assertThat(binds[1].getVolume().getPath()).isEqualTo("/gitgrader-shim");
+		assertThat(binds[1].getAccessMode()).isEqualTo(AccessMode.rw);
+
+		ArgumentCaptor<List<String>> cmdCaptor = ArgumentCaptor.forClass(List.class);
+		verify(this.cmd).withCmd(cmdCaptor.capture());
+		assertThat(cmdCaptor.getValue()).isEqualTo(List.of("sh", "-c", "npm test"));
+	}
+
+	@Test
+	@DisplayName("binds the shim source into both containers when images do not carry it")
+	void bindsTheShimSourceWhenImagesDoNotCarryIt() {
+		GradingProperties withShimMount = withDocker(new GradingProperties.Docker("unix:///var/run/docker.sock", "", "",
+				"65534:65534", Duration.ofMinutes(5), true, DataSize.ofMegabytes(64), true, true, "/srv/shim"));
+
+		shim(withShimMount.docker()).createSandbox(this.request, SOCKET_DIR);
+		shim(withShimMount.docker()).createSuite(this.request, SOCKET_DIR);
+
+		ArgumentCaptor<HostConfig> hostConfigCaptor = ArgumentCaptor.forClass(HostConfig.class);
+		verify(this.cmd, org.mockito.Mockito.times(2)).withHostConfig(hostConfigCaptor.capture());
+		for (HostConfig hostConfig : hostConfigCaptor.getAllValues()) {
+			Bind[] binds = hostConfig.getBinds();
+			assertThat(binds).hasSize(3);
+			assertThat(binds[2].getPath()).isEqualTo("/srv/shim");
+			assertThat(binds[2].getVolume().getPath()).isEqualTo("/opt/gitgrader-shim");
+			assertThat(binds[2].getAccessMode()).isEqualTo(AccessMode.ro);
+		}
+	}
+
+	@Test
+	@DisplayName("translates the socket path onto the host when the engine lives elsewhere")
+	void socketMountIsTranslatedOntoTheHostWhenConfigured() {
+		GradingProperties containerised = withDocker(
+				new GradingProperties.Docker("unix:///var/run/docker.sock", "/srv/docker", "", "65534:65534",
+						Duration.ofMinutes(5), true, DataSize.ofMegabytes(64), true, true, ""));
+
+		shim(containerised.docker()).createSuite(this.request, SOCKET_DIR);
+
+		ArgumentCaptor<HostConfig> hostConfigCaptor = ArgumentCaptor.forClass(HostConfig.class);
+		verify(this.cmd).withHostConfig(hostConfigCaptor.capture());
+
+		Bind[] binds = hostConfigCaptor.getValue().getBinds();
+		assertThat(binds[1].getPath()).isEqualTo("/srv/docker/gitgrader-shim-abc");
+		assertThat(binds[1].getVolume().getPath()).isEqualTo("/gitgrader-shim");
 	}
 
 	private GradingProperties withDocker(GradingProperties.Docker docker) {
@@ -150,6 +277,19 @@ class DockerGradingRunnerConfigTest {
 				new GradingProperties.RunnerApi(false, "", "", Duration.ofSeconds(10), Duration.ofSeconds(30)),
 				new GradingProperties.Queue(true, Duration.ofSeconds(2), Duration.ofMinutes(15), 3,
 						Duration.ofSeconds(30), 3, 500, 1000, Duration.ofSeconds(30)));
+	}
+
+	private ShimmedGradingContainer shim(GradingProperties.Docker docker) {
+		return new ShimmedGradingContainer(this.dockerClient, docker, storage());
+	}
+
+	private ShimmedGradingContainer shim() {
+		return shim(this.properties.docker());
+	}
+
+	private static StorageProperties storage() {
+		return new StorageProperties("/data/git/repositories", "/data/templates", "/data/tests", "/data/artifacts",
+				"/data/tmp");
 	}
 
 	private HostConfig hostConfigFor(GradingProperties properties) {

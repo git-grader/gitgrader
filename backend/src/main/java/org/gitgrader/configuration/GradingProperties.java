@@ -91,6 +91,9 @@ public record GradingProperties(
 	 * @param tmpfsSize size of the writable {@code /tmp} handed to the sandbox
 	 * @param dropAllCapabilities drop every Linux capability
 	 * @param noNewPrivileges set the {@code no-new-privileges} security option
+	 * @param shimMountPath host path of the grading runtime shim to bind into the two
+	 * sandboxes of a shimmed run at {@code /opt/gitgrader-shim}, for deployments whose
+	 * runtime images do not have the shim built in yet; empty when the image carries it
 	 */
 	public record Docker(
 
@@ -110,7 +113,9 @@ public record GradingProperties(
 
 			@DefaultValue("true") boolean dropAllCapabilities,
 
-			@DefaultValue("true") boolean noNewPrivileges) {
+			@DefaultValue("true") boolean noNewPrivileges,
+
+			@DefaultValue("") String shimMountPath) {
 	}
 
 	/**

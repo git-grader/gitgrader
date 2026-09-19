@@ -68,7 +68,11 @@ class RunnerRequestGuard {
 				// sandbox and a host on the internal network.
 				request.networkEnabled() && this.properties.networkEnabled(),
 				Math.min(request.logSizeLimitBytes(), this.properties.logSizeLimit().toBytes()),
-				request.correlationId(), Map.copyOf(request.environment()));
+				request.correlationId(), Map.copyOf(request.environment()),
+				// The topology is chosen by the runtime the operator assigned, not by a
+				// caller: a shimmed runtime must not be silently downgraded to the
+				// single-container arrangement, and an unshimmed one stays where it is.
+				request.shimKind(), request.shimCommand());
 	}
 
 	private Duration atMost(Duration requested) {

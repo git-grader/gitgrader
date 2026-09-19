@@ -74,7 +74,8 @@ GitGrader database:
 psql "$DATABASE_URL" -f examples/seed-data.sql
 ```
 
-The seed creates one active course, one class, one `node-24` runtime, one
-template/version, one test-suite/version, and twelve realistic assignments.
+The seed creates one active course, one class, three Node runtimes
+(`node-22`, `node-24`, `node-26`), one template/version, one test-suite/version,
+and twelve realistic assignments.
 Only assignment 01 maps to the files in this package; its eleven siblings make
 the course report useful while reusing the same immutable sample artifacts.
