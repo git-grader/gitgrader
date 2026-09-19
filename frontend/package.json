@@ -9,6 +9,7 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "test:ci": "vitest run --coverage",
+    "test:shim": "node --test \"../deployment/runtimes/node-24/shim/**/*.test.js\"",
     "typecheck": "node node_modules/typescript7/bin/tsc --noEmit"
   },
   "dependencies": {
