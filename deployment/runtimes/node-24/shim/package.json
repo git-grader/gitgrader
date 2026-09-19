@@ -1,0 +1,8 @@
+{
+  "name": "gitgrader-node-shim",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Unix-socket bridge that keeps the grading suite and the submitted solution in separate processes",
+  "type": "module",
+  "license": "Apache-2.0"
+}
