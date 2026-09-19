@@ -120,10 +120,13 @@ export function InstructorLayout() {
     return location.pathname === to || location.pathname.startsWith(`${to}/`);
   }
 
+  const navItems = MAIN_NAV.concat(isAdmin ? ADMIN_NAV : []);
+  const pageLabel = navItems.find((item) => isCurrent(item.to))?.label ?? 'Dashboard';
+
   const navigation = (
     <Box sx={{ overflow: 'auto' }}>
       <List component="nav">
-        {MAIN_NAV.concat(isAdmin ? ADMIN_NAV : []).map((item) => (
+        {navItems.map((item) => (
           <ListItem key={item.to} disablePadding>
             <ListItemButton
               component={Link}
@@ -210,8 +213,8 @@ export function InstructorLayout() {
           </Box>
           <Typography variant="h6" noWrap component="div" sx={{ flexGrow: 1, minWidth: 0 }}>
             {isDesktop
-              ? (meta.organizationName ? `${meta.organizationName} - Instructor` : 'Instructor')
-              : (meta.organizationName || 'Instructor')}
+              ? `${meta.organizationName} - ${meta.name} - ${pageLabel}`
+              : `${meta.organizationName} - ${pageLabel}`}
           </Typography>
           {isDesktop ? (
             <Button
