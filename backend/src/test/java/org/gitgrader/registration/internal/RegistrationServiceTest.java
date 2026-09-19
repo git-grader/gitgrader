@@ -127,8 +127,8 @@ class RegistrationServiceTest {
 		assertThatExceptionOfType(DuplicateRegistrationException.class)
 			.isThrownBy(() -> this.service.register(request(), ADDRESS));
 
-		verify(this.attemptLog).record(any(), anyString(), eq("DUPLICATE"),
-				eq("Student ID / Username already registered"), anyString(), anyString());
+		verify(this.attemptLog).record(any(), anyString(), eq("DUPLICATE"), eq("Student username already registered"),
+				anyString(), anyString());
 	}
 
 	@Test
