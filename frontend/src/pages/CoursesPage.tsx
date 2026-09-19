@@ -3,17 +3,19 @@
 
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { useSearchParams } from 'react-router';
+import { useNavigate, useSearchParams, Link } from 'react-router';
 import { api } from '../api';
 import { queryKeys } from '../api/queryKeys';
 import { QueryErrorNotice } from '../components/QueryErrorNotice';
 import { MutationErrorAlert, problemFieldErrors } from '../components/MutationErrorAlert';
 import { useServerPagination } from '../components/useServerPagination';
+import { useIsNarrow } from '../components/responsiveColumns';
 import { CourseStatusChip } from '../components/CourseStatusChip';
 import { fromZonedInputValue } from '../components/localDateTime';
-import type { CourseDefinition } from '../api';
-import { Box, TablePagination, Typography, CircularProgress, List, ListItem, ListItemText, ListItemButton, Paper, Button, Dialog, DialogTitle, DialogContent, DialogActions, TextField, FormControlLabel, Switch, FormControl, InputLabel, Select, MenuItem } from '@mui/material';
-import { Link } from 'react-router';
+import type { CourseView, CourseDefinition } from '../api';
+import { DataGrid } from '@mui/x-data-grid';
+import type { GridColDef, GridRenderCellParams } from '@mui/x-data-grid';
+import { Box, Chip, Typography, CircularProgress, Button, Dialog, DialogTitle, DialogContent, DialogActions, TextField, FormControlLabel, Switch, FormControl, InputLabel, Select, MenuItem } from '@mui/material';
 
 const COURSE_STATUSES = ['DRAFT', 'ACTIVE', 'CLOSED', 'ARCHIVED'] as const;
 
@@ -32,6 +34,7 @@ const emptyForm = (): Partial<CourseDefinition> => ({
 });
 
 export function CoursesPage() {
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [searchParams, setSearchParams] = useSearchParams();
   const requestedStatus = searchParams.get('status');
@@ -45,6 +48,8 @@ export function CoursesPage() {
   const { data, isLoading, isError, refetch } = useQuery({
     queryKey: queryKeys.courses.list(statusFilter, params.page, params.size),
     queryFn: () => api.getCourses({ ...params, status: statusFilter }),
+    // Keeps the current rows on screen while the next page loads; without it the row
+    // count drops to zero and the grid bounces back to page one.
     placeholderData: (previous) => previous
   });
 
@@ -69,6 +74,9 @@ export function CoursesPage() {
       closeDialog();
     }
   });
+
+  // Declared before the early returns below: a hook must run on every render.
+  const isNarrow = useIsNarrow();
 
   function closeDialog() {
     setOpen(false);
@@ -104,6 +112,79 @@ export function CoursesPage() {
 
   const fieldErrors = problemFieldErrors(createMutation.error);
 
+  const wideColumns: GridColDef[] = [
+    {
+      field: 'name',
+      headerName: 'Name',
+      flex: 1,
+      minWidth: 200,
+      renderCell: (params: GridRenderCellParams<CourseView>) => (
+        <Link to={`/courses/${params.row.id}`} style={{ color: 'inherit' }}>{params.row.name}</Link>
+      )
+    },
+    { field: 'courseKey', headerName: 'Key', width: 150, valueGetter: (_value: string, row: CourseView) => row.courseKey },
+    {
+      field: 'status',
+      headerName: 'Status',
+      width: 130,
+      renderCell: (params: GridRenderCellParams<CourseView>) => <CourseStatusChip status={params.row.status} />
+    },
+    {
+      field: 'semester',
+      headerName: 'Semester',
+      width: 130,
+      valueGetter: (_value: string, row: CourseView) => row.semester ?? '—'
+    },
+    {
+      field: 'registrationEnabled',
+      headerName: 'Registration',
+      width: 140,
+      renderCell: (params: GridRenderCellParams<CourseView>) => (
+        params.row.registrationEnabled
+          ? <Chip size="small" color="success" label="Open" />
+          : <Chip size="small" variant="outlined" label="Closed" />
+      )
+    },
+    {
+      field: 'actions', headerName: 'Actions', width: 100, sortable: false,
+      renderCell: (params: GridRenderCellParams<CourseView>) => (
+        <Button size="small" component={Link} to={`/courses/${params.row.id}`}>Open</Button>
+      )
+    }
+  ];
+
+  /**
+   * One stacked cell per course, used instead of columns on a narrow screen.
+   *
+   * Hiding the key, the semester, and the registration state would put them out of reach
+   * on a phone: the course detail route exists, but the summary that states whether new
+   * students can sign up belongs on the list. Stacking keeps every field reachable
+   * without a horizontal scroll.
+   */
+  const narrowColumn: GridColDef = {
+    field: 'name',
+    headerName: 'Course',
+    flex: 1,
+    minWidth: 240,
+    renderCell: (params: GridRenderCellParams<CourseView>) => {
+      const row = params.row;
+      return (
+        <Box sx={{ py: 1, display: 'flex', flexDirection: 'column', gap: 0.5, minWidth: 0 }}>
+          <Box sx={{ display: 'flex', gap: 1, alignItems: 'center', flexWrap: 'wrap' }}>
+            <Typography variant="body2" component={Link} to={`/courses/${row.id}`} sx={{ color: 'inherit', textDecoration: 'none' }}>{row.name}</Typography>
+            <CourseStatusChip status={row.status} />
+          </Box>
+          <Typography variant="caption" color="text.secondary" sx={{ overflowWrap: 'anywhere' }}>
+            {row.courseKey} · {row.semester ?? 'no semester'}
+          </Typography>
+          <Typography variant="caption" color="text.secondary">
+            Registration: {row.registrationEnabled ? 'Open' : 'Closed'}
+          </Typography>
+        </Box>
+      );
+    }
+  };
+
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 1.5 }}>
@@ -132,42 +213,24 @@ export function CoursesPage() {
         </Box>
       ) : isError ? (
         <QueryErrorNotice message="The courses could not be loaded." onRetry={() => void refetch()} />
-      ) : !data || data.content.length === 0 ? (
-        <Paper sx={{ p: 4, textAlign: 'center' }}>
-          <Typography color="text.secondary">No {statusFilter.toLowerCase()} courses found.</Typography>
-        </Paper>
       ) : (
-        <Paper sx={{ p: 2 }}>
-          <List>
-            {data.content.map(c => (
-              <ListItem key={c.id} disablePadding>
-                <ListItemButton component={Link} to={`/courses/${c.id}`}>
-                  <ListItemText
-                    primary={c.name}
-                    slotProps={{ secondary: { component: 'div' } }}
-                    secondary={
-                      <Box sx={{ display: 'flex', gap: 1, alignItems: 'center', flexWrap: 'wrap' }}>
-                        <span>Key: {c.courseKey}</span>
-                        <CourseStatusChip status={c.status} />
-                      </Box>
-                    }
-                  />
-                </ListItemButton>
-              </ListItem>
-            ))}
-          </List>
-          {/* A List has no pager of its own, and the endpoint returns one page, so
-              without this every course past the first page was unreachable. */}
-          <TablePagination
-            component="div"
-            count={data.totalElements}
-            page={paginationModel.page}
-            onPageChange={(_e, page) => { setPaginationModel({ ...paginationModel, page }); }}
-            rowsPerPage={paginationModel.pageSize}
-            onRowsPerPageChange={(e) => { setPaginationModel({ page: 0, pageSize: Number(e.target.value) }); }}
-            rowsPerPageOptions={[20, 50, 100]}
+        <Box sx={{ height: 600, width: '100%' }}>
+          <DataGrid
+            rows={data?.content ?? []}
+            columns={isNarrow ? [narrowColumn] : wideColumns}
+            {...(isNarrow ? { getRowHeight: () => 'auto' as const } : {})}
+            paginationMode="server"
+            rowCount={data?.totalElements ?? 0}
+            paginationModel={paginationModel}
+            onPaginationModelChange={setPaginationModel}
+            pageSizeOptions={[20, 50, 100]}
+            // Only the requested page is in memory, so a client-side sort would silently
+            // reorder that page alone while appearing to sort the whole collection.
+            disableColumnSorting
+            disableRowSelectionOnClick
+            onRowClick={(params) => { void navigate(`/courses/${params.id}`); }}
           />
-        </Paper>
+        </Box>
       )}
 
       <Dialog open={open} onClose={() => !createMutation.isPending && closeDialog()} maxWidth="sm" fullWidth>
