@@ -1,0 +1,56 @@
+name: Dependabot auto-merge
+
+on:
+  pull_request_target:
+    types: [opened, synchronize, reopened, ready_for_review]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+# One run per dependabot PR: a newer push supersedes the previous wait.
+concurrency:
+  group: dependabot-merge-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  auto-merge:
+    runs-on: ubuntu-latest
+    if: github.actor == 'dependabot[bot]' && !github.event.pull_request.draft
+    timeout-minutes: 90
+    steps:
+      - name: Fetch dependabot metadata
+        id: metadata
+        uses: dependabot/fetch-metadata@21025c705c08248db411dc16f3619e6b5f9ea21a # v2
+
+      # Auto-merge on GitHub only waits on the checks that branch protection marks as
+      # required, and this repository protects nothing, so gate the merge on the full
+      # check run set ourselves rather than on what the target's rules demand.
+      - name: Wait for green checks
+        run: |
+          sha="${{ github.event.pull_request.head.sha }}"
+          check_api="repos/git-grader/gitgrader/commits/${sha}/check-runs"
+          deadline=$((SECONDS + 4800))
+          while (( SECONDS < deadline )); do
+            read -r total building failed <<<"$(gh api "$check_api" --jq '[.total_count, [.check_runs[] | select(.status == "queued" or .status == "in_progress" or .status == "pending")] | length, [.check_runs[] | select(.conclusion == "failure" or .conclusion == "cancelled" or .conclusion == "timed_out" or .conclusion == "action_required")] | length] | @tsv')"
+            if (( failed > 0 )); then
+              echo "check failed on ${sha}:"
+              gh api "$check_api" --jq '.check_runs[] | select(.conclusion == "failure" or .conclusion == "cancelled" or .conclusion == "timed_out" or .conclusion == "action_required") | "\(.name): \(.conclusion)"'
+              exit 1
+            fi
+            if (( total > 0 && building == 0 )); then
+              echo "all ${total} checks green on ${sha}"
+              exit 0
+            fi
+            sleep 30
+          done
+          echo "timed out waiting for checks on ${sha}"
+          exit 1
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Enable auto-merge
+        run: gh pr merge --auto --squash --delete-branch "$PR_URL"
+        env:
+          PR_URL: ${{ github.event.pull_request.html_url }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
