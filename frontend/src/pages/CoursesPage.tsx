@@ -173,7 +173,7 @@ export function CoursesPage() {
       <Dialog open={open} onClose={() => !createMutation.isPending && closeDialog()} maxWidth="sm" fullWidth>
         <form onSubmit={handleSubmit}>
           <DialogTitle>New Course</DialogTitle>
-          <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 1 }}>
+          <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2, pt: 2 }}>
             <MutationErrorAlert error={createMutation.error} />
             <TextField
               label="Course Key"

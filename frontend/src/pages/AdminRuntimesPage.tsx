@@ -130,7 +130,7 @@ export function AdminRuntimesPage() {
       <Dialog open={open} onClose={() => !createMutation.isPending && closeDialog()} maxWidth="sm" fullWidth>
         <form onSubmit={handleSubmit}>
           <DialogTitle>New Runtime</DialogTitle>
-          <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 1 }}>
+          <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2, pt: 2 }}>
             <MutationErrorAlert error={createMutation.error} />
 
             <TextField label="Key" required fullWidth value={form.runtimeKey ?? ''} onChange={e => setForm({ ...form, runtimeKey: e.target.value })} error={!!errorFor('runtimeKey')} helperText={errorFor('runtimeKey')} disabled={createMutation.isPending} />

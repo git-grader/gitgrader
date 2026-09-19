@@ -258,7 +258,7 @@ export function AssignmentsPage() {
       <Dialog open={open} onClose={() => !createMutation.isPending && closeDialog()} maxWidth="sm" fullWidth>
         <form onSubmit={handleSubmit}>
           <DialogTitle>New Assignment</DialogTitle>
-          <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 1 }}>
+          <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2, pt: 2 }}>
             <MutationErrorAlert error={createMutation.error} />
 
             <FormControl fullWidth required error={!!errorFor('courseId')}>

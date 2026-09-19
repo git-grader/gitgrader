@@ -63,7 +63,7 @@ function EditCourseForm({ course, open, onClose }: { course: CourseView; open: b
     <Dialog open={open} onClose={() => !updateMutation.isPending && onClose()} maxWidth="sm" fullWidth>
       <form onSubmit={handleSubmit}>
         <DialogTitle>Edit Course</DialogTitle>
-        <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 1 }}>
+        <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2, pt: 2 }}>
           <MutationErrorAlert error={updateMutation.error} />
           <TextField
             label="Course Key"
@@ -213,7 +213,7 @@ function EditClassForm({ courseId, cls, open, onClose }: { courseId: string; cls
     <Dialog open={open} onClose={() => !mutation.isPending && onClose()} maxWidth="sm" fullWidth>
       <form onSubmit={handleSubmit}>
         <DialogTitle>{cls ? 'Edit Class' : 'New Class'}</DialogTitle>
-        <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 1 }}>
+        <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2, pt: 2 }}>
           <MutationErrorAlert error={mutation.error} />
           <TextField
             label="Class Key"
