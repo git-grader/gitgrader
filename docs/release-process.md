@@ -13,6 +13,9 @@ features increment the minor version; fixes increment the patch version.
    `./mvnw spring-boot:build-image`, publishes a `linux/amd64` image to GHCR,
    scans it, emits its digest, and creates a provenance attestation. There is no
    `arm64` image: buildpacks build for the runner's architecture only.
+   Every green build of the default branch also publishes a snapshot under
+   `:snapshot` and `:snapshot-<short-sha>`, plus the project's own `-SNAPSHOT`
+   version tag that compose and scripts/install.sh default to.
 4. The SBOM workflow generates the aggregate CycloneDX SBOM (`bom.json` and
    `bom.xml`) and attaches it to the release for the same tag. Review dependency
    and secret scans before announcing a release.
@@ -24,6 +27,8 @@ For high-assurance deployments, pin the image by digest in local Compose or an
 orchestrator only after the release workflow has published it. Do not invent a
 digest or use `latest`.
 
-The current container workflow publishes tag-named images; establish the exact
+The container workflow publishes releases from `v*` tags and development
+snapshots from every green default-branch build. Snapshot tags track `main` and
+are overwritten; `latest` moves only with a stable release. Establish the exact
 tag-to-digest mapping from the workflow output or GHCR before changing a
 deployment.

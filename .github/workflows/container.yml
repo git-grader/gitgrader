@@ -1,6 +1,36 @@
 name: Container image
 
+# Two publishers live here, because both build the same image and must never be
+# able to drift apart:
+#
+#   snapshots - every green Build on the default branch. The Build workflow runs
+#   the full `verify`; this job fires only after one of its runs concluded
+#   successfully, so a red build can never move a snapshot tag. The tags it
+#   pushes are the project's own SNAPSHOT version (what compose.yaml and
+#   scripts/install.sh ask for by default), a floating `snapshot` pointer and an
+#   immutable snapshot-<short-sha> naming exactly which commit was published.
+#
+#   releases  - a `v*` tag, or a workflow_dispatch on one. This is the original
+#   design: the version is validated up front, `verify` runs inside the job
+#   (nothing else joins a tag's Build run to this one), a stable release moves
+#   :latest, and the published digest is attested and scanned.
+#
+# The release path deliberately does not ride the workflow_run hook. Whether
+# GitHub reports the tag name or the branch name in head_branch for a
+# tag-pushed run is not something a workflow can rely on, and the release
+# already knows its ref from the push event itself. So workflow_run belongs to
+# the snapshot alone, and the release keeps the direct trigger that records the
+# full ref.
 on:
+  # Build runs on every push and pull request; the "this was a green push to
+  # the default branch" filter lives in the snapshot job's `if`. It has to,
+  # because a workflow_run still executes in this repository's context - with
+  # its token, secrets and write permissions - even when the run it reports on
+  # came from a fork. Skipping at the job level is what keeps a commit the
+  # project never reviewed from reaching a single step.
+  workflow_run:
+    workflows: ['Build']
+    types: [completed]
   push:
     tags: ['v*']
   workflow_dispatch:
@@ -14,22 +44,133 @@ permissions:
 env:
   IMAGE: ghcr.io/git-grader/gitgrader
 
-# Never cancelled: by the time this is running it may already have pushed a tag, and a
-# half-published release is worse than a queued one.
+# Never cancelled: by the time this is running the Build gate has already
+# passed and something may already have been pushed, and a half-published
+# release is worse than a queued one. Grouping by ref also serialises snapshot
+# publishes - they all arrive on the default branch - so the floating tags
+# cannot race each other and write an older commit after a newer one.
 concurrency:
   group: container-${{ github.ref }}
   cancel-in-progress: false
 
 jobs:
-  publish:
+  snapshot:
+    # The gate is the Build workflow's own conclusion, so only Build runs that
+    # were green push events from this repository's default branch qualify.
+    # Every other conclusion, event, repository or branch must skip the job
+    # outright rather than fail in a step, so that a fork's code is never even
+    # checked out in this context.
+    if: >-
+      github.event_name == 'workflow_run' &&
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.event == 'push' &&
+      github.event.workflow_run.head_repository.full_name == github.repository &&
+      github.event.workflow_run.head_branch == 'main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      # Check out the commit the Build run reported on, not the branch tip that
+      # may have moved since. The head_repository check in the job's `if` is
+      # what makes this SHA one this repository owns.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+      - uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6
+        with:
+          distribution: temurin
+          java-version: '25'
+          cache: maven
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      # Buildpacks produce the image directly; there is no Dockerfile in this
+      # repository, so the image cannot be built by a Docker build action. The
+      # goal runs against the backend module because the aggregator does not
+      # carry the Spring Boot plugin.
+      #
+      # The Build workflow has already run the tests, so `package` (which also
+      # rebuilds the bundled frontend) is all the image needs, and the plugin
+      # names it from ${project.version} when the name is not overridden - the
+      # primary tag therefore follows the pom, exactly like compose.yaml and
+      # scripts/install.sh, and the workflow cannot drift from what the
+      # installer asks for. The awk is the one install.sh uses: the first
+      # <version> in the file is the Spring Boot parent's, not this project's.
+      - name: Build and publish the snapshot image
+        id: build
+        env:
+          HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          version="$(awk '/<artifactId>gitgrader<\/artifactId>/ { seen = 1; next }
+                         seen && match($0, /<version>[^<]+<\/version>/) {
+                           print substr($0, RSTART + 9, RLENGTH - 19); exit
+                         }' backend/pom.xml)"
+          if [ -z "$version" ]; then
+            echo "::error::Could not read the project version from backend/pom.xml."
+            exit 1
+          fi
+          short_sha="${HEAD_SHA:0:10}"
+          ./mvnw -B package -DskipTests spring-boot:build-image -pl backend
+          docker tag "${IMAGE}:${version}" "${IMAGE}:snapshot"
+          docker tag "${IMAGE}:${version}" "${IMAGE}:snapshot-${short_sha}"
+          docker push "${IMAGE}:snapshot-${short_sha}"
+          docker push "${IMAGE}:snapshot"
+          if [[ "$version" == *-SNAPSHOT ]]; then
+            docker push "${IMAGE}:${version}"
+          else
+            # A pom that no longer says SNAPSHOT is on its way to a release, and
+            # moving its version tag from a branch build would shadow that release
+            # once the tag is cut. The commit is still published under snapshot
+            # and snapshot-<sha>; only the version name is held back.
+            echo "::warning::backend/pom.xml version '${version}' is not a SNAPSHOT, so its version tag was not pushed."
+          fi
+          # The three tags name the same image, so any of them yields the digest.
+          digest="$(docker inspect --format '{{index .RepoDigests 0}}' "${IMAGE}:snapshot" | cut -d@ -f2)"
+          printf 'digest=%s\n' "$digest" >> "$GITHUB_OUTPUT"
+      - uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4
+        with:
+          subject-name: ghcr.io/git-grader/gitgrader
+          subject-digest: ${{ steps.build.outputs.digest }}
+          push-to-registry: true
+      # The Security workflow scans the source tree; nothing looks at the layers
+      # the buildpack adds, which is where an operator's CVEs actually come from.
+      # Snapshots share the release's gate deliberately: "published" must mean
+      # the same thing for both, or a snapshot that stays green while the release
+      # goes red would be what every demo and readme actually pulls.
+      - name: Scan the published image
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          image-ref: ${{ env.IMAGE }}@${{ steps.build.outputs.digest }}
+          format: table
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          exit-code: '1'
+      # Block scalar on purpose: the colon inside "Image digest:" would otherwise
+      # be read as a YAML mapping and make the whole workflow file unparseable.
+      - run: |
+          printf 'Image digest: %s\n' '${{ steps.build.outputs.digest }}'
+
+  release:
+    # Tag pushes and dispatches only; from a workflow_run there is always
+    # precisely one publisher (the snapshot job above). The ref validation step
+    # would reject everything else anyway, but failing a whole run that had
+    # nothing to give this job is noisier than not starting it.
+    if: github.event_name != 'workflow_run'
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
-      # workflow_dispatch accepts any ref, and the version was taken from the ref name
-      # with the leading "v" stripped. Dispatching from a branch therefore published
-      # ghcr.io/git-grader/gitgrader:main and, worse, moved :latest onto it. The ref is
-      # checked before anything is built, and only a stable release moves :latest.
+      # workflow_dispatch accepts any ref, and the version was taken from the ref
+      # name with the leading "v" stripped. Dispatching from a branch therefore
+      # published ghcr.io/git-grader/gitgrader:main and, worse, moved :latest onto
+      # it. The ref is checked before anything is built, and only a stable release
+      # moves :latest.
       - name: Resolve and validate the release version
         id: release
         run: |
@@ -64,16 +205,17 @@ jobs:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-      # Buildpacks produce the image directly; there is no Dockerfile in this repository,
-      # so the image cannot be built by a Docker build action. The goal runs against the
-      # backend module because the aggregator does not carry the Spring Boot plugin.
+      # Buildpacks produce the image directly; there is no Dockerfile in this
+      # repository, so the image cannot be built by a Docker build action. The
+      # goal runs against the backend module because the aggregator does not
+      # carry the Spring Boot plugin.
       #
       # `verify` runs in the same invocation rather than being left to the Build
-      # workflow. Build does run on the tag, but nothing joins the two: a red Build did
-      # not stop this job from publishing the image and moving :latest onto it, so a
-      # release that failed the project's own gate could reach the registry and be
-      # pulled as the current one. Tags are rare; paying for the gate here is what makes
-      # "it was published" mean "it passed".
+      # workflow. Build does run on the tag, but nothing joins the two: a red
+      # Build did not stop this job from publishing the image and moving :latest
+      # onto it, so a release that failed the project's own gate could reach the
+      # registry and be pulled as the current one. Tags are rare; paying for the
+      # gate here is what makes "it was published" mean "it passed".
       - name: Verify and build the application image
         env:
           VERSION: ${{ steps.release.outputs.version }}
@@ -98,9 +240,10 @@ jobs:
           subject-name: ghcr.io/git-grader/gitgrader
           subject-digest: ${{ steps.push.outputs.digest }}
           push-to-registry: true
-      # The Security workflow scans the source tree; nothing looked at the layers the
-      # buildpack adds, which is where an operator's CVEs actually come from. Run it
-      # after the attestation so a finding fails the release rather than the record of it.
+      # The Security workflow scans the source tree; nothing looked at the layers
+      # the buildpack adds, which is where an operator's CVEs actually come from.
+      # Run it after the attestation so a finding fails the release rather than
+      # the record of it.
       - name: Scan the published image
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
@@ -109,7 +252,7 @@ jobs:
           severity: HIGH,CRITICAL
           ignore-unfixed: true
           exit-code: '1'
-      # Block scalar on purpose: the colon inside "Image digest:" would otherwise be read
-      # as a YAML mapping and make the whole workflow file unparseable.
+      # Block scalar on purpose: the colon inside "Image digest:" would otherwise
+      # be read as a YAML mapping and make the whole workflow file unparseable.
       - run: |
           printf 'Image digest: %s\n' '${{ steps.push.outputs.digest }}'
