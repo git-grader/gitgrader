@@ -4,17 +4,23 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api, REPORT_FORMATS, RuntimeDefinitionSchema } from '../api';
-import type { RuntimeDefinition } from '../api';
+import type { Runtime, RuntimeDefinition } from '../api';
 import { queryKeys } from '../api/queryKeys';
 import { QueryErrorNotice } from '../components/QueryErrorNotice';
 import { MutationErrorAlert, problemFieldErrors } from '../components/MutationErrorAlert';
+import { useIsNarrow } from '../components/responsiveColumns';
+import { DataGrid } from '@mui/x-data-grid';
+import type { GridColDef, GridRenderCellParams } from '@mui/x-data-grid';
 import {
-  Box, Typography, CircularProgress, List, ListItem, ListItemText, Button, Dialog, DialogTitle,
+  Box, Typography, CircularProgress, Button, Dialog, DialogTitle,
   DialogContent, DialogActions, TextField, FormControl, InputLabel, Select, MenuItem,
-  FormControlLabel, Checkbox, Alert
+  FormControlLabel, Checkbox, Alert, Chip
 } from '@mui/material';
 
 const EMPTY_FORM: Partial<RuntimeDefinition> = { enabled: true, reportFormat: 'JUNIT_XML' };
+
+/** A digest belongs to one immutable image build; the shortened form is the readable end. */
+const shortDigest = (digest: string) => `${digest.slice(0, 7)}…${digest.slice(-7)}`;
 
 export function AdminRuntimesPage() {
   const queryClient = useQueryClient();
@@ -39,6 +45,9 @@ export function AdminRuntimesPage() {
       closeDialog();
     }
   });
+
+  // Declared before the early returns below: a hook must run on every render.
+  const isNarrow = useIsNarrow();
 
   function closeDialog() {
     setOpen(false);
@@ -93,9 +102,84 @@ export function AdminRuntimesPage() {
     createMutation.mutate(parsed.data);
   };
 
+  const wideColumns: GridColDef[] = [
+    { field: 'displayName', headerName: 'Display Name', flex: 1, minWidth: 160 },
+    { field: 'runtimeKey', headerName: 'Key', width: 130 },
+    {
+      field: 'image',
+      headerName: 'Image',
+      width: 210,
+      valueGetter: (value, row: Runtime) => `${value}:${row.tag}`
+    },
+    {
+      field: 'imageDigest',
+      headerName: 'Image Digest',
+      width: 170,
+      renderCell: (params: GridRenderCellParams<Runtime>) => (
+        <Typography component="span" sx={{ fontFamily: 'monospace', fontSize: '0.875rem' }}>
+          {shortDigest(params.row.imageDigest)}
+        </Typography>
+      )
+    },
+    { field: 'reportFormat', headerName: 'Report Format', width: 150 },
+    {
+      field: 'enabled',
+      headerName: 'Status',
+      width: 120,
+      renderCell: (params: GridRenderCellParams<Runtime>) => (
+        <Chip
+          size="small"
+          variant={params.row.enabled ? 'filled' : 'outlined'}
+          color={params.row.enabled ? 'success' : 'default'}
+          label={params.row.enabled ? 'Enabled' : 'Disabled'}
+        />
+      )
+    },
+    { field: 'testCommand', headerName: 'Test Command', flex: 1, minWidth: 240 }
+  ];
+
+  /**
+   * One stacked cell per runtime, used instead of columns on a narrow screen.
+   *
+   * Runtimes have no detail route, so every field the list shows is all there is: the
+   * stacked cell keeps the digest, format, and command reachable instead of hiding them
+   * with a desktop-column switcher.
+   */
+  const narrowColumn: GridColDef = {
+    field: 'displayName',
+    headerName: 'Runtime',
+    flex: 1,
+    minWidth: 240,
+    renderCell: (params: GridRenderCellParams<Runtime>) => {
+      const row = params.row;
+      return (
+        <Box sx={{ py: 1, display: 'flex', flexDirection: 'column', gap: 0.5, minWidth: 0 }}>
+          <Box sx={{ display: 'flex', gap: 1, alignItems: 'center', flexWrap: 'wrap' }}>
+            <Typography variant="body2">{row.displayName}</Typography>
+            <Chip
+              size="small"
+              variant={row.enabled ? 'filled' : 'outlined'}
+              color={row.enabled ? 'success' : 'default'}
+              label={row.enabled ? 'Enabled' : 'Disabled'}
+            />
+          </Box>
+          <Typography variant="caption" color="text.secondary" sx={{ overflowWrap: 'anywhere' }}>
+            {row.runtimeKey} · {row.image}:{row.tag}
+          </Typography>
+          <Typography variant="caption" color="text.secondary" sx={{ fontFamily: 'monospace' }}>
+            {shortDigest(row.imageDigest)}
+          </Typography>
+          <Typography variant="caption" color="text.secondary" sx={{ overflowWrap: 'anywhere' }}>
+            {row.reportFormat} · {row.testCommand}
+          </Typography>
+        </Box>
+      );
+    }
+  };
+
   return (
-    <Box>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 1.5 }}>
         <Typography variant="h4" component="h1">Runtimes</Typography>
         {isAdmin ? (
           <Button variant="contained" onClick={() => setOpen(true)}>New Runtime</Button>
@@ -107,24 +191,15 @@ export function AdminRuntimesPage() {
       {runtimes.length === 0 ? (
         <Alert severity="info">No runtimes configured. At least one runtime is required to publish assignments.</Alert>
       ) : (
-        <List>
-          {runtimes.map(rt => (
-            <ListItem key={rt.id}>
-              <ListItemText
-                primary={rt.displayName}
-                slotProps={{ secondary: { component: 'div' } }}
-                secondary={
-                  <Box sx={{ display: 'flex', flexDirection: 'column' }}>
-                    <Box component="span">{rt.image}:{rt.tag} · {rt.reportFormat}</Box>
-                    <Box component="span" sx={{ fontFamily: 'monospace', fontSize: '0.875rem' }}>
-                      {rt.imageDigest.substring(0, 7)}...{rt.imageDigest.substring(rt.imageDigest.length - 7)}
-                    </Box>
-                  </Box>
-                }
-              />
-            </ListItem>
-          ))}
-        </List>
+        <Box sx={{ height: 600, width: '100%' }}>
+          <DataGrid
+            rows={runtimes}
+            columns={isNarrow ? [narrowColumn] : wideColumns}
+            {...(isNarrow ? { getRowHeight: () => 'auto' as const } : {})}
+            pageSizeOptions={[20, 50, 100]}
+            disableRowSelectionOnClick
+          />
+        </Box>
       )}
 
       <Dialog open={open} onClose={() => !createMutation.isPending && closeDialog()} maxWidth="sm" fullWidth>
