@@ -32,7 +32,7 @@ import org.springframework.transaction.annotation.Transactional;
  *
  * <p>
  * Every attempt worth recording is one that ends by throwing: a flood that hit the rate
- * limit, or a student number or address already taken. Written on the registration
+ * limit, or a student username or address already taken. Written on the registration
  * transaction, those rows were rolled back with it and never existed, so a table indexed
  * by address and hour, carrying a {@code RATE_LIMITED} outcome and described as being
  * there to investigate a flood, could only ever hold the registrations that succeeded.
@@ -60,15 +60,15 @@ class RegistrationAttemptLog {
 	 * @param ipHash keyed hash of the client address
 	 * @param outcome one of the outcomes the schema allows
 	 * @param reason why it ended that way, when there is more to say
-	 * @param studentNumberHash keyed hash of the submitted student number
+	 * @param studentUsernameHash keyed hash of the submitted student username
 	 * @param emailHash keyed hash of the submitted e-mail address
 	 */
 	@Transactional(propagation = Propagation.REQUIRES_NEW)
-	void record(Instant at, String ipHash, String outcome, @Nullable String reason, String studentNumberHash,
+	void record(Instant at, String ipHash, String outcome, @Nullable String reason, String studentUsernameHash,
 			String emailHash) {
 		try {
 			this.attempts.save(new RegistrationAttempt(UUID.randomUUID(), at, ipHash, outcome, reason,
-					studentNumberHash, emailHash));
+					studentUsernameHash, emailHash));
 		}
 		catch (RuntimeException ex) {
 			// Losing the record of an attempt must not turn a refused registration into

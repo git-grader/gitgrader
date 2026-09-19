@@ -25,13 +25,13 @@ import org.jspecify.annotations.Nullable;
  * Public read model of a student profile.
  *
  * @param id stable profile identifier
- * @param studentNumber institutional student number
+ * @param studentUsername institutional student username
  * @param fullName full display name
  * @param email contact address
  * @param status lifecycle state
  * @param classLabel optional class label
  * @param registeredAt registration time
  */
-public record StudentView(UUID id, String studentNumber, String fullName, String email, StudentStatus status,
+public record StudentView(UUID id, String studentUsername, String fullName, String email, StudentStatus status,
 		@Nullable String classLabel, Instant registeredAt) {
 }

@@ -36,6 +36,7 @@ import org.gitgrader.identity.StudentRegistration;
 import org.gitgrader.identity.StudentRegistry;
 import org.gitgrader.identity.StudentSearch;
 import org.gitgrader.identity.StudentView;
+import org.gitgrader.identity.StudentUpdate;
 import org.gitgrader.identity.domain.Instructor;
 import org.gitgrader.identity.domain.Student;
 import org.jspecify.annotations.Nullable;
@@ -70,8 +71,8 @@ public class DefaultIdentityService implements StudentDirectory, StudentRegistry
 
 	@Override
 	@Transactional(readOnly = true)
-	public Optional<StudentView> findByStudentNumber(String studentNumber) {
-		return this.students.findByStudentNumberIgnoreCase(studentNumber).map(Student::toView);
+	public Optional<StudentView> findByStudentUsername(String studentUsername) {
+		return this.students.findByStudentUsernameIgnoreCase(studentUsername).map(Student::toView);
 	}
 
 	@Override
@@ -120,6 +121,13 @@ public class DefaultIdentityService implements StudentDirectory, StudentRegistry
 	}
 
 	@Override
+	public StudentView update(UUID studentId, StudentUpdate update) {
+		Student student = requireStudent(studentId);
+		student.update(update, this.clock);
+		return student.toView();
+	}
+
+	@Override
 	public InstructorView upsertOnLogin(String username, String displayName, @Nullable String email,
 			Set<String> roles) {
 		Instructor instructor = this.instructors.findByUsernameIgnoreCase(username)
@@ -154,7 +162,7 @@ public class DefaultIdentityService implements StudentDirectory, StudentRegistry
 			return;
 		}
 		String pattern = "%" + text.toLowerCase(Locale.ROOT) + "%";
-		predicates.add(builder.or(builder.like(builder.lower(root.get("studentNumber")), pattern),
+		predicates.add(builder.or(builder.like(builder.lower(root.get("studentUsername")), pattern),
 				builder.like(builder.lower(root.get("firstName")), pattern),
 				builder.like(builder.lower(root.get("lastName")), pattern),
 				builder.like(builder.lower(root.get("email")), pattern)));

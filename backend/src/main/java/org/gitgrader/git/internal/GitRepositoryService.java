@@ -104,24 +104,24 @@ public class GitRepositoryService {
 	 * Builds the canonical repository path for one student and assignment.
 	 * @param courseKey the course key
 	 * @param assignmentKey the assignment key
-	 * @param studentNumber the student number
+	 * @param studentUsername the student username
 	 * @return path relative to the repository root, without a {@code .git} suffix
 	 */
-	public static String repositoryPathFor(String courseKey, String assignmentKey, String studentNumber) {
+	public static String repositoryPathFor(String courseKey, String assignmentKey, String studentUsername) {
 		requireSafeSegment(courseKey, "course key");
 		requireSafeSegment(assignmentKey, "assignment key");
-		requireSafeSegment(studentNumber, "student number");
-		return courseKey + "/" + assignmentKey + "/" + studentNumber;
+		requireSafeSegment(studentUsername, "student username");
+		return courseKey + "/" + assignmentKey + "/" + studentUsername;
 	}
 
 	/**
 	 * Rejects a value that would denote anything other than one directory of its own.
 	 *
 	 * <p>
-	 * The student number arrives from the public registration form, which constrains only
-	 * its length, and is concatenated into a path that is normalised later, when it is
-	 * resolved on disk. A number carrying a separator therefore used to be able to name
-	 * another student's repository: under assignment {@code a1}, the number
+	 * The student username arrives from the public registration form, which constrains
+	 * only its length, and is concatenated into a path that is normalised later, when it
+	 * is resolved on disk. A number carrying a separator therefore used to be able to
+	 * name another student's repository: under assignment {@code a1}, the number
 	 * {@code ../a1/victim} normalises to the same directory as the plain number
 	 * {@code victim}, while the two stored strings differ and so both satisfy the unique
 	 * index. Each student then authenticated with their own key against their own row and

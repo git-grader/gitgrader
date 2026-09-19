@@ -27,7 +27,7 @@ import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 
 interface StudentRepository extends JpaRepository<Student, UUID>, JpaSpecificationExecutor<Student> {
 
-	Optional<Student> findByStudentNumberIgnoreCase(String studentNumber);
+	Optional<Student> findByStudentUsernameIgnoreCase(String studentUsername);
 
 	List<Student> findByIdIn(Collection<UUID> ids);
 

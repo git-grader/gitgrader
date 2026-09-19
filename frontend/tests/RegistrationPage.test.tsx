@@ -62,7 +62,7 @@ async function fillRegistration(courseName = 'Course 1', className: string | nul
 
   setValue(screen.getByRole('textbox', { name: 'First Name' }), 'Ada');
   setValue(screen.getByRole('textbox', { name: 'Last Name' }), 'Lovelace');
-  setValue(screen.getByRole('textbox', { name: 'Student Number' }), '001');
+  setValue(screen.getByRole('textbox', { name: 'Student ID / Username' }), '001');
   setValue(screen.getByLabelText(/Email/), 'ada@example.org');
 
   await user.click(screen.getByRole('combobox', { name: 'Course' }));
@@ -109,12 +109,12 @@ test('RegistrationPage has no a11y violations', async () => {
 /**
  * The server explains a refusal in `detail` and names the offending fields in `errors`.
  * The page showed `error.message`, which for a problem document is its title, so
- * "that student number is already registered" reached the student as "Bad Request".
+ * "that student username is already registered" reached the student as "Bad Request".
  */
 test('RegistrationPage shows what the server actually objected to', async () => {
   register.mockRejectedValue(
-    new ApiProblem('about:blank', 'Bad Request', 400, 'That student number is already registered', undefined, [
-      { field: 'studentNumber', message: 'already registered' }
+    new ApiProblem('about:blank', 'Bad Request', 400, 'That student username is already registered', undefined, [
+      { field: 'studentUsername', message: 'already registered' }
     ])
   );
 
@@ -122,7 +122,7 @@ test('RegistrationPage shows what the server actually objected to', async () => 
   await screen.findByText(/Register for Test/i);
   await fillRegistration();
 
-  expect(await screen.findByText('That student number is already registered')).toBeInTheDocument();
+  expect(await screen.findByText('That student username is already registered')).toBeInTheDocument();
   expect(screen.getByText('already registered')).toBeInTheDocument();
   expect(screen.queryByText('Bad Request')).not.toBeInTheDocument();
 });
@@ -148,7 +148,7 @@ test('RegistrationPage registers for a course that has no classes', async () => 
     courses: [{ courseKey: 'solo', name: 'Class-less Course', classes: [] }]
   });
   register.mockResolvedValue({
-    studentId: 's1', studentNumber: '001', fullName: 'A Student', status: 'SELF_REGISTERED',
+    studentId: 's1', studentUsername: '001', fullName: 'A Student', status: 'SELF_REGISTERED',
     keyFingerprint: 'SHA256:abc', repositories: []
   });
 

@@ -25,7 +25,7 @@ import org.jspecify.annotations.Nullable;
  * A submission as other modules and the instructor API see it.
  *
  * <p>
- * Carries no student name, e-mail or student number. Callers that need to display a
+ * Carries no student name, e-mail or student username. Callers that need to display a
  * person resolve them through the {@code identity} module, which keeps this type usable
  * on the public result page without accidentally leaking an identifier into it.
  *

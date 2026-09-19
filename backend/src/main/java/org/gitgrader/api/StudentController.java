@@ -31,6 +31,7 @@ import org.gitgrader.identity.StudentRegistry;
 import org.gitgrader.identity.StudentSearch;
 import org.gitgrader.identity.StudentStatus;
 import org.gitgrader.identity.StudentView;
+import org.gitgrader.identity.StudentUpdate;
 import org.gitgrader.sshkeys.SshKeyOrigin;
 import org.gitgrader.sshkeys.SshKeyRegistry;
 import org.gitgrader.sshkeys.SshKeyView;
@@ -40,6 +41,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -92,6 +94,11 @@ public class StudentController {
 		};
 	}
 
+	@PutMapping("/{id}")
+	public StudentView update(@PathVariable UUID id, @Valid @RequestBody StudentUpdate request) {
+		return this.registry.update(id, request);
+	}
+
 	@GetMapping("/{id}/keys")
 	public List<SshKeyView> keys(@PathVariable UUID id) {
 		return this.keys.findAllForStudent(id);
@@ -123,13 +130,13 @@ public class StudentController {
 	}
 
 	/** Student fields shown in collection responses. */
-	public record StudentSummary(UUID id, String studentNumber, String firstName, String lastName, String email,
+	public record StudentSummary(UUID id, String studentUsername, String firstName, String lastName, String email,
 			StudentStatus status) {
 
 		private static StudentSummary from(StudentView student) {
 			String[] names = student.fullName().split(" ", 2);
-			return new StudentSummary(student.id(), student.studentNumber(), names[0], names.length > 1 ? names[1] : "",
-					student.email(), student.status());
+			return new StudentSummary(student.id(), student.studentUsername(), names[0],
+					names.length > 1 ? names[1] : "", student.email(), student.status());
 		}
 
 	}

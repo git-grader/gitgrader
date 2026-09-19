@@ -1,7 +1,7 @@
 // Copyright the GitGrader contributors.
 // SPDX-License-Identifier: Apache-2.0
 
-import { useSearchParams } from 'react-router';
+import { useNavigate, useSearchParams } from 'react-router';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '../api';
 import { queryKeys } from '../api/queryKeys';
@@ -16,6 +16,7 @@ import { useServerPagination, CHOICE_PAGE_SIZE } from '../components/useServerPa
 import type { Submission } from '../api';
 
 export function SubmissionsPage() {
+  const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const selectedCourseId = searchParams.get('courseId') || '';
 
@@ -164,6 +165,7 @@ export function SubmissionsPage() {
             disableColumnSorting
             pageSizeOptions={[20, 50, 100]}
             disableRowSelectionOnClick
+            onRowClick={(params) => { void navigate(`/submissions/${encodeURIComponent(String(params.id))}`); }}
           />
         </Box>
       )}

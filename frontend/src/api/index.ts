@@ -69,7 +69,7 @@ export type Meta = z.infer<typeof MetaSchema>;
 export const RegistrationRequestSchema = z.object({
   firstName: z.string().min(1, 'First name is required'),
   lastName: z.string().min(1, 'Last name is required'),
-  studentNumber: z.string().min(1, 'Student number is required'),
+  studentUsername: z.string().min(1, 'Student username is required'),
   email: z.email('Invalid email'),
   courseKey: z.string().min(1, 'Course is required'),
   classKey: z.string().nullish(),
@@ -79,7 +79,7 @@ export type RegistrationRequest = z.infer<typeof RegistrationRequestSchema>;
 
 export const RegistrationResponseSchema = z.object({
   studentId: z.string(),
-  studentNumber: z.string(),
+  studentUsername: z.string(),
   fullName: z.string(),
   status,
   keyFingerprint: z.string()
@@ -156,13 +156,19 @@ export type Page<T> = { content: T[]; totalElements: number; totalPages: number;
 
 export const StudentSummarySchema = z.object({
   id: z.string(),
-  studentNumber: z.string(),
+  studentUsername: z.string(),
   firstName: z.string(),
   lastName: z.string(),
   email: z.string(),
   status
 });
 export type StudentSummary = z.infer<typeof StudentSummarySchema>;
+export const StudentDetailSchema = z.object({ student: StudentSummarySchema, sshKeys: z.array(z.unknown()) });
+export type StudentDetail = z.infer<typeof StudentDetailSchema>;
+export const StudentUpdateSchema = z.object({
+  studentUsername: z.string().min(1), firstName: z.string().min(1), lastName: z.string().min(1), email: z.email()
+});
+export type StudentUpdate = z.infer<typeof StudentUpdateSchema>;
 
 export const CourseViewSchema = z.object({
   id: z.string(),
@@ -374,7 +380,7 @@ export const CourseReportSchema = z.object({
   totalPointsAvailable: z.number(),
   students: z.array(z.object({
     studentId: z.string(),
-    studentNumber: z.string(),
+    studentUsername: z.string(),
     fullName: z.string(),
     fullyCompleted: z.number(),
     partiallyCompleted: z.number(),
@@ -478,6 +484,9 @@ export const api = {
 
   getStudents: (params?: Record<string, string>) =>
     readJson(`/api/v1/students${queryString(params)}`, StudentPageSchema),
+  getStudent: (id: string) => readJson(`/api/v1/students/${id}`, StudentDetailSchema),
+  updateStudent: (id: string, req: StudentUpdate) => sendJson('PUT', `/api/v1/students/${id}`, req, StudentSummarySchema),
+  archiveStudent: (id: string) => sendJson('PATCH', `/api/v1/students/${id}/status`, { status: 'ARCHIVED', reason: 'Archived by instructor' }, StudentSummarySchema),
 
   getAssignments: (params?: Record<string, string>) =>
     readJson(`/api/v1/assignments${queryString(params)}`, AssignmentPageSchema),
@@ -489,6 +498,7 @@ export const api = {
 
   getSubmissions: (params?: Record<string, string>) =>
     readJson(`/api/v1/submissions${queryString(params)}`, SubmissionPageSchema),
+  getSubmission: (id: string) => readJson(`/api/v1/submissions/${encodeURIComponent(id)}`, SubmissionSchema),
 
   getCourseReport: (courseId: string) => readJson(`/api/v1/reports/courses/${courseId}`, CourseReportSchema),
 

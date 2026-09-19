@@ -57,7 +57,7 @@ export function ReportPage() {
 
   // Declared before the early returns below: a hook must run on every render.
   const columnVisibilityModel = useNarrowColumns(
-    ['studentNumber', 'fullName', 'fullyCompleted', 'partiallyCompleted', 'notStarted', 'completionRate', 'pointsEarned', 'pointsRate', 'submissionCount'],
+    ['studentUsername', 'fullName', 'fullyCompleted', 'partiallyCompleted', 'notStarted', 'completionRate', 'pointsEarned', 'pointsRate', 'submissionCount'],
     ['fullName', 'completionRate', 'pointsRate']
   );
 
@@ -104,7 +104,7 @@ export function ReportPage() {
   const counts = buckets(data.students, data.totalMandatoryAssignments);
 
   const columns: GridColDef[] = [
-    { field: 'studentNumber', headerName: 'Student No', width: 150 },
+    { field: 'studentUsername', headerName: 'Student ID / Username', width: 190 },
     { field: 'fullName', headerName: 'Name', flex: 1, minWidth: 120 },
     { field: 'fullyCompleted', headerName: 'Fully Completed', width: 150 },
     { field: 'partiallyCompleted', headerName: 'Partially Completed', width: 150 },

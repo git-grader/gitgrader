@@ -18,7 +18,7 @@ const COURSE = {
 
 function student(overrides: Record<string, unknown> = {}) {
   return {
-    studentId: 's1', studentNumber: '001', fullName: 'A Student', fullyCompleted: 0,
+    studentId: 's1', studentUsername: '001', fullName: 'A Student', fullyCompleted: 0,
     partiallyCompleted: 0, notStarted: 0, completionRate: 0, pointsEarned: 0, pointsRate: 0,
     totalPoints: 0, submissionCount: 0, lastActivityAt: null, assignments: {},
     ...overrides
@@ -99,7 +99,7 @@ describe('the course report', () => {
       courseId: 'c1',
       totalMandatoryAssignments: 0,
       totalPointsAvailable: 0,
-      students: [student(), student({ studentId: 's2', studentNumber: '002' })]
+      students: [student(), student({ studentId: 's2', studentUsername: '002' })]
     });
 
     expect(await screen.findByText(/Partially completed: 0 of 2/)).toBeInTheDocument();
@@ -115,8 +115,8 @@ describe('the course report', () => {
       totalPointsAvailable: 20,
       students: [
         student({ fullyCompleted: 2, submissionCount: 4 }),
-        student({ studentId: 's2', studentNumber: '002', fullyCompleted: 1, submissionCount: 1 }),
-        student({ studentId: 's3', studentNumber: '003' })
+        student({ studentId: 's2', studentUsername: '002', fullyCompleted: 1, submissionCount: 1 }),
+        student({ studentId: 's3', studentUsername: '003' })
       ]
     });
 

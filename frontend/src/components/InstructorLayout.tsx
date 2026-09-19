@@ -201,11 +201,13 @@ export function InstructorLayout() {
             </IconButton>
           )}
           <Box
-            component="img"
-            src={theme.palette.mode === 'dark' ? ReversedMark : PrimaryMark}
-            alt="GitGrader"
-            sx={{ height: 24, mr: { xs: 1.5, md: 3 } }}
-          />
+            component={Link}
+            to="/dashboard"
+            aria-label="Go to dashboard"
+            sx={{ display: 'inline-flex', mr: { xs: 1.5, md: 3 } }}
+          >
+            <Box component="img" src={theme.palette.mode === 'dark' ? ReversedMark : PrimaryMark} alt="GitGrader" sx={{ height: 24 }} />
+          </Box>
           <Typography variant="h6" noWrap component="div" sx={{ flexGrow: 1, minWidth: 0 }}>
             {isDesktop
               ? (meta.organizationName ? `${meta.organizationName} - Instructor` : 'Instructor')

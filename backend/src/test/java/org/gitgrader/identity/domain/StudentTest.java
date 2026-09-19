@@ -73,7 +73,7 @@ class StudentTest {
 		student.anonymize(CLOCK);
 
 		assertThat(student.id()).isEqualTo(originalId);
-		assertThat(student.toView().studentNumber()).contains(originalId.toString());
+		assertThat(student.toView().studentUsername()).contains(originalId.toString());
 		assertThat(student.toView().email()).contains(originalId.toString()).endsWith("@invalid");
 		assertThat(student.toView().fullName()).contains(originalId.toString());
 		assertThat(student.anonymizedAt()).isEqualTo(Instant.now(CLOCK));

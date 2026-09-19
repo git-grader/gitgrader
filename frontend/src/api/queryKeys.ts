@@ -36,7 +36,8 @@ export const queryKeys = {
   },
 
   submissions: {
-    list: (courseId: string, page: string, size: string) => ['submissions', 'list', courseId, page, size] as const
+    list: (courseId: string, page: string, size: string) => ['submissions', 'list', courseId, page, size] as const,
+    detail: (id: string) => ['submissions', 'detail', id] as const
   },
 
   students: {

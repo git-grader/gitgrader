@@ -31,6 +31,8 @@ import jakarta.persistence.Version;
 import org.gitgrader.identity.Actor;
 import org.gitgrader.identity.IllegalStateTransitionException;
 import org.gitgrader.identity.StudentRegistration;
+
+import org.gitgrader.identity.StudentUpdate;
 import org.gitgrader.identity.StudentStatus;
 import org.gitgrader.identity.StudentView;
 import org.jspecify.annotations.Nullable;
@@ -43,8 +45,8 @@ public class Student {
 	@Id
 	private UUID id;
 
-	@Column(name = "student_number", nullable = false)
-	private String studentNumber;
+	@Column(name = "student_username", nullable = false)
+	private String studentUsername;
 
 	@Column(name = "first_name", nullable = false)
 	private String firstName;
@@ -113,7 +115,7 @@ public class Student {
 	public Student(StudentRegistration registration, Clock clock) {
 		Instant now = Instant.now(clock);
 		this.id = UUID.randomUUID();
-		this.studentNumber = registration.studentNumber();
+		this.studentUsername = registration.studentUsername();
 		this.firstName = registration.firstName();
 		this.lastName = registration.lastName();
 		this.email = registration.email();
@@ -200,7 +202,7 @@ public class Student {
 		this.firstName = "Anonymous";
 		this.lastName = placeholder;
 		this.email = "anonymous-" + placeholder + "@invalid";
-		this.studentNumber = "anonymous-" + placeholder;
+		this.studentUsername = "anonymous-" + placeholder;
 		this.anonymizedAt = now;
 		this.updatedAt = now;
 	}
@@ -226,8 +228,18 @@ public class Student {
 	 * @return student view
 	 */
 	public StudentView toView() {
-		return new StudentView(this.id, this.studentNumber, this.firstName + " " + this.lastName, this.email,
+		return new StudentView(this.id, this.studentUsername, this.firstName + " " + this.lastName, this.email,
 				this.status, this.classLabel, this.registeredAt);
+	}
+
+	/** Applies instructor-editable profile fields. */
+	public void update(StudentUpdate update, Clock clock) {
+		Instant now = Instant.now(clock);
+		this.studentUsername = update.studentUsername();
+		this.firstName = update.firstName();
+		this.lastName = update.lastName();
+		this.email = update.email();
+		this.updatedAt = now;
 	}
 
 	private void requireStatus(StudentStatus required, String operation) {

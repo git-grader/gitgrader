@@ -21,13 +21,13 @@ import org.jspecify.annotations.Nullable;
 /**
  * Values accepted when creating a student profile.
  *
- * @param studentNumber institutional student number
+ * @param studentUsername institutional student username
  * @param firstName given name
  * @param lastName family name
  * @param email contact address
  * @param classLabel optional class label
  * @param registrationIpHash keyed source-address hash
  */
-public record StudentRegistration(String studentNumber, String firstName, String lastName, String email,
+public record StudentRegistration(String studentUsername, String firstName, String lastName, String email,
 		@Nullable String classLabel, @Nullable String registrationIpHash) {
 }

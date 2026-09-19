@@ -25,17 +25,17 @@ import org.jspecify.annotations.Nullable;
  * Published once a student has been accepted onto a course.
  *
  * <p>
- * Carries the course key and student number rather than only identifiers, because a
+ * Carries the course key and student username rather than only identifiers, because a
  * repository path is built from those two values and a listener would otherwise have to
  * reach back into two more modules to reconstruct something already known here.
  *
  * @param studentId the new student
- * @param studentNumber the student number, as it appears in repository paths
+ * @param studentUsername the student username, as it appears in repository paths
  * @param courseId the course the student joined
  * @param courseKey the course key, as it appears in repository paths
  * @param classKey the class the student picked, or {@code null} when the course has none
  * @param registeredAt when the registration was accepted
  */
-public record StudentRegistered(UUID studentId, String studentNumber, UUID courseId, String courseKey,
+public record StudentRegistered(UUID studentId, String studentUsername, UUID courseId, String courseKey,
 		@Nullable String classKey, Instant registeredAt) {
 }

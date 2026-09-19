@@ -1,0 +1,24 @@
+services:
+  app:
+    volumes:
+      - ./local-data/git:/data/git
+      - ./local-data/grading:/data/grading
+      - ./local-data/templates:/data/templates
+      - ./local-data/tests:/data/tests
+      - ./local-data/artifacts:/data/artifacts
+      - ./config:/config:ro
+  runner:
+    volumes:
+      - ./local-data/grading:/data/grading
+      - ./local-data/tests:/data/tests
+      - ./local-data/git:/data/git
+      - ./local-data/templates:/data/templates
+      - ./local-data/artifacts:/data/artifacts
+      - /var/run/docker.sock:/var/run/docker.sock
+  init-permissions:
+    volumes:
+      - ./local-data/git:/data/git
+      - ./local-data/grading:/data/grading
+      - ./local-data/templates:/data/templates
+      - ./local-data/tests:/data/tests
+      - ./local-data/artifacts:/data/artifacts

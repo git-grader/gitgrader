@@ -59,4 +59,7 @@ public interface StudentRegistry {
 	 */
 	StudentView anonymize(UUID studentId);
 
+	/** Updates the editable profile fields. */
+	StudentView update(UUID studentId, StudentUpdate update);
+
 }

@@ -87,7 +87,8 @@ export function CoursesPage() {
     const zone = form.timezone ?? Intl.DateTimeFormat().resolvedOptions().timeZone;
 
     createMutation.mutate({
-      courseKey: form.courseKey ?? '',
+      // Repository paths use lowercase course keys; accept natural uppercase input.
+      courseKey: (form.courseKey ?? '').trim().toLowerCase(),
       name: form.name ?? '',
       description: toEmptyNull(form.description),
       semester: toEmptyNull(form.semester),

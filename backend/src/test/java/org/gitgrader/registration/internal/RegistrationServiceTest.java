@@ -100,7 +100,7 @@ class RegistrationServiceTest {
 		when(this.courseCatalog.findCourses(eq(CourseStatus.ACTIVE), any(Pageable.class)))
 			.thenReturn(new PageImpl<>(List.of(openCourse())));
 		when(this.courseCatalog.findClasses(any(UUID.class))).thenReturn(List.of());
-		when(this.studentDirectory.findByStudentNumber(anyString())).thenReturn(Optional.empty());
+		when(this.studentDirectory.findByStudentUsername(anyString())).thenReturn(Optional.empty());
 
 		this.service = new RegistrationService(properties(), this.rateLimiter, this.courseCatalog,
 				this.studentDirectory, this.studentRegistry, this.sshKeys, this.attemptLog, hasher,
@@ -120,15 +120,15 @@ class RegistrationServiceTest {
 	}
 
 	@Test
-	@DisplayName("records the attempt that reused a student number")
-	void recordsADuplicateStudentNumber() {
-		when(this.studentDirectory.findByStudentNumber("12345")).thenReturn(Optional.of(existingStudent()));
+	@DisplayName("records the attempt that reused a student username")
+	void recordsADuplicateStudentUsername() {
+		when(this.studentDirectory.findByStudentUsername("12345")).thenReturn(Optional.of(existingStudent()));
 
 		assertThatExceptionOfType(DuplicateRegistrationException.class)
 			.isThrownBy(() -> this.service.register(request(), ADDRESS));
 
-		verify(this.attemptLog).record(any(), anyString(), eq("DUPLICATE"), eq("Student number already registered"),
-				anyString(), anyString());
+		verify(this.attemptLog).record(any(), anyString(), eq("DUPLICATE"),
+				eq("Student ID / Username already registered"), anyString(), anyString());
 	}
 
 	@Test

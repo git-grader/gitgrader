@@ -1,11 +1,12 @@
 // Copyright the GitGrader contributors.
 // SPDX-License-Identifier: Apache-2.0
 
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useNavigate } from 'react-router';
 import { api } from '../api';
 import { queryKeys } from '../api/queryKeys';
 import { QueryErrorNotice } from '../components/QueryErrorNotice';
-import { Box, Typography, CircularProgress } from '@mui/material';
+import { Box, Typography, CircularProgress, Button } from '@mui/material';
 import { DataGrid } from '@mui/x-data-grid';
 import { StudentStatusChip } from '../components/StudentStatusChip';
 import { useIsNarrow } from '../components/responsiveColumns';
@@ -14,6 +15,12 @@ import type { GridColDef, GridRenderCellParams } from '@mui/x-data-grid';
 import type { StudentSummary } from '../api';
 
 export function StudentsPage() {
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const archiveMutation = useMutation({
+    mutationFn: (id: string) => api.archiveStudent(id),
+    onSuccess: () => { void queryClient.invalidateQueries({ queryKey: queryKeys.students.list(params.page, params.size).slice(0, 2) }); }
+  });
   const { paginationModel, setPaginationModel, params } = useServerPagination();
   const { data, isLoading, isError, refetch } = useQuery({
     queryKey: queryKeys.students.list(params.page, params.size),
@@ -32,7 +39,7 @@ export function StudentsPage() {
   }
 
   const wideColumns: GridColDef[] = [
-    { field: 'studentNumber', headerName: 'Student No', width: 150 },
+    { field: 'studentUsername', headerName: 'Student ID / Username', width: 190 },
     { field: 'firstName', headerName: 'First Name', width: 150 },
     { field: 'lastName', headerName: 'Last Name', width: 150 },
     { field: 'email', headerName: 'Email', flex: 1, minWidth: 220 },
@@ -41,6 +48,15 @@ export function StudentsPage() {
       headerName: 'Status',
       width: 190,
       renderCell: (params: GridRenderCellParams<StudentSummary>) => <StudentStatusChip status={params.row.status} />
+    },
+    {
+      field: 'actions', headerName: 'Actions', width: 120, sortable: false,
+      renderCell: (params: GridRenderCellParams<StudentSummary>) => (
+        <Button size="small" color="error" disabled={params.row.status === 'ARCHIVED' || archiveMutation.isPending}
+          onClick={() => { if (window.confirm(`Archive ${params.row.firstName} ${params.row.lastName}?`)) archiveMutation.mutate(params.row.id); }}>
+          Archive
+        </Button>
+      )
     }
   ];
 
@@ -51,8 +67,8 @@ export function StudentsPage() {
    * route has no content yet, so what the list omits cannot be seen anywhere.
    */
   const narrowColumn: GridColDef = {
-    field: 'studentNumber',
-    headerName: 'Student',
+    field: 'studentUsername',
+    headerName: 'Student ID / Username',
     flex: 1,
     minWidth: 240,
     renderCell: (params: GridRenderCellParams<StudentSummary>) => {
@@ -64,7 +80,7 @@ export function StudentsPage() {
             <StudentStatusChip status={row.status} />
           </Box>
           <Typography variant="caption" color="text.secondary" sx={{ overflowWrap: 'anywhere' }}>
-            {row.studentNumber} · {row.email}
+            {row.studentUsername} · {row.email}
           </Typography>
         </Box>
       );
@@ -88,6 +104,7 @@ export function StudentsPage() {
           // reorder that page alone while appearing to sort the whole collection.
           disableColumnSorting
           disableRowSelectionOnClick
+          onRowClick={(params) => { void navigate(`/students/${params.id}`); }}
         />
       </Box>
     </Box>

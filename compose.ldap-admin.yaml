@@ -1,0 +1,26 @@
+# Optional LDAP administration UI. This file is intentionally not included by the
+# normal install; start it only while directory maintenance is required.
+services:
+  ldap-account-manager:
+    image: ghcr.io/ldapaccountmanager/lam:9.6
+    restart: "no"
+    depends_on:
+      openldap:
+        condition: service_started
+    environment:
+      LAM_PASSWORD: ${LAM_PASSWORD:?Set LAM_PASSWORD in .env or the shell}
+      LDAP_SERVER: ldap://openldap:389
+      LDAP_DOMAIN: ${LDAP_DOMAIN:-example.org}
+      LDAP_BASE_DN: ${SECURITY_LDAP_BASE_DN:-dc=example,dc=org}
+      LDAP_USER: ${SECURITY_LDAP_MANAGER_DN:-cn=admin,dc=example,dc=org}
+      LDAP_USERS_DN: ${SECURITY_LDAP_USER_SEARCH_BASE:-ou=people}
+      LDAP_GROUPS_DN: ${SECURITY_LDAP_GROUP_SEARCH_BASE:-ou=groups}
+    ports:
+      - "127.0.0.1:${LDAP_ADMIN_PORT:-8081}:80"
+    volumes:
+      - lam-config:/var/lib/ldap-account-manager/config
+      - lam-main-config:/etc/ldap-account-manager
+
+volumes:
+  lam-config:
+  lam-main-config:

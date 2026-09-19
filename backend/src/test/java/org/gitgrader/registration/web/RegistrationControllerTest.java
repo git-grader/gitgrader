@@ -63,7 +63,7 @@ class RegistrationControllerTest {
 					{
 						"firstName": "John",
 						"lastName": "Doe",
-						"studentNumber": "12345",
+						"studentUsername": "12345",
 						"email": "john@example.com",
 						"courseKey": "cs101",
 						"publicKey": "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAI..."
@@ -83,7 +83,7 @@ class RegistrationControllerTest {
 					{
 						"firstName": "John",
 						"lastName": "Doe",
-						"studentNumber": "12345",
+						"studentUsername": "12345",
 						"email": "john@example.com",
 						"courseKey": "cs101",
 						"publicKey": "-----BEGIN OPENSSH PRIVATE KEY-----"
@@ -102,7 +102,7 @@ class RegistrationControllerTest {
 					{
 						"firstName": "John",
 						"lastName": "Doe",
-						"studentNumber": "12345",
+						"studentUsername": "12345",
 						"email": "john@example.com",
 						"courseKey": "cs101",
 						"publicKey": "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAI..."
@@ -118,7 +118,7 @@ class RegistrationControllerTest {
 					{
 						"firstName": "John",
 						"lastName": "Doe",
-						"studentNumber": "12345",
+						"studentUsername": "12345",
 						"email": "john@example.com",
 						"courseKey": "cs101",
 						"publicKey": "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAI..."
@@ -134,7 +134,7 @@ class RegistrationControllerTest {
 					{
 						"firstName": "John",
 						"lastName": "Doe",
-						"studentNumber": "12345",
+						"studentUsername": "12345",
 						"email": "john@example.com",
 						"courseKey": "cs101",
 						"publicKey": "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAI..."

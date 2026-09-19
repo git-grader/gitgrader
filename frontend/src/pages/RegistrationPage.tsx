@@ -106,7 +106,7 @@ export function RegistrationPage() {
         <form onSubmit={handleSubmit}>
           <TextField fullWidth margin="normal" label="First Name" required value={form.firstName ?? ''} onChange={e => setForm({ ...form, firstName: e.target.value })} error={!!errorFor('firstName')} helperText={errorFor('firstName')} />
           <TextField fullWidth margin="normal" label="Last Name" required value={form.lastName ?? ''} onChange={e => setForm({ ...form, lastName: e.target.value })} error={!!errorFor('lastName')} helperText={errorFor('lastName')} />
-          <TextField fullWidth margin="normal" label="Student Number" required value={form.studentNumber ?? ''} onChange={e => setForm({ ...form, studentNumber: e.target.value })} error={!!errorFor('studentNumber')} helperText={errorFor('studentNumber')} />
+          <TextField fullWidth margin="normal" label="Student ID / Username" required value={form.studentUsername ?? ''} onChange={e => setForm({ ...form, studentUsername: e.target.value })} error={!!errorFor('studentUsername')} helperText={errorFor('studentUsername')} />
           <TextField fullWidth margin="normal" label="Email" type="email" required value={form.email ?? ''} onChange={e => setForm({ ...form, email: e.target.value })} error={!!errorFor('email')} helperText={errorFor('email')} />
 
           <TextField select fullWidth margin="normal" label="Course" required value={form.courseKey ?? ''} onChange={e => setForm({ ...form, courseKey: e.target.value, classKey: '' })} error={!!errorFor('courseKey')} helperText={errorFor('courseKey')}>
@@ -163,7 +163,7 @@ export function RegistrationPage() {
             {mutation.isPending ? 'Registering...' : 'Register'}
           </Button>
           {/* The server explains a refusal in `detail` and names the offending fields in
-              `errors`. Showing only `message` reduced "that student number is already
+              `errors`. Showing only `message` reduced "that student username is already
               registered" to "Registration failed: Bad Request". */}
           <MutationErrorAlert error={mutation.error} sx={{ mt: 2 }} />
         </form>
