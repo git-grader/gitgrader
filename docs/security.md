@@ -177,6 +177,13 @@ the complete value. Registration, login, SSH authentication, and token lookup
 use rate limits; audit events use hashed source IPs and must not contain private
 keys, passwords, or complete tokens.
 
+Interactive sign-ins, rejected sign-ins, and sign-outs by instructors and
+administrators join that trail as `LOGIN_SUCCEEDED`, `LOGIN_FAILED` and `LOGOUT`
+records carrying the hashed source address and the account name but never the
+password. Only the interactive form-login entry point records them — an HTTP
+Basic scrape over an actuator endpoint or a runner-API call authenticates a
+peer, not a person, and must not crowd the trail.
+
 Those limits count the address the servlet container reports, never an
 `X-Forwarded-For` header read straight off the request. A client sets that header
 itself, so counting it would let one caller land in a new bucket on every attempt
