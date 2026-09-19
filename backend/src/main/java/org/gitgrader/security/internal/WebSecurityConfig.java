@@ -47,9 +47,13 @@ public class WebSecurityConfig {
 
 	private final RateLimiter rateLimiter;
 
-	public WebSecurityConfig(SecurityProperties properties, RateLimiter rateLimiter) {
+	private final LoginAuditRecorder loginAuditRecorder;
+
+	public WebSecurityConfig(SecurityProperties properties, RateLimiter rateLimiter,
+			LoginAuditRecorder loginAuditRecorder) {
 		this.properties = properties;
 		this.rateLimiter = rateLimiter;
+		this.loginAuditRecorder = loginAuditRecorder;
 	}
 
 	/**
@@ -188,10 +192,14 @@ public class WebSecurityConfig {
 			// Naming the page stops Spring Security generating one of its own, which it
 			// serves at this same path and which would otherwise be the first thing
 			// anyone signing in sees, unstyled and unbranded.
-			.formLogin((form) -> form.loginPage(LOGIN_PROCESSING_URL).permitAll())
+			.formLogin((form) -> form.loginPage(LOGIN_PROCESSING_URL)
+				.permitAll()
+				.successHandler(this.loginAuditRecorder.successHandler())
+				.failureHandler(this.loginAuditRecorder.failureHandler()))
 			.addFilterBefore(new LoginRateLimitFilter(this.rateLimiter, LOGIN_PROCESSING_URL),
 					UsernamePasswordAuthenticationFilter.class)
 			.logout((logout) -> logout.logoutUrl("/logout")
+				.addLogoutHandler(this.loginAuditRecorder.logoutHandler())
 				.invalidateHttpSession(true)
 				.deleteCookies(this.properties.session().cookieName()))
 			.sessionManagement((session) -> session.sessionFixation((fixation) -> fixation.migrateSession()))
