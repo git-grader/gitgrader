@@ -50,7 +50,7 @@ curl -s -b /tmp/j -X POST http://localhost:8080/api/v1/registration \
   -H "X-XSRF-TOKEN: $CSRF" -H 'Content-Type: application/json' \
   -d "$(python3 - <<EOF
 import json
-print(json.dumps({"firstName":"Alan","lastName":"Turing","studentNumber":"s2001",
+print(json.dumps({"firstName":"Alan","lastName":"Turing","studentUsername":"s2001",
  "email":"alan@example.org","courseKey":"example-programming","classKey":"main",
  "publicKey":open("/tmp/student.pub").read().strip()}))
 EOF

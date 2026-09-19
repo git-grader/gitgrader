@@ -32,7 +32,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
  * Holds the repository path builder to one directory per student.
  *
  * <p>
- * A student number reaches this method straight from the public self-registration form,
+ * A student username reaches this method straight from the public self-registration form,
  * which constrains only its length. Because the path is assembled by concatenation and
  * only normalised when it is resolved on disk, a number containing a separator used to
  * let two different registrations name one bare repository: {@code ../a1/victim} under
@@ -55,12 +55,12 @@ class RepositoryPathSafetyTest {
 	}
 
 	@Test
-	@DisplayName("refuses a student number that would reach another student's repository")
-	void refusesAliasingStudentNumber() {
+	@DisplayName("refuses a student username that would reach another student's repository")
+	void refusesAliasingStudentUsername() {
 		assertThatThrownBy(
 				() -> GitRepositoryService.repositoryPathFor("cs101", "assignment-01", "../assignment-01/victim"))
 			.isInstanceOf(IllegalArgumentException.class)
-			.hasMessageContaining("student number");
+			.hasMessageContaining("student username");
 	}
 
 	@Test
@@ -75,17 +75,17 @@ class RepositoryPathSafetyTest {
 
 	@ParameterizedTest
 	@ValueSource(strings = { "..", ".", "../victim", "a/b", "a\\b", "s1001/", "/s1001", "s1001\u0000x", "s 1001", "" })
-	@DisplayName("refuses every separator, traversal and control character in a student number")
-	void refusesUnsafeStudentNumbers(String studentNumber) {
-		assertThatThrownBy(() -> GitRepositoryService.repositoryPathFor("cs101", "assignment-01", studentNumber))
+	@DisplayName("refuses every separator, traversal and control character in a student username")
+	void refusesUnsafeStudentUsernames(String studentUsername) {
+		assertThatThrownBy(() -> GitRepositoryService.repositoryPathFor("cs101", "assignment-01", studentUsername))
 			.isInstanceOf(IllegalArgumentException.class);
 	}
 
 	@ParameterizedTest
 	@ValueSource(strings = { "s1001", "S1001", "12345678", "s.1001", "s_1001", "s-1001", "a" })
-	@DisplayName("accepts the shapes a real student number takes")
-	void acceptsOrdinaryStudentNumbers(String studentNumber) {
-		assertThatCode(() -> GitRepositoryService.repositoryPathFor("cs101", "assignment-01", studentNumber))
+	@DisplayName("accepts the shapes a real student username takes")
+	void acceptsOrdinaryStudentUsernames(String studentUsername) {
+		assertThatCode(() -> GitRepositoryService.repositoryPathFor("cs101", "assignment-01", studentUsername))
 			.doesNotThrowAnyException();
 	}
 

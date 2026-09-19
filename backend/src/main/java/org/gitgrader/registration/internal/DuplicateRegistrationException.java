@@ -17,7 +17,7 @@
 package org.gitgrader.registration.internal;
 
 /**
- * Raised when a student number, e-mail address or key is already registered.
+ * Raised when a student username, e-mail address or key is already registered.
  *
  * <p>
  * The message returned to the caller is deliberately generic. Confirming which identifier

@@ -9,7 +9,7 @@ import { MetaContext } from '../src/components/MetaProvider';
 
 const result = {
   studentId: 'a1',
-  studentNumber: '12345',
+  studentUsername: '12345',
   fullName: 'Ada Lovelace',
   status: 'SELF_REGISTERED',
   keyFingerprint: 'SHA256:abc'

@@ -35,11 +35,11 @@ public interface StudentDirectory {
 	Optional<StudentView> findById(UUID id);
 
 	/**
-	 * Finds a student by case-insensitive student number.
-	 * @param studentNumber institutional student number
+	 * Finds a student by case-insensitive student username.
+	 * @param studentUsername institutional student username
 	 * @return matching student, if present
 	 */
-	Optional<StudentView> findByStudentNumber(String studentNumber);
+	Optional<StudentView> findByStudentUsername(String studentUsername);
 
 	/**
 	 * Searches student profiles using optional filters.

@@ -79,7 +79,7 @@ class ReportExporterTest {
 
 		assertThat(student.get("pointsEarned").decimalValue()).isEqualByComparingTo("7");
 		assertThat(student.get("totalPoints").decimalValue()).isEqualByComparingTo("10");
-		assertThat(student.get("studentNumber").asString()).isEqualTo("s1");
+		assertThat(student.get("studentUsername").asString()).isEqualTo("s1");
 	}
 
 	@Test

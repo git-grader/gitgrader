@@ -97,6 +97,31 @@ manager bind credentials cross that connection. Test with a non-privileged
 directory account first, then disable local accounts. Never enable LDAP debug
 logging in production because it may expose bind credentials or directory data.
 
+### Maintaining LDAP users
+
+GitGrader does not provision instructor or administrator identities. Maintain those
+accounts and their group membership in the directory. The optional LDAP Account
+Manager UI is kept out of the normal stack and can be started only when needed:
+
+```sh
+LAM_PASSWORD='use-a-strong-unique-password' \
+docker compose -f compose.yaml -f compose.ldap-admin.yaml \
+  up -d ldap-account-manager
+```
+
+Open <http://127.0.0.1:8081/> locally, add users below the configured user search
+base, and add them to `gitgrader-instructors` or `gitgrader-admins`. Stop the UI
+when finished:
+
+```sh
+docker compose -f compose.yaml -f compose.ldap-admin.yaml \
+  stop ldap-account-manager
+```
+
+The UI port is loopback-only. For production, change `LDAP_SERVER` in the override
+to the directory's `ldaps://` endpoint and protect the LAM configuration volumes.
+The image version should be reviewed and pinned before production deployment.
+
 ## Public URL
 
 `APP_PUBLIC_URL` is what every result link is built from, and that link is the whole

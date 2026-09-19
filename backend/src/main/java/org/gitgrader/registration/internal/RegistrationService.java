@@ -117,33 +117,33 @@ public class RegistrationService {
 	public RegistrationResponse register(RegistrationRequest request, String clientAddress) {
 		Instant now = Instant.now(this.clock);
 		String ipHash = this.hasher.hash(clientAddress);
-		String studentNumberHash = this.hasher.hash(request.studentNumber().toLowerCase(java.util.Locale.ROOT));
+		String studentUsernameHash = this.hasher.hash(request.studentUsername().toLowerCase(java.util.Locale.ROOT));
 		String emailHash = this.hasher.hash(request.email().toLowerCase(java.util.Locale.ROOT));
 
 		// The order below is deliberate: the cheapest and least disclosing checks run
 		// first, so a flood is rejected before it can touch the database, and an attacker
 		// cannot use response timing to distinguish "closed" from "already registered".
 		requireRegistrationEnabled();
-		requireWithinRateLimits(clientAddress, now, ipHash, studentNumberHash, emailHash);
+		requireWithinRateLimits(clientAddress, now, ipHash, studentUsernameHash, emailHash);
 		CourseView course = requireOpenCourse(request, now);
 		requireClassBelongsToCourse(request, course);
-		requireStudentNumberAvailable(request, now, ipHash, studentNumberHash, emailHash);
+		requireStudentUsernameAvailable(request, now, ipHash, studentUsernameHash, emailHash);
 
-		StudentView student = createStudent(request, now, ipHash, studentNumberHash, emailHash);
+		StudentView student = createStudent(request, now, ipHash, studentUsernameHash, emailHash);
 		SshKeyView sshKey = this.sshKeyRegistry.register(student.id(), "Registration Key", request.publicKey(),
 				SshKeyOrigin.REGISTRATION, null);
 
 		this.auditService.record(AuditRecord.of(AuditEventType.STUDENT_REGISTERED)
 			.subject("Student", student.id().toString())
-			.with("studentNumber", student.studentNumber())
+			.with("studentUsername", student.studentUsername())
 			.with("courseKey", course.courseKey())
 			.with("classLabel", request.classKey())
 			.build());
-		recordAttempt(now, ipHash, "ACCEPTED", null, studentNumberHash, emailHash);
-		this.events.publishEvent(new StudentRegistered(student.id(), student.studentNumber(), course.id(),
+		recordAttempt(now, ipHash, "ACCEPTED", null, studentUsernameHash, emailHash);
+		this.events.publishEvent(new StudentRegistered(student.id(), student.studentUsername(), course.id(),
 				course.courseKey(), request.classKey(), now));
 
-		return new RegistrationResponse(student.id(), student.studentNumber(), student.fullName(), student.status(),
+		return new RegistrationResponse(student.id(), student.studentUsername(), student.fullName(), student.status(),
 				sshKey.fingerprint());
 	}
 
@@ -153,11 +153,11 @@ public class RegistrationService {
 		}
 	}
 
-	private void requireWithinRateLimits(String clientAddress, Instant now, String ipHash, String studentNumberHash,
+	private void requireWithinRateLimits(String clientAddress, Instant now, String ipHash, String studentUsernameHash,
 			String emailHash) {
 		if (!this.rateLimiter.tryConsumeRegistrationGlobal()
 				|| !this.rateLimiter.tryConsumeRegistrationPerIp(clientAddress)) {
-			recordAttempt(now, ipHash, "RATE_LIMITED", "Exceeded registration rate limit", studentNumberHash,
+			recordAttempt(now, ipHash, "RATE_LIMITED", "Exceeded registration rate limit", studentUsernameHash,
 					emailHash);
 			throw new RateLimitExceededException("Registration rate limit exceeded.");
 		}
@@ -188,11 +188,12 @@ public class RegistrationService {
 		}
 	}
 
-	private void requireStudentNumberAvailable(RegistrationRequest request, Instant now, String ipHash,
-			String studentNumberHash, String emailHash) {
-		if (this.studentDirectory.findByStudentNumber(request.studentNumber()).isPresent()) {
-			recordAttempt(now, ipHash, "DUPLICATE", "Student number already registered", studentNumberHash, emailHash);
-			throw new DuplicateRegistrationException("Student number already registered");
+	private void requireStudentUsernameAvailable(RegistrationRequest request, Instant now, String ipHash,
+			String studentUsernameHash, String emailHash) {
+		if (this.studentDirectory.findByStudentUsername(request.studentUsername()).isPresent()) {
+			recordAttempt(now, ipHash, "DUPLICATE", "Student username already registered", studentUsernameHash,
+					emailHash);
+			throw new DuplicateRegistrationException("Student username already registered");
 		}
 	}
 
@@ -206,19 +207,19 @@ public class RegistrationService {
 	 * @param request the submitted registration
 	 * @param now the current instant
 	 * @param ipHash keyed hash of the client address
-	 * @param studentNumberHash keyed hash of the student number
+	 * @param studentUsernameHash keyed hash of the student username
 	 * @param emailHash keyed hash of the e-mail address
 	 * @return the created student
 	 */
-	private StudentView createStudent(RegistrationRequest request, Instant now, String ipHash, String studentNumberHash,
-			String emailHash) {
+	private StudentView createStudent(RegistrationRequest request, Instant now, String ipHash,
+			String studentUsernameHash, String emailHash) {
 		try {
-			StudentRegistration registrationData = new StudentRegistration(request.studentNumber(), request.firstName(),
-					request.lastName(), request.email(), request.classKey(), ipHash);
+			StudentRegistration registrationData = new StudentRegistration(request.studentUsername(),
+					request.firstName(), request.lastName(), request.email(), request.classKey(), ipHash);
 			return this.studentRegistry.register(registrationData);
 		}
 		catch (DataIntegrityViolationException ex) {
-			recordAttempt(now, ipHash, "DUPLICATE", "Email already registered", studentNumberHash, emailHash);
+			recordAttempt(now, ipHash, "DUPLICATE", "Email already registered", studentUsernameHash, emailHash);
 			throw new DuplicateRegistrationException("Email already registered", ex);
 		}
 	}
@@ -229,9 +230,9 @@ public class RegistrationService {
 				&& (course.registrationClosesAt() == null || !now.isAfter(course.registrationClosesAt()));
 	}
 
-	private void recordAttempt(Instant now, String ipHash, String outcome, String reason, String studentNumberHash,
+	private void recordAttempt(Instant now, String ipHash, String outcome, String reason, String studentUsernameHash,
 			String emailHash) {
-		this.attemptLog.record(now, ipHash, outcome, reason, studentNumberHash, emailHash);
+		this.attemptLog.record(now, ipHash, outcome, reason, studentUsernameHash, emailHash);
 	}
 
 }

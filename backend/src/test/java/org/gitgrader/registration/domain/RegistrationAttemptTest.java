@@ -39,7 +39,7 @@ class RegistrationAttemptTest {
 				"ACCEPTED", null, hasher.hash(studentNum), hasher.hash(email));
 
 		assertThat(attempt.getIpHash()).isNotEqualTo(ip);
-		assertThat(attempt.getStudentNumberHash()).isNotEqualTo(studentNum);
+		assertThat(attempt.getStudentUsernameHash()).isNotEqualTo(studentNum);
 		assertThat(attempt.getEmailHash()).isNotEqualTo(email);
 
 		assertThat(attempt.getIpHash()).hasSize(32);

@@ -68,7 +68,7 @@ export function RegistrationSuccessPage() {
       <Paper sx={{ p: 4 }}>
         <Typography variant="h4" component="h1" gutterBottom>Registration Successful</Typography>
         <Typography component="p" sx={{ mb: 1 }}>
-          Welcome, {result.fullName}. Your student number is {result.studentNumber} and your SSH key fingerprint is {result.keyFingerprint}.
+          Welcome, {result.fullName}. Your student username is {result.studentUsername} and your SSH key fingerprint is {result.keyFingerprint}.
         </Typography>
         {/* The registration status decides whether pushes are accepted yet, and leaving
             it out let a student whose account still needs verifying leave this page
@@ -102,10 +102,10 @@ export function RegistrationSuccessPage() {
               minWidth: 0
             }}
           >
-            git clone {repositoryRoot}/&lt;assignment-key&gt;/{result.studentNumber}.git
+            git clone {repositoryRoot}/&lt;assignment-key&gt;/{result.studentUsername}.git
           </Box>
           <CopyCloneCommand
-            command={`git clone ${repositoryRoot}/<assignment-key>/${result.studentNumber}.git`}
+            command={`git clone ${repositoryRoot}/<assignment-key>/${result.studentUsername}.git`}
           />
         </Box>
         <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>

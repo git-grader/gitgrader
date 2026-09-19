@@ -84,7 +84,7 @@ public final class ReportCalculator {
 			.map(Assignment::maxPoints)
 			.reduce(BigDecimal.ZERO, BigDecimal::add);
 		Instant lastActivity = attempts.stream().map(Assessment::receivedAt).max(Instant::compareTo).orElse(null);
-		return new StudentProgressRow(student.id(), student.studentNumber(), student.fullName(), fullyCompleted,
+		return new StudentProgressRow(student.id(), student.studentUsername(), student.fullName(), fullyCompleted,
 				partiallyCompleted, notStarted, rate(fullyCompleted, mandatoryCount), pointsEarned,
 				rate(pointsEarned, pointsAvailable), pointsAvailable, attempts.size(), lastActivity, progress);
 	}
@@ -103,10 +103,10 @@ public final class ReportCalculator {
 	 * Minimal student identity needed by the calculator.
 	 *
 	 * @param id student identifier
-	 * @param studentNumber institutional student number
+	 * @param studentUsername institutional student username
 	 * @param fullName display name
 	 */
-	public record Student(UUID id, String studentNumber, String fullName) {
+	public record Student(UUID id, String studentUsername, String fullName) {
 	}
 
 	/**

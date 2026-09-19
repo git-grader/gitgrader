@@ -176,12 +176,12 @@ class SchemaMigrationIT {
 		}
 
 		@Test
-		@DisplayName("indexes student number and email case-insensitively")
+		@DisplayName("indexes student username and email case-insensitively")
 		void identityIndexesAreCaseInsensitive() throws SQLException {
 			List<String> definitions = queryColumn("""
 					SELECT indexdef FROM pg_indexes
 					WHERE tablename = 'students' AND indexname IN
-					('students_student_number_key', 'students_email_key')
+					('students_student_username_key', 'students_email_key')
 					""");
 
 			assertThat(definitions).hasSize(2).allSatisfy((def) -> assertThat(def).contains("lower"));
@@ -416,13 +416,13 @@ class SchemaMigrationIT {
 				""".formatted(id, courseKey));
 	}
 
-	private UUID insertStudent(String studentNumber) throws SQLException {
+	private UUID insertStudent(String studentUsername) throws SQLException {
 		UUID id = UUID.randomUUID();
 		execute("""
-				INSERT INTO students (id, student_number, first_name, last_name, email,
+				INSERT INTO students (id, student_username, first_name, last_name, email,
 					registered_at, created_at, updated_at)
 				VALUES ('%s', '%s', 'A', 'B', '%s@example.org', now(), now(), now())
-				""".formatted(id, studentNumber, studentNumber));
+				""".formatted(id, studentUsername, studentUsername));
 		return id;
 	}
 

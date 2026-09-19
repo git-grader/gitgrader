@@ -39,7 +39,7 @@ public class RegistrationAttempt {
 
 	private @Nullable String reason;
 
-	private @Nullable String studentNumberHash;
+	private @Nullable String studentUsernameHash;
 
 	private @Nullable String emailHash;
 
@@ -47,13 +47,13 @@ public class RegistrationAttempt {
 	}
 
 	public RegistrationAttempt(UUID id, Instant attemptedAt, String ipHash, String outcome, @Nullable String reason,
-			@Nullable String studentNumberHash, @Nullable String emailHash) {
+			@Nullable String studentUsernameHash, @Nullable String emailHash) {
 		this.id = id;
 		this.attemptedAt = attemptedAt;
 		this.ipHash = ipHash;
 		this.outcome = outcome;
 		this.reason = reason;
-		this.studentNumberHash = studentNumberHash;
+		this.studentUsernameHash = studentUsernameHash;
 		this.emailHash = emailHash;
 	}
 
@@ -78,8 +78,8 @@ public class RegistrationAttempt {
 		return this.reason;
 	}
 
-	public @Nullable String getStudentNumberHash() {
-		return this.studentNumberHash;
+	public @Nullable String getStudentUsernameHash() {
+		return this.studentUsernameHash;
 	}
 
 	public @Nullable String getEmailHash() {

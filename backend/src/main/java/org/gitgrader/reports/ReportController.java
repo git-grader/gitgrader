@@ -124,7 +124,7 @@ public class ReportController {
 					assessment.receivedAt()))
 			.toList();
 		return ReportCalculator.calculate(
-				new ReportCalculator.Student(student.id(), student.studentNumber(), student.fullName()), definitions,
+				new ReportCalculator.Student(student.id(), student.studentUsername(), student.fullName()), definitions,
 				studentAssessments);
 	}
 

@@ -33,12 +33,12 @@ import org.springframework.stereotype.Component;
 @Component
 public class XlsxReportExporter implements ReportExporter {
 
-	private static final List<String> HEADERS = List.of("Student ID", "Student number", "Full name", "Fully completed",
-			"Partially completed", "Not started", "Completion rate", "Points earned", "Points rate", "Total points",
-			"Submission count", "Last activity");
+	private static final List<String> HEADERS = List.of("Student ID", "Student ID / Username", "Full name",
+			"Fully completed", "Partially completed", "Not started", "Completion rate", "Points earned", "Points rate",
+			"Total points", "Submission count", "Last activity");
 
 	private static final List<Function<StudentProgressRow, String>> VALUES = List.of(
-			(row) -> row.studentId().toString(), StudentProgressRow::studentNumber, StudentProgressRow::fullName,
+			(row) -> row.studentId().toString(), StudentProgressRow::studentUsername, StudentProgressRow::fullName,
 			(row) -> Integer.toString(row.fullyCompleted()), (row) -> Integer.toString(row.partiallyCompleted()),
 			(row) -> Integer.toString(row.notStarted()), (row) -> row.completionRate().toPlainString(),
 			(row) -> row.pointsEarned().toPlainString(), (row) -> row.pointsRate().toPlainString(),

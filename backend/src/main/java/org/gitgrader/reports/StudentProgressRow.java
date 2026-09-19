@@ -27,7 +27,7 @@ import org.jspecify.annotations.Nullable;
  * One student's progress in a course.
  *
  * @param studentId student identifier
- * @param studentNumber institutional student number
+ * @param studentUsername institutional student username
  * @param fullName student display name
  * @param fullyCompleted mandatory assignments meeting their pass threshold
  * @param partiallyCompleted mandatory assignments attempted below their pass threshold
@@ -42,7 +42,7 @@ import org.jspecify.annotations.Nullable;
  * @param lastActivityAt most recent student-attributable submission time
  * @param assignments progress indexed by assignment key
  */
-public record StudentProgressRow(UUID studentId, String studentNumber, String fullName, int fullyCompleted,
+public record StudentProgressRow(UUID studentId, String studentUsername, String fullName, int fullyCompleted,
 		int partiallyCompleted, int notStarted, BigDecimal completionRate, BigDecimal pointsEarned,
 		BigDecimal pointsRate, BigDecimal totalPoints, long submissionCount, @Nullable Instant lastActivityAt,
 		Map<String, AssignmentProgress> assignments) {

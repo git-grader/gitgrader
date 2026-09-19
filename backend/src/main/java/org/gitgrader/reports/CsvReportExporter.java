@@ -49,12 +49,12 @@ public class CsvReportExporter implements ReportExporter {
 	public byte[] export(CourseReport report) {
 		StringBuilder csv = new StringBuilder();
 		appendRow(csv,
-				List.of("studentId", "studentNumber", "fullName", "fullyCompleted", "partiallyCompleted", "notStarted",
-						"completionRate", "pointsEarned", "pointsRate", "totalPoints", "submissionCount",
+				List.of("studentId", "studentUsername", "fullName", "fullyCompleted", "partiallyCompleted",
+						"notStarted", "completionRate", "pointsEarned", "pointsRate", "totalPoints", "submissionCount",
 						"lastActivityAt"));
 		for (StudentProgressRow row : report.students()) {
 			appendRow(csv,
-					List.of(row.studentId().toString(), row.studentNumber(), row.fullName(),
+					List.of(row.studentId().toString(), row.studentUsername(), row.fullName(),
 							Integer.toString(row.fullyCompleted()), Integer.toString(row.partiallyCompleted()),
 							Integer.toString(row.notStarted()), row.completionRate().toPlainString(),
 							row.pointsEarned().toPlainString(), row.pointsRate().toPlainString(),

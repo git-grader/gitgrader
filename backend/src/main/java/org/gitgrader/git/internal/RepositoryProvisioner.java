@@ -61,7 +61,7 @@ class RepositoryProvisioner {
 			}
 			try {
 				this.repositories.provision(assignment.id(), event.studentId(), GitRepositoryService
-					.repositoryPathFor(event.courseKey(), assignment.assignmentKey(), event.studentNumber()),
+					.repositoryPathFor(event.courseKey(), assignment.assignmentKey(), event.studentUsername()),
 						assignment.templateVersionId());
 				created++;
 			}

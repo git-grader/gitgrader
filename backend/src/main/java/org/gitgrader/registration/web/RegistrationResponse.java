@@ -24,11 +24,11 @@ import org.gitgrader.identity.StudentStatus;
  * Response after successful self-registration.
  *
  * @param studentId the generated internal id
- * @param studentNumber institutional id
+ * @param studentUsername institutional id
  * @param fullName display name
  * @param status current lifecycle status (usually SELF_REGISTERED)
  * @param keyFingerprint fingerprint of the accepted SSH key
  */
-public record RegistrationResponse(UUID studentId, String studentNumber, String fullName, StudentStatus status,
+public record RegistrationResponse(UUID studentId, String studentUsername, String fullName, StudentStatus status,
 		String keyFingerprint) {
 }

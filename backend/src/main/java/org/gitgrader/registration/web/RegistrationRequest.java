@@ -27,7 +27,7 @@ import org.jspecify.annotations.Nullable;
  * Payload for self-registration. Server-side validation is authoritative.
  *
  * <p>
- * The student number and course key become path segments of the repository the student
+ * The student username and course key become path segments of the repository the student
  * pushes to, so both are restricted to characters that cannot denote a directory other
  * than their own. {@code GitRepositoryService.repositoryPathFor} refuses the rest
  * regardless; constraining them here is what turns that refusal into a field-level 400 on
@@ -35,7 +35,7 @@ import org.jspecify.annotations.Nullable;
  *
  * @param firstName student's given name
  * @param lastName student's family name
- * @param studentNumber institutional identifier
+ * @param studentUsername institutional identifier
  * @param email contact address
  * @param courseKey the course to join
  * @param classKey the class within the course
@@ -44,7 +44,7 @@ import org.jspecify.annotations.Nullable;
 public record RegistrationRequest(@NotBlank @Size(max = 100) String firstName,
 		@NotBlank @Size(max = 100) String lastName,
 		@NotBlank @Size(max = 50) @Pattern(regexp = "[A-Za-z0-9._-]+",
-				message = "must contain only letters, digits, '.', '_' and '-'") String studentNumber,
+				message = "must contain only letters, digits, '.', '_' and '-'") String studentUsername,
 		@NotBlank @Email @Size(max = 255) String email,
 		@NotBlank @Size(max = 64) @Pattern(regexp = "[A-Za-z0-9._-]+",
 				message = "must contain only letters, digits, '.', '_' and '-'") String courseKey,

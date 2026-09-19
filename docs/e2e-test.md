@@ -122,7 +122,7 @@ curl -s -b /tmp/e2e/jar -X POST http://localhost:8080/api/v1/registration \
   -w '\nHTTP %{http_code}\n' \
   -d "$(python3 - <<'EOF'
 import json
-print(json.dumps({"firstName":"Alan","lastName":"Turing","studentNumber":"s2001",
+print(json.dumps({"firstName":"Alan","lastName":"Turing","studentUsername":"s2001",
  "email":"alan@example.org","courseKey":"example-programming","classKey":"main",
  "publicKey":open("/tmp/e2e/student.pub").read().strip()}))
 EOF
@@ -136,7 +136,7 @@ handled:
 docker compose -f compose.yaml -f compose.dev.yaml exec -T database psql -U gitgrader -d gitgrader \
   -tAc 'select count(*) from repositories'
 docker compose -f compose.yaml -f compose.dev.yaml exec -T database psql -U gitgrader -d gitgrader \
-  -tAc 'select s.student_number, c.class_key, e.status from enrollments e
+  -tAc 'select s.student_username, c.class_key, e.status from enrollments e
           join students s on s.id = e.student_id
           left join course_classes c on c.id = e.class_id'
 ```
@@ -149,7 +149,7 @@ course report.
 
 | Attempt | Expect |
 |---|---|
-| the same student number again | `409` |
+| the same student username again | `409` |
 | the same public key, new number | `400`, telling the student to generate a new key |
 | a **private** key pasted in | `400`, and the response must not echo the key material |
 | an unknown course key | refused, without confirming which courses exist |
