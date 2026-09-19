@@ -113,8 +113,11 @@ services:
       # below. The cache is a performance aid and is expected to be rebuilt per start.
       XDG_CONFIG_HOME: /tmp
     ports:
-      - "${HTTP_PORT:-8080}:8080"
-      - "${SSH_PORT:-2222}:2222"
+      # HTTP is only ever consumed by the on-host nginx TLS front door, so bind to
+      # loopback. git-ssh is pinned to IPv4: an unpinned binding would also listen on
+      # [::], and this host has no global IPv6 address (only same-LAN link-local).
+      - "127.0.0.1:${HTTP_PORT:-8080}:8080"
+      - "0.0.0.0:${SSH_PORT:-2222}:2222"
     volumes:
       - git-data:/data/git
       - grading-data:/data/grading

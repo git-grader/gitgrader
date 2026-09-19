@@ -37,7 +37,9 @@ services:
     volumes:
       - ./deployment/ldap/bootstrap.ldif:/container/service/slapd/assets/config/bootstrap/ldif/custom/bootstrap.ldif:ro
     ports:
-      - "${LDAP_PORT:-1389}:389"
+      # Loopback only: the dev directory serves LDAP in plaintext with a known default
+      # admin password, so it must never be reachable off the host.
+      - "127.0.0.1:${LDAP_PORT:-1389}:389"
     logging:
       driver: json-file
       options:
