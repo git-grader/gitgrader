@@ -13,9 +13,9 @@ usage() {
 Usage: scripts/sync-image-pins.sh [--check|--fix]
 
 Two files carry a copy of an image pin that Dependabot updates somewhere else and
-cannot see: examples/seed-data.sql seeds the runtime that
-deployment/runtimes/node-24/Dockerfile builds, and scripts/lib.sh names the helper
-image compose.yaml already pins.
+cannot see: examples/seed-data.sql seeds the runtimes that the
+deployment/runtimes/node-*/Dockerfile files build, and scripts/lib.sh names the
+helper image compose.yaml already pins.
 
   --check  report drift and exit 1 (default; this is what the Quality workflow runs)
   --fix    rewrite the trailing copies to match, then report what moved
@@ -92,10 +92,13 @@ sync_pin() {
   printf '%s moved from %s to %s in %s\n' "$label" "$have" "$want" "$mirror_file"
 }
 
-sync_pin 'The node-24 runtime digest' \
-  deployment/runtimes/node-24/Dockerfile 'sha256:[a-f0-9]+' \
-  examples/seed-data.sql 'sha256:[a-f0-9]+' \
-  'sha256:[a-f0-9]+'
+for dockerfile in deployment/runtimes/node-*/Dockerfile; do
+  key=$(basename "$(dirname "$dockerfile")")
+  sync_pin "The $key runtime digest" \
+    "$dockerfile" 'sha256:[a-f0-9]+' \
+    examples/seed-data.sql "$key.*sha256:[a-f0-9]+" \
+    'sha256:[a-f0-9]+'
+done
 
 sync_pin 'The alpine helper image' \
   compose.yaml 'image: alpine:[0-9.]+' \

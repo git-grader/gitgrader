@@ -123,4 +123,23 @@
 		<Class name="org.gitgrader.templates.web.SecureZipExtractor" />
 		<Bug pattern="OVERLY_PERMISSIVE_FILE_PERMISSION" />
 	</Match>
+
+	<!--
+	  The shared Unix socket directory of a shimmed run must be opened to 0777 for the
+	  same reason the workspace is: it is created by this process on the host and then
+	  bind-mounted into two containers that run as an unprivileged uid this process has no
+	  right to chown the directory to, so the mode is the only way the sandbox can create
+	  the socket inside it. It carries write and execute only because a socket needs both,
+	  never read, and the only file ever created inside it is the ephemeral runner.sock in
+	  a per-run directory that is deleted as soon as the run ends.
+
+	  Covered by the documented hardening in GradingProperties.docker.user, which pins every
+	  grading container to the same dedicated uid; the socket is how that same-unpriviledged
+	  identity spans two containers without ever sharing their filesystems. Scoped to this
+	  class so a permissive mode set anywhere else still fails the build.
+	-->
+	<Match>
+		<Class name="org.gitgrader.grading.internal.ShimmedGradingContainer" />
+		<Bug pattern="OVERLY_PERMISSIVE_FILE_PERMISSION" />
+	</Match>
 </FindBugsFilter>

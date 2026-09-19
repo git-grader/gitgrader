@@ -96,7 +96,7 @@ class RemoteGradingRunnerTest {
 		return new GradingProperties("remote", 2, Duration.ofSeconds(120), DataSize.ofMegabytes(512), 1.0, 256, false,
 				DataSize.ofMegabytes(1), false,
 				new GradingProperties.Docker("unix:///var/run/docker.sock", "", "", "65534:65534",
-						Duration.ofMinutes(5), true, DataSize.ofMegabytes(64), true, true),
+						Duration.ofMinutes(5), true, DataSize.ofMegabytes(64), true, true, ""),
 				new GradingProperties.RunnerApi(false, "http://runner:8080", SECRET, Duration.ofSeconds(10),
 						Duration.ofSeconds(30)),
 				new GradingProperties.Queue(true, Duration.ofSeconds(2), Duration.ofMinutes(15), 3,

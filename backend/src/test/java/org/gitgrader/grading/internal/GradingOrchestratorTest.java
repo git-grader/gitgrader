@@ -82,7 +82,7 @@ class GradingOrchestratorTest {
 		GradingProperties properties = new GradingProperties("docker", 2, Duration.ofSeconds(120),
 				DataSize.ofMegabytes(512), 1.0, 256, false, DataSize.ofMegabytes(1), false,
 				new GradingProperties.Docker("unix:///var/run/docker.sock", "", "", "65534:65534",
-						Duration.ofMinutes(5), true, DataSize.ofMegabytes(64), true, true),
+						Duration.ofMinutes(5), true, DataSize.ofMegabytes(64), true, true, ""),
 				new GradingProperties.RunnerApi(false, "", "", Duration.ofSeconds(10), Duration.ofSeconds(30)),
 				new GradingProperties.Queue(true, Duration.ofSeconds(2), Duration.ofMinutes(15), 3,
 						Duration.ofSeconds(30), 3, 500, 1000, Duration.ofSeconds(30)));

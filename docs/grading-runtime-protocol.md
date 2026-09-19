@@ -130,16 +130,17 @@ instructor-only diagnostics and never parses as a report.
 ## Implementing a runtime
 
 The wire contract is language-independent. The shipped Node shim lives in
-`deployment/runtimes/node-24/shim/` as `server.js` (loads `SOLUTION_PATH` and
+`deployment/runtimes/node-shim/` as `server.js` (loads `SOLUTION_PATH` and
 serves exports) and `client.js` (an async `Proxy` of those exports where every
 member is an awaited call), with `serializable.js` enforcing the value contract
-and `phases.js` the vocabulary above. A new runtime ships a server and client
-for its language; the suite side only ever completes `await`ed calls.
+and `phases.js` the vocabulary above. All Node runtimes (`node-22`,
+`node-24`, `node-26`) share it; a new runtime ships a server and client for
+its language; the suite side only ever completes `await`ed calls.
 
 Run the shim's own tests, which need no Docker:
 
 ```sh
-node --test "deployment/runtimes/node-24/shim/**/*.test.js"
+node --test "deployment/runtimes/node-shim/**/*.test.js"
 ```
 
 The runner's full verify (`./mvnw -B -Plicense clean verify`) runs the same

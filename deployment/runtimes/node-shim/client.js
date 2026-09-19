@@ -63,6 +63,22 @@ export async function createShimClient({
 		for (const [, entry] of entries) {
 			entry.reject(error);
 		}
+		updateRefCount();
+	};
+
+	/**
+	 * Keeps the process alive only while a call is in flight. The socket is a
+	 * persistent handle, so without this the suite's <code>node --test</code>
+	 * process would wait on it forever after the last test and the grading run
+	 * would time out instead of reporting a complete test run.
+	 */
+	const updateRefCount = () => {
+		if (pending.size > 0) {
+			socket.ref();
+		}
+		else {
+			socket.unref();
+		}
 	};
 
 	socket.on('data', (chunk) => {
@@ -93,6 +109,7 @@ export async function createShimClient({
 				entry.reject(new ShimError(message.error.phase ?? PHASES.BAD_REQUEST,
 					String(message.error.message ?? '')));
 			}
+			updateRefCount();
 		}
 	});
 
@@ -125,6 +142,7 @@ export async function createShimClient({
 		}
 		const id = nextId++;
 		const promise = new Promise((resolve, reject) => pending.set(id, { resolve, reject }));
+		updateRefCount();
 		try {
 			socket.write(JSON.stringify({ id, method, args }) + '\n');
 		}

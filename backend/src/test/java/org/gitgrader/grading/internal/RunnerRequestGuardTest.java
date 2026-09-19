@@ -102,6 +102,23 @@ class RunnerRequestGuardTest {
 		assertThat(allowed.environment()).containsEntry("CI", "true");
 	}
 
+	@Test
+	@DisplayName("does not downgrade a shimmed runtime back to a single container")
+	void keepsTheShimTopologyWhenAShimmedRuntimeIsAskedFor() {
+		// The guard is the runner-side boundary of the remote deployment; silently
+		// dropping the shim fields here would grade the hidden tests over the
+		// submission's filesystem again.
+		GradingExecutionRequest shimmed = new GradingExecutionRequest(Path.of("/data/grading/run-1"),
+				Path.of("/data/tests/suite"), "sha256:abc", null, "npm test", Duration.ofSeconds(30),
+				DataSize.ofMegabytes(128).toBytes(), 0.5, 64, false, DataSize.ofKilobytes(256).toBytes(), "cid",
+				Map.of("HIDDEN_TESTS", "/opt/hidden-tests"), "node-ipc", "node /opt/gitgrader-shim/server.js");
+
+		GradingExecutionRequest allowed = this.guard.sanitise(shimmed);
+
+		assertThat(allowed.shimKind()).isEqualTo("node-ipc");
+		assertThat(allowed.shimCommand()).isEqualTo("node /opt/gitgrader-shim/server.js");
+	}
+
 	private static GradingExecutionRequest request(Path workspace, Path hiddenTests) {
 		return new GradingExecutionRequest(workspace, hiddenTests, "sha256:abc", null, "npm test",
 				Duration.ofSeconds(60), DataSize.ofMegabytes(256).toBytes(), 1.0, 128, true,
@@ -112,7 +129,7 @@ class RunnerRequestGuardTest {
 		return new GradingProperties("docker", 2, Duration.ofSeconds(120), DataSize.ofMegabytes(512), 1.0, 256, false,
 				DataSize.ofMegabytes(1), false,
 				new GradingProperties.Docker("unix:///var/run/docker.sock", "", "", "65534:65534",
-						Duration.ofMinutes(5), true, DataSize.ofMegabytes(64), true, true),
+						Duration.ofMinutes(5), true, DataSize.ofMegabytes(64), true, true, ""),
 				new GradingProperties.RunnerApi(true, "", "secret", Duration.ofSeconds(10), Duration.ofSeconds(30)),
 				new GradingProperties.Queue(true, Duration.ofSeconds(2), Duration.ofMinutes(15), 3,
 						Duration.ofSeconds(30), 3, 500, 1000, Duration.ofSeconds(30)));

@@ -7,7 +7,9 @@ name: Sync image pins
 on:
   pull_request:
     paths:
+      - deployment/runtimes/node-22/Dockerfile
       - deployment/runtimes/node-24/Dockerfile
+      - deployment/runtimes/node-26/Dockerfile
       - compose.yaml
 
 # Workflows that Dependabot triggers get a read-only token by default; this is what lets
