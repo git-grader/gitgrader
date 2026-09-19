@@ -62,7 +62,7 @@ function TemplateUploadDialog({ open, onClose, templateId }: { open: boolean, on
   return (
     <Dialog open={open} onClose={() => !mutation.isPending && close()} fullWidth maxWidth="sm">
       <DialogTitle>Upload Template Version</DialogTitle>
-      <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 1 }}>
+      <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2, pt: 2 }}>
         <MutationErrorAlert error={mutation.error} />
         <TextField label="Version Label" required fullWidth value={versionLabel} onChange={e => setVersionLabel(e.target.value)} disabled={mutation.isPending} />
         <Button variant="outlined" component="label">
@@ -109,7 +109,7 @@ function TestSuiteUploadDialog({ open, onClose, suiteId }: { open: boolean, onCl
   return (
     <Dialog open={open} onClose={() => !mutation.isPending && close()} fullWidth maxWidth="sm">
       <DialogTitle>Upload Test Suite Version</DialogTitle>
-      <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 1 }}>
+      <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2, pt: 2 }}>
         <MutationErrorAlert error={mutation.error} />
         <TextField label="Version Label" required fullWidth value={versionLabel} onChange={e => setVersionLabel(e.target.value)} disabled={mutation.isPending} />
         <Button variant="outlined" component="label">
@@ -278,7 +278,7 @@ function TestSuiteVersionList({ suiteId }: { suiteId: string }) {
 
       <Dialog open={publishOpen} onClose={() => !publishMutation.isPending && closePublish()} fullWidth maxWidth="xs">
         <DialogTitle>Publish Test Suite</DialogTitle>
-        <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 1 }}>
+        <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2, pt: 2 }}>
           <MutationErrorAlert error={publishMutation.error} />
           {/* These counts are what students are told about their run, so an emptied field
               silently becoming zero misreports the suite rather than refusing to submit. */}
@@ -440,7 +440,7 @@ export function MaterialsPage() {
       <Dialog open={tOpen} onClose={() => !createTemplateMutation.isPending && closeTemplateDialog()} fullWidth maxWidth="sm">
         <form onSubmit={e => { e.preventDefault(); createTemplateMutation.mutate(tForm); }}>
           <DialogTitle>New Template</DialogTitle>
-          <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 1 }}>
+          <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2, pt: 2 }}>
             <MutationErrorAlert error={createTemplateMutation.error} />
             <TextField label="Template Key" required fullWidth value={tForm.templateKey} onChange={e => setTForm({ ...tForm, templateKey: e.target.value })} disabled={createTemplateMutation.isPending} />
             <TextField label="Name" required fullWidth value={tForm.name} onChange={e => setTForm({ ...tForm, name: e.target.value })} disabled={createTemplateMutation.isPending} />
@@ -456,7 +456,7 @@ export function MaterialsPage() {
       <Dialog open={tsOpen} onClose={() => !createTestSuiteMutation.isPending && closeTestSuiteDialog()} fullWidth maxWidth="sm">
         <form onSubmit={e => { e.preventDefault(); createTestSuiteMutation.mutate(tsForm); }}>
           <DialogTitle>New Test Suite</DialogTitle>
-          <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 1 }}>
+          <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2, pt: 2 }}>
             <MutationErrorAlert error={createTestSuiteMutation.error} />
             <TextField label="Suite Key" required fullWidth value={tsForm.suiteKey} onChange={e => setTsForm({ ...tsForm, suiteKey: e.target.value })} disabled={createTestSuiteMutation.isPending} />
             <TextField label="Name" required fullWidth value={tsForm.name} onChange={e => setTsForm({ ...tsForm, name: e.target.value })} disabled={createTestSuiteMutation.isPending} />
