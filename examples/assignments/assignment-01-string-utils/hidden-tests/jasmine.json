@@ -2,5 +2,5 @@
   "spec_dir": ".",
   "spec_files": ["hidden.test.js"],
   "helpers": [],
-  "random": false
+  "env": { "random": false }
 }

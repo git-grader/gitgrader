@@ -6,7 +6,7 @@ official multi-architecture `node:22-bookworm-slim` OCI index at
 This digest was resolved with `docker buildx imagetools inspect` on 2026-09-19.
 
 Sibling runtimes cover the other supported majors: `node-24` and `node-26`.
-Jasmine `6.3.0` is installed globally in the image for both student-visible
+Jasmine `7.0.0` is installed globally in the image for both student-visible
 and operator hidden Jasmine suites; the hidden suite will later emit TAP through
 the assignment runner.
 All Node runtimes bake one version-agnostic shim from

@@ -8,7 +8,7 @@ FROM node:26-bookworm-slim@sha256:582460f614631b59b824ac6020533b9bf339c7fdf3a6d7
 
 # Jasmine is baked into the runtime so read-only operator test-suite mounts can
 # execute Jasmine specs without installing dependencies at grading time.
-RUN npm install --global --ignore-scripts jasmine@6.3.0
+RUN npm install --global --ignore-scripts jasmine@7.0.0
 
 RUN mkdir /workspace && chown 65534:65534 /workspace
 

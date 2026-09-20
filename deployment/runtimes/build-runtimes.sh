@@ -35,6 +35,6 @@ for runtime_dir in "$script_dir"/node-*; do
 	printf '%s\n' 'installCommand: npm ci --ignore-scripts'
 	printf '%s\n' 'testCommand: cd /opt/hidden-tests && jasmine --config=jasmine.json --reporter=./jasmine-tap-reporter.cjs'
 	printf '%s\n' 'reportFormat: TAP'
-	printf '%s\n' 'jasmineVersion: 6.3.0 (baked into the runtime image)'
+	printf '%s\n' 'jasmineVersion: 7.0.0 (baked into the runtime image)'
 	printf '\n'
 done

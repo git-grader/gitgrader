@@ -8,6 +8,6 @@
     "test:all": "jasmine --config=jasmine.json"
   },
   "devDependencies": {
-    "jasmine": "6.3.0"
+    "jasmine": "7.0.0"
   }
 }
