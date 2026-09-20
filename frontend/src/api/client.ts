@@ -134,7 +134,10 @@ export async function fetchBlob(path: string, options: RequestInit = {}): Promis
 
   const res = await fetch(path, { ...options, headers });
   if (!res.ok) {
-    throw await failureOf(res);
+    const failure = await failureOf(res);
+    throw failure instanceof ApiProblem
+      ? failure
+      : new ApiProblem('about:blank', failure.message, res.status);
   }
   return res.blob();
 }

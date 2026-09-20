@@ -192,7 +192,7 @@ public class PushAdmissionHook {
 			ReceiveCommand failed, AuthenticatedStudent student, RepositoryRecord repository, String reason) {
 		boolean seenFailed = false;
 		for (ReceiveCommand command : verdicts.keySet()) {
-			if (command == failed) {
+			if (failed.equals(command)) {
 				seenFailed = true;
 				continue;
 			}
