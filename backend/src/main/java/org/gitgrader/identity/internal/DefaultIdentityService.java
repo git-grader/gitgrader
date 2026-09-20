@@ -114,6 +114,13 @@ public class DefaultIdentityService implements StudentDirectory, StudentRegistry
 	}
 
 	@Override
+	public StudentView restore(UUID studentId, Actor actor) {
+		Student student = requireStudent(studentId);
+		student.restore(actor, this.clock);
+		return student.toView();
+	}
+
+	@Override
 	public StudentView anonymize(UUID studentId) {
 		Student student = requireStudent(studentId);
 		student.anonymize(this.clock);

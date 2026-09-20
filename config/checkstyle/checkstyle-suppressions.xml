@@ -29,6 +29,11 @@
 	<!-- Flyway callbacks and Spring configuration classes wire many collaborators. -->
 	<suppress files=".*Config(uration)?\.java" checks="ClassFanOutComplexity|MagicNumber" />
 
+	<!-- PushAdmissionHook is the pre-receive integration point where SSH identity, the
+	     assignment schedule, signatures and the submission record all meet; its fan-out
+	     reflects that role rather than loose design. -->
+	<suppress files="PushAdmissionHook\.java" checks="ClassFanOutComplexity" />
+
 	<!-- Configuration property records intentionally declare many components. -->
 	<suppress files=".*Properties\.java" checks="ParameterNumber|MagicNumber|JavadocStyle|ClassFanOutComplexity" />
 </suppressions>

@@ -39,6 +39,9 @@ import org.gitgrader.git.PushFeedbackWriter;
 import org.gitgrader.git.domain.RepositoryRecord;
 import org.gitgrader.git.internal.PushAdmissionRules.PushVerdict;
 import org.gitgrader.git.internal.StudentKeyAuthenticator.AuthenticatedStudent;
+import org.gitgrader.identity.StudentDirectory;
+import org.gitgrader.identity.StudentStatus;
+import org.gitgrader.identity.StudentView;
 import org.gitgrader.security.ResultTokenService;
 import org.gitgrader.submissions.NewSubmission;
 import org.gitgrader.submissions.SignatureVerdict;
@@ -86,12 +89,14 @@ public class PushAdmissionHook {
 
 	private final CommitSignatureVerifier signatureVerifier;
 
+	private final StudentDirectory students;
+
 	private final Clock clock;
 
 	public PushAdmissionHook(AssignmentCatalog assignmentCatalog, SubmissionService submissionService,
 			ResultTokenService resultTokens, GitRepositoryService repositoryService, PushFeedbackWriter feedbackWriter,
 			AppProperties appProperties, GitProperties gitProperties, CommitSignatureVerifier signatureVerifier,
-			Clock clock) {
+			StudentDirectory students, Clock clock) {
 		this.assignmentCatalog = assignmentCatalog;
 		this.submissionService = submissionService;
 		this.resultTokens = resultTokens;
@@ -100,6 +105,7 @@ public class PushAdmissionHook {
 		this.appProperties = appProperties;
 		this.gitProperties = gitProperties;
 		this.signatureVerifier = signatureVerifier;
+		this.students = students;
 		this.clock = clock;
 	}
 
@@ -123,6 +129,19 @@ public class PushAdmissionHook {
 		Optional<AssignmentView> assignment = this.assignmentCatalog.findAssignment(repository.assignmentId());
 		if (assignment.isEmpty()) {
 			rejectAll(commands, "This assignment no longer exists.");
+			return;
+		}
+
+		StudentView profile = this.students.findById(student.studentId()).orElse(null);
+		if (profile == null) {
+			rejectAll(commands, "Your account could not be found. Contact your instructor.");
+			return;
+		}
+		// Re-checked here rather than trusted from the SSH handshake alone: a student who
+		// authenticated before their status changed would otherwise push after a
+		// suspension or archive took effect.
+		if (!profile.status().canSubmit(this.appProperties.registration().requireInstructorVerification())) {
+			rejectAll(commands, statusReason(profile.status()));
 			return;
 		}
 
@@ -219,6 +238,16 @@ public class PushAdmissionHook {
 
 	private void rejectAll(Collection<ReceiveCommand> commands, String message) {
 		commands.forEach((command) -> command.setResult(ReceiveCommand.Result.REJECTED_OTHER_REASON, message));
+	}
+
+	private static String statusReason(StudentStatus status) {
+		return switch (status) {
+			case SELF_REGISTERED -> "Your registration has not yet been verified by an instructor. "
+					+ "Ask your instructor to verify your account, then push again.";
+			case SUSPENDED -> "Your account is suspended. Contact your instructor if this is a mistake.";
+			case ARCHIVED -> "Your account is archived. Contact your instructor if you need to submit again.";
+			case VERIFIED_BY_INSTRUCTOR -> "";
+		};
 	}
 
 	private static SignatureVerdict toVerdict(CommitSignatureResult result) {

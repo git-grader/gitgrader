@@ -68,6 +68,7 @@ export function meta(overrides: Record<string, unknown> = {}) {
     sshHost: 'ssh.example.org',
     sshPort: 2222,
     registrationEnabled: true,
+    requireInstructorVerification: false,
     version: '1.0.0',
     ...overrides
   };

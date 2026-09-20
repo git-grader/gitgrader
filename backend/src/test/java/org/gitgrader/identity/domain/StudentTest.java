@@ -66,6 +66,38 @@ class StudentTest {
 	}
 
 	@Test
+	void archivedProfileCanBeRestored() {
+		Student student = student();
+		student.verify(INSTRUCTOR, CLOCK);
+		student.archive(CLOCK);
+		assertThat(student.toView().status()).isEqualTo(StudentStatus.ARCHIVED);
+		assertThat(student.canSubmit(false)).isFalse();
+
+		student.restore(INSTRUCTOR, CLOCK);
+		assertThat(student.toView().status()).isEqualTo(StudentStatus.VERIFIED_BY_INSTRUCTOR);
+		assertThat(student.canSubmit(false)).isTrue();
+		assertThat(student.canSubmit(true)).isTrue();
+
+		student.archive(CLOCK);
+		assertThat(student.toView().status()).isEqualTo(StudentStatus.ARCHIVED);
+	}
+
+	@Test
+	void restoreIsRejectedForAnythingButAnArchivedProfile() {
+		Student student = student();
+		assertThatThrownBy(() -> student.restore(INSTRUCTOR, CLOCK))
+			.isInstanceOf(IllegalStateTransitionException.class);
+
+		student.verify(INSTRUCTOR, CLOCK);
+		assertThatThrownBy(() -> student.restore(INSTRUCTOR, CLOCK))
+			.isInstanceOf(IllegalStateTransitionException.class);
+
+		student.suspend("reason", INSTRUCTOR, CLOCK);
+		assertThatThrownBy(() -> student.restore(INSTRUCTOR, CLOCK))
+			.isInstanceOf(IllegalStateTransitionException.class);
+	}
+
+	@Test
 	void anonymizationPreservesStableSubmissionIdentifier() {
 		Student student = student();
 		var originalId = student.id();

@@ -59,6 +59,7 @@ export const MetaSchema = z.object({
   sshHost: z.string(),
   sshPort: z.number(),
   registrationEnabled: z.boolean(),
+  requireInstructorVerification: z.boolean(),
   version: z.string()
 });
 export type Meta = z.infer<typeof MetaSchema>;
@@ -487,6 +488,7 @@ export const api = {
   getStudent: (id: string) => readJson(`/api/v1/students/${id}`, StudentDetailSchema),
   updateStudent: (id: string, req: StudentUpdate) => sendJson('PUT', `/api/v1/students/${id}`, req, StudentSummarySchema),
   archiveStudent: (id: string) => sendJson('PATCH', `/api/v1/students/${id}/status`, { status: 'ARCHIVED', reason: 'Archived by instructor' }, StudentSummarySchema),
+  restoreStudent: (id: string) => sendJson('PATCH', `/api/v1/students/${id}/status`, { status: 'RESTORE', reason: 'Restored by instructor' }, StudentSummarySchema),
 
   getAssignments: (params?: Record<string, string>) =>
     readJson(`/api/v1/assignments${queryString(params)}`, AssignmentPageSchema),

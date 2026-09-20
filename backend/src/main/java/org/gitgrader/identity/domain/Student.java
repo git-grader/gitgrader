@@ -190,6 +190,26 @@ public class Student {
 	}
 
 	/**
+	 * Restores an archived profile so its student can submit again.
+	 *
+	 * <p>
+	 * Archiving is meant for the end of a course, but a mistake or a re-enrolment can
+	 * require bringing a profile back. The restoring instructor is recorded and the
+	 * profile is treated as verified, so the student can submit under every deployment
+	 * policy rather than only under the permissive one.
+	 * @param actor instructor or administrator performing the action
+	 * @param clock source of transition time
+	 */
+	public void restore(Actor actor, Clock clock) {
+		requireStatus(StudentStatus.ARCHIVED, "restore");
+		Instant now = Instant.now(clock);
+		this.status = StudentStatus.VERIFIED_BY_INSTRUCTOR;
+		this.verifiedAt = now;
+		this.verifiedBy = actor.id();
+		this.updatedAt = now;
+	}
+
+	/**
 	 * Replaces personal fields with stable non-reversible placeholders.
 	 * @param clock source of transition time
 	 */

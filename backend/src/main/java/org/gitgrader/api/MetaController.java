@@ -61,7 +61,7 @@ public class MetaController {
 	public MetaResponse meta() {
 		return new MetaResponse(this.app.name(), this.app.organizationName(), this.app.supportEmail(),
 				this.app.documentationUrl().toString(), this.app.baseUrl(), this.git.sshHost(), this.git.sshPort(),
-				this.app.registration().enabled(),
+				this.app.registration().enabled(), this.app.registration().requireInstructorVerification(),
 				(this.buildProperties != null) ? this.buildProperties.getVersion() : "dev");
 	}
 
@@ -80,10 +80,13 @@ public class MetaController {
 	 * @param sshHost host students clone from
 	 * @param sshPort port students clone from
 	 * @param registrationEnabled whether the public registration form is open
+	 * @param requireInstructorVerification whether an unverified self-registration may
+	 * push
 	 * @param version running build version
 	 */
 	public record MetaResponse(String name, String organizationName, String supportEmail, String documentationUrl,
-			String publicUrl, String sshHost, int sshPort, boolean registrationEnabled, String version) {
+			String publicUrl, String sshHost, int sshPort, boolean registrationEnabled,
+			boolean requireInstructorVerification, String version) {
 	}
 
 }

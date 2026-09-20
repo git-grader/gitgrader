@@ -24,6 +24,7 @@ const meta = {
   sshHost: 'localhost',
   sshPort: 2222,
   registrationEnabled: true,
+  requireInstructorVerification: false,
   version: '0.1.0'
 };
 
@@ -86,4 +87,29 @@ test('omits the default port 22 from the clone command', () => {
 
   expect(screen.getByText(/git clone ssh:\/\/git@localhost\/cs101/)).toBeInTheDocument();
   expect(screen.queryByText(/localhost:22\//)).not.toBeInTheDocument();
+});
+
+// Self-registration does not verify identity, so under the permissive policy the page
+// must not promise a later verification that will never happen. The email and student
+// username collected at registration are the identity; the clone-and-push invitation is
+// unconditional.
+test('does not promise verification under the permissive policy', () => {
+  renderPage();
+
+  expect(screen.getByText(/clone and push now/)).toBeInTheDocument();
+  expect(screen.queryByText(/verify/)).not.toBeInTheDocument();
+});
+
+test('says pushes wait for an instructor when verification is required', () => {
+  render(
+    <MetaContext.Provider value={{ ...meta, requireInstructorVerification: true }}>
+      <MemoryRouter initialEntries={[{ pathname: '/register/success', state: { result, courseKey: 'cs101' } }]}>
+        <Routes>
+          <Route path="/register/success" element={<RegistrationSuccessPage />} />
+        </Routes>
+      </MemoryRouter>
+    </MetaContext.Provider>
+  );
+
+  expect(screen.getByText(/pushes are accepted once an instructor verifies your registration/)).toBeInTheDocument();
 });

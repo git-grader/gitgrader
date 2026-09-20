@@ -91,6 +91,7 @@ public class StudentController {
 			case VERIFIED_BY_INSTRUCTOR -> this.registry.verify(id, actor);
 			case SUSPENDED -> this.registry.suspend(id, request.reason(), actor);
 			case ARCHIVED -> this.registry.archive(id);
+			case RESTORE -> this.registry.restore(id, actor);
 		};
 	}
 
@@ -166,7 +167,9 @@ public class StudentController {
 		/** Pushes are refused until the suspension is lifted. */
 		SUSPENDED,
 		/** The student is historical; their submissions are kept. */
-		ARCHIVED
+		ARCHIVED,
+		/** An archived student may submit again; the restoring instructor is recorded. */
+		RESTORE
 
 	}
 

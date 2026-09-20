@@ -53,6 +53,14 @@ public interface StudentRegistry {
 	StudentView archive(UUID studentId);
 
 	/**
+	 * Restores an archived profile so its student can submit again.
+	 * @param studentId profile identifier
+	 * @param actor restoring actor
+	 * @return updated profile
+	 */
+	StudentView restore(UUID studentId, Actor actor);
+
+	/**
 	 * Replaces personal fields with stable placeholders while preserving the profile id.
 	 * @param studentId profile identifier
 	 * @return anonymized profile
