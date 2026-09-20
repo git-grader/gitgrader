@@ -27,12 +27,14 @@ import org.gitgrader.assignments.AdmissionDecision;
 import org.gitgrader.assignments.AssignmentAdministration;
 import org.gitgrader.assignments.AssignmentCatalog;
 import org.gitgrader.assignments.AssignmentDefinition;
+import org.gitgrader.assignments.AssignmentPublished;
 import org.gitgrader.assignments.AssignmentStatus;
 import org.gitgrader.assignments.AssignmentView;
 import org.gitgrader.assignments.DeadlineExtensionView;
 import org.gitgrader.assignments.domain.Assignment;
 import org.gitgrader.assignments.domain.DeadlineExtension;
 import org.springframework.stereotype.Service;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.transaction.annotation.Transactional;
 
 /** Default assignment catalog and administration implementation. */
@@ -46,10 +48,19 @@ public class DefaultAssignmentService implements AssignmentCatalog, AssignmentAd
 
 	private final Clock clock;
 
+	private final ApplicationEventPublisher events;
+
 	DefaultAssignmentService(AssignmentRepository assignments, DeadlineExtensionRepository extensions, Clock clock) {
+		this(assignments, extensions, clock, (event) -> {
+		});
+	}
+
+	DefaultAssignmentService(AssignmentRepository assignments, DeadlineExtensionRepository extensions, Clock clock,
+			ApplicationEventPublisher events) {
 		this.assignments = assignments;
 		this.extensions = extensions;
 		this.clock = clock;
+		this.events = events;
 	}
 
 	@Override
@@ -123,7 +134,12 @@ public class DefaultAssignmentService implements AssignmentCatalog, AssignmentAd
 	public AssignmentView changeStatus(UUID assignmentId, AssignmentStatus status) {
 		Assignment assignment = requireAssignment(assignmentId);
 		assignment.changeStatus(status, this.clock);
-		return this.assignments.save(assignment).toView();
+		AssignmentView view = this.assignments.save(assignment).toView();
+		if (status == AssignmentStatus.OPEN) {
+			this.events.publishEvent(
+					new AssignmentPublished(view.id(), view.courseId(), view.assignmentKey(), this.clock.instant()));
+		}
+		return view;
 	}
 
 	@Override
