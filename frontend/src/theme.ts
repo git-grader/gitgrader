@@ -94,6 +94,18 @@ export const createAppTheme = (mode: 'light' | 'dark') => {
           },
         },
       },
+      MuiInputLabel: {
+        styleOverrides: {
+          root: {
+            '&.MuiInputLabel-shrink': {
+              backgroundColor: mode === 'light' ? '#F5F7FA' : inkRamp[900],
+              paddingLeft: 4,
+              paddingRight: 4,
+              marginLeft: -4,
+            },
+          },
+        },
+      },
     },
   });
 };
