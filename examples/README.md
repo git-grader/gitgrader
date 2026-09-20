@@ -45,17 +45,12 @@ The script grades the complete implementation and the intentional 70%
 implementation through the two-container shimmed path, checks TAP-to-manifest
 names, and rejects any result other than 10/10 and 7/10 respectively.
 
-## Add an assignment
+## Scope
 
-1. Copy `assignments/assignment-01-string-utils/` to a new key.
-2. Edit only the copied `template/` for student-visible instructions and public
-   smoke tests.
-3. Keep the copied suite and manifest outside template storage; give every test
-   a stable ID, a coarse category, and a non-revealing hint.
-4. Add a reference implementation and an executable proof script or extend
-   `verify-example.sh` to demonstrate expected scoring.
-5. Publish immutable template and test-suite versions, then make the assignment
-   non-draft only after linking both versions and a runtime.
+This example package intentionally contains and verifies only
+`assignment-01-string-utils`. The WBE assignment packages under
+`examples/assignments/wbe/` are separate course material and are not included
+in this example, its seed data, or its verification script.
 
 ## Seed a running instance
 
@@ -71,6 +66,4 @@ psql "$DATABASE_URL" -f examples/seed-data.sql
 
 The seed creates one active course, one class, three Node runtimes
 (`node-22`, `node-24`, `node-26`), one template/version, one test-suite/version,
-and twelve realistic assignments.
-Only assignment 01 maps to the files in this package; its eleven siblings make
-the course report useful while reusing the same immutable sample artifacts.
+and exactly one assignment: `assignment-01-string-utils`.

@@ -1,0 +1,6 @@
+{
+  "spec_dir": "public-tests",
+  "spec_files": ["*.test.js"],
+  "helpers": [],
+  "random": false
+}

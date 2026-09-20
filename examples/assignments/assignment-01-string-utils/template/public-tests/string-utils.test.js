@@ -1,5 +1,3 @@
-import assert from 'node:assert/strict';
-import test from 'node:test';
 import {
   isPalindrome,
   reverseWords,
@@ -7,28 +5,28 @@ import {
   titleCase,
   truncate,
   wordCount,
-} from '../src/string-utils.js';
+} from "../src/string-utils.js";
 
-test('truncate returns text that fits within the maximum length', () => {
-  assert.equal(truncate('hello', 5), 'hello');
+it("truncate returns text that fits within the maximum length", () => {
+  expect(truncate("hello", 5)).toBe("hello");
 });
 
-test('slugify creates a lowercase hyphenated label', () => {
-  assert.equal(slugify('Hello World'), 'hello-world');
+it("slugify creates a lowercase hyphenated label", () => {
+  expect(slugify("Hello World")).toBe("hello-world");
 });
 
-test('titleCase capitalises words', () => {
-  assert.equal(titleCase('hello world'), 'Hello World');
+it("titleCase capitalises words", () => {
+  expect(titleCase("hello world")).toBe("Hello World");
 });
 
-test('wordCount counts whitespace-separated words', () => {
-  assert.equal(wordCount('one two three'), 3);
+it("wordCount counts whitespace-separated words", () => {
+  expect(wordCount("one two three")).toBe(3);
 });
 
-test('reverseWords reverses word order', () => {
-  assert.equal(reverseWords('one two three'), 'three two one');
+it("reverseWords reverses word order", () => {
+  expect(reverseWords("one two three")).toBe("three two one");
 });
 
-test('isPalindrome recognises a simple palindrome', () => {
-  assert.equal(isPalindrome('level'), true);
+it("isPalindrome recognises a simple palindrome", () => {
+  expect(isPalindrome("level")).toBe(true);
 });

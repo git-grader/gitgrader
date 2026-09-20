@@ -5,14 +5,17 @@ export function truncate(text, maxLength) {
 export function slugify(text) {
   return text
     .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '');
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
 }
 
 export function titleCase(text) {
   return text
     .toLowerCase()
-    .replace(/(^|\s)([a-z])/g, (_, boundary, letter) => `${boundary}${letter.toUpperCase()}`);
+    .replace(
+      /(^|\s)([a-z])/g,
+      (_, boundary, letter) => `${boundary}${letter.toUpperCase()}`,
+    );
 }
 
 export function wordCount(text) {
@@ -21,10 +24,12 @@ export function wordCount(text) {
 }
 
 export function reverseWords(text) {
-  return text.trim().split(/\s+/u).filter(Boolean).reverse().join(' ');
+  return text.trim().split(/\s+/u).filter(Boolean).reverse().join(" ");
 }
 
 export function isPalindrome(text) {
-  const normalised = Array.from(text.toLocaleLowerCase()).filter((character) => /[\p{Letter}\p{Number}]/u.test(character));
-  return normalised.join('') === normalised.reverse().join('');
+  const normalised = Array.from(text.toLocaleLowerCase()).filter((character) =>
+    /[\p{Letter}\p{Number}]/u.test(character),
+  );
+  return normalised.join("") === normalised.reverse().join("");
 }

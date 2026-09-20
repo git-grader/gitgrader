@@ -12,6 +12,7 @@ image_tag=${IMAGE_TAG:-local}
 
 for runtime_dir in "$script_dir"/node-*; do
 	[ -d "$runtime_dir" ] || continue
+	[ -f "$runtime_dir/Dockerfile" ] || continue
 	key=${runtime_dir##*/}
 	major=${key#node-}
 	image=${image_prefix}${key}:${image_tag}
@@ -32,7 +33,8 @@ for runtime_dir in "$script_dir"/node-*; do
 	printf '%s\n' "image: $image"
 	printf '%s\n' "imageDigest: ${digest#*@}"
 	printf '%s\n' 'installCommand: npm ci --ignore-scripts'
-	printf '%s\n' 'testCommand: node --test --test-reporter=tap /opt/hidden-tests/hidden.test.js'
+	printf '%s\n' 'testCommand: cd /opt/hidden-tests && jasmine --config=jasmine.json --reporter=./jasmine-tap-reporter.cjs'
 	printf '%s\n' 'reportFormat: TAP'
+	printf '%s\n' 'jasmineVersion: 6.3.0 (baked into the runtime image)'
 	printf '\n'
 done
