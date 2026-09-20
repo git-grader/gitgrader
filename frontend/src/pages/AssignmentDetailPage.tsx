@@ -11,7 +11,7 @@ import { AssignmentStatusChip } from '../components/AssignmentStatusChip';
 import { MutationErrorAlert } from '../components/MutationErrorAlert';
 import { fromZonedInputValue, toZonedInputValue } from '../components/localDateTime';
 import type { AssignmentDefinition, AssignmentDetail } from '../api';
-import { Typography, CircularProgress, Button, Paper, Alert, Tooltip, Box, FormControl, InputLabel, Select, MenuItem, TextField } from '@mui/material';
+import { Typography, CircularProgress, Button, Paper, Alert, Tooltip, Box, FormControl, InputLabel, Select, MenuItem, TextField, Table, TableHead, TableRow, TableCell, TableBody } from '@mui/material';
 import { useAssignmentMaterials } from '../hooks/useAssignmentMaterials';
 
 type Materials = ReturnType<typeof useAssignmentMaterials>;
@@ -173,6 +173,30 @@ export function AssignmentDetailPage() {
     onSuccess: applyUpdated
   });
 
+  const extensionsQuery = useQuery({
+    queryKey: queryKeys.assignments.extensions(id ?? ''),
+    queryFn: () => api.getAssignmentExtensions(id ?? ''),
+    enabled: !!id
+  });
+  const [extensionForm, setExtensionForm] = useState({ studentId: '', extendedDueAt: '', reason: '' });
+  const grantExtensionMutation = useMutation({
+    mutationFn: () => api.grantAssignmentExtension(id ?? '', {
+      studentId: extensionForm.studentId,
+      extendedDueAt: new Date(extensionForm.extendedDueAt).toISOString(),
+      reason: extensionForm.reason
+    }),
+    onSuccess: () => {
+      setExtensionForm({ studentId: '', extendedDueAt: '', reason: '' });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.assignments.extensions(id ?? '') });
+    }
+  });
+  const revokeExtensionMutation = useMutation({
+    mutationFn: (extensionId: string) => api.revokeAssignmentExtension(id ?? '', extensionId),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: queryKeys.assignments.extensions(id ?? '') });
+    }
+  });
+
   if (assignmentLoading || materials.isLoading) {
     return (
       <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}>
@@ -248,6 +272,87 @@ export function AssignmentDetailPage() {
         pending={updateMutation.isPending}
         onSave={(request) => updateMutation.mutate(request)}
       />
+
+      <Paper sx={{ p: 3, display: 'flex', flexDirection: 'column', gap: 2 }}>
+        <Typography variant="h6">Deadline Extensions</Typography>
+        <Typography variant="body2" color="text.secondary">
+          Per-student replacement due dates. Granting and revoking map directly to the
+          assignment extensions endpoints.
+        </Typography>
+        {extensionsQuery.isLoading ? (
+          <CircularProgress aria-label="Loading extensions" />
+        ) : extensionsQuery.isError ? (
+          <QueryErrorNotice message="The extensions could not be loaded." onRetry={() => void extensionsQuery.refetch()} />
+        ) : (extensionsQuery.data ?? []).length === 0 ? (
+          <Typography variant="body2" color="text.secondary">No extensions granted.</Typography>
+        ) : (
+          <Table size="small">
+            <TableHead>
+              <TableRow>
+                <TableCell>Student</TableCell>
+                <TableCell>Extended due</TableCell>
+                <TableCell>Reason</TableCell>
+                <TableCell>Revoked</TableCell>
+                <TableCell align="right">Actions</TableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {(extensionsQuery.data ?? []).map((ext) => (
+                <TableRow key={ext.id}>
+                  <TableCell sx={{ overflowWrap: 'anywhere' }}>{ext.studentId}</TableCell>
+                  <TableCell>{new Date(ext.extendedDueAt).toLocaleString()}</TableCell>
+                  <TableCell sx={{ overflowWrap: 'anywhere' }}>{ext.reason}</TableCell>
+                  <TableCell>{ext.revokedAt ? new Date(ext.revokedAt).toLocaleString() : '—'}</TableCell>
+                  <TableCell align="right">
+                    {!ext.revokedAt && (
+                      <Button
+                        size="small"
+                        color="warning"
+                        disabled={revokeExtensionMutation.isPending}
+                        onClick={() => { if (window.confirm('Revoke this extension?')) revokeExtensionMutation.mutate(ext.id); }}
+                      >
+                        Revoke
+                      </Button>
+                    )}
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        )}
+        <MutationErrorAlert error={grantExtensionMutation.error ?? revokeExtensionMutation.error} />
+        <Box component="form" sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }} onSubmit={(e) => { e.preventDefault(); grantExtensionMutation.mutate(); }}>
+          <TextField
+            label="Student ID"
+            required
+            value={extensionForm.studentId}
+            onChange={(e) => setExtensionForm({ ...extensionForm, studentId: e.target.value })}
+            disabled={grantExtensionMutation.isPending}
+            sx={{ minWidth: 240, flex: '1 1 auto' }}
+          />
+          <TextField
+            label="Extended Due At"
+            type="datetime-local"
+            required
+            slotProps={{ inputLabel: { shrink: true } }}
+            value={extensionForm.extendedDueAt}
+            onChange={(e) => setExtensionForm({ ...extensionForm, extendedDueAt: e.target.value })}
+            disabled={grantExtensionMutation.isPending}
+            sx={{ minWidth: 220 }}
+          />
+          <TextField
+            label="Reason"
+            required
+            value={extensionForm.reason}
+            onChange={(e) => setExtensionForm({ ...extensionForm, reason: e.target.value })}
+            disabled={grantExtensionMutation.isPending}
+            sx={{ minWidth: 200, flex: '1 1 auto' }}
+          />
+          <Button type="submit" variant="outlined" disabled={grantExtensionMutation.isPending}>
+            {grantExtensionMutation.isPending ? 'Granting…' : 'Grant extension'}
+          </Button>
+        </Box>
+      </Paper>
     </Box>
   );
 }

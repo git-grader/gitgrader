@@ -31,18 +31,21 @@ export const queryKeys = {
 
   assignments: {
     all: ['assignments'] as const,
-    list: (courseId: string, page: string, size: string) => ['assignments', 'list', courseId, page, size] as const,
-    detail: (id: string) => ['assignments', 'detail', id] as const
+    list: (courseId: string, page: string, size: string, status = '') => ['assignments', 'list', courseId, status, page, size] as const,
+    detail: (id: string) => ['assignments', 'detail', id] as const,
+    extensions: (id: string) => ['assignments', 'detail', id, 'extensions'] as const
   },
 
   submissions: {
     all: ['submissions'] as const,
-    list: (courseId: string, page: string, size: string) => ['submissions', 'list', courseId, page, size] as const,
+    list: (courseId: string, page: string, size: string, status = '') => ['submissions', 'list', courseId, status, page, size] as const,
     detail: (id: string) => ['submissions', 'detail', id] as const
   },
 
   students: {
-    list: (page: string, size: string) => ['students', 'list', page, size] as const
+    list: (page: string, size: string, query = '', status = '') => ['students', 'list', query, status, page, size] as const,
+    detail: (id: string) => ['students', 'detail', id] as const,
+    keys: (id: string) => ['students', 'detail', id, 'keys'] as const
   },
 
   templates: {
@@ -63,7 +66,7 @@ export const queryKeys = {
 
   runtimes: ['runtimes'] as const,
 
-  audit: (page: string, size: string) => ['audit', page, size] as const,
+  audit: (page: string, size: string, eventType = '', actorType = '') => ['audit', eventType, actorType, page, size] as const,
 
   report: (courseId: string) => ['report', courseId] as const
 };

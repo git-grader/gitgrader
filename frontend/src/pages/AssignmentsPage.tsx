@@ -41,6 +41,7 @@ export function AssignmentsPage() {
   const queryClient = useQueryClient();
   const [searchParams, setSearchParams] = useSearchParams();
   const selectedCourseId = searchParams.get('courseId') ?? '';
+  const selectedStatus = searchParams.get('status') ?? '';
 
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState<AssignmentForm>(emptyForm);
@@ -57,9 +58,14 @@ export function AssignmentsPage() {
   const materials = useAssignmentMaterials();
 
   const { paginationModel, setPaginationModel, params } = useServerPagination();
+  const assignmentParams = {
+    ...params,
+    ...(selectedCourseId ? { courseId: selectedCourseId } : {}),
+    ...(selectedStatus ? { status: selectedStatus } : {})
+  };
   const { data, isLoading, isError, refetch } = useQuery({
-    queryKey: queryKeys.assignments.list(selectedCourseId, params.page, params.size),
-    queryFn: () => api.getAssignments(selectedCourseId ? { ...params, courseId: selectedCourseId } : params),
+    queryKey: queryKeys.assignments.list(selectedCourseId, params.page, params.size, selectedStatus),
+    queryFn: () => api.getAssignments(assignmentParams),
     placeholderData: (previous) => previous
   });
 
@@ -88,6 +94,18 @@ export function AssignmentsPage() {
     }
     else {
       newParams.delete('courseId');
+    }
+    setSearchParams(newParams);
+  }
+
+  function selectStatus(status: string) {
+    setPaginationModel({ ...paginationModel, page: 0 });
+    const newParams = new URLSearchParams(searchParams);
+    if (status) {
+      newParams.set('status', status);
+    }
+    else {
+      newParams.delete('status');
     }
     setSearchParams(newParams);
   }
@@ -205,6 +223,18 @@ export function AssignmentsPage() {
             >
               <MenuItem value=""><em>All courses</em></MenuItem>
               {courses?.content.map(c => <MenuItem key={c.id} value={c.id}>{c.name}</MenuItem>)}
+            </Select>
+          </FormControl>
+          <FormControl size="small" sx={{ minWidth: { xs: '100%', sm: 160 } }}>
+            <InputLabel id="assignment-status-filter-label">Status Filter</InputLabel>
+            <Select
+              labelId="assignment-status-filter-label"
+              value={selectedStatus}
+              label="Status Filter"
+              onChange={(e) => { selectStatus(e.target.value); }}
+            >
+              <MenuItem value=""><em>All statuses</em></MenuItem>
+              {ASSIGNMENT_STATUSES.map((s) => <MenuItem key={s} value={s}>{s}</MenuItem>)}
             </Select>
           </FormControl>
           <Button
