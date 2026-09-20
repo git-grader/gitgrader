@@ -8,9 +8,10 @@ class JasmineTapReporter {
 
   specDone(result) {
     const passed = result.status === "passed";
+    const number = this.results.length + 1;
     this.results.push({ name: result.description, passed });
     process.stdout.write(
-      `${passed ? "ok" : "not ok"} - ${result.description}\n`,
+      `${passed ? "ok" : "not ok"} ${number} - ${result.description}\n`,
     );
   }
 

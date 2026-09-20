@@ -97,6 +97,34 @@ class TapReportParserTest {
 		assertThat(results).allSatisfy((result) -> assertThat(result.outcome()).isEqualTo(TestOutcome.NOT_EXECUTED));
 	}
 
+	@Test
+	@DisplayName("accepts unnumbered status lines as some custom TAP reporters emit")
+	void parsesUnnumberedStatusLines() {
+		String stdout = """
+				TAP version 13
+				ok - h01 truncate preserves text at the maximum length
+				not ok - h02 truncate counts Unicode characters rather than UTF-16 units
+				""";
+
+		List<ParsedResult> results = this.parser.parse(stdout, "", twoTests());
+
+		assertThat(results).hasSize(2);
+		assertThat(results.get(0).outcome()).isEqualTo(TestOutcome.PASSED);
+		assertThat(results.get(1).outcome()).isEqualTo(TestOutcome.FAILED);
+	}
+
+	@Test
+	@DisplayName("treats a declared test reported twice without numbers as untrustworthy")
+	void refusesToPassAnUnnumberedTestReportedTwice() {
+		String stdout = "TAP version 13\nok - h01 truncate preserves text at the maximum length\nok - " + FIRST_TEST
+				+ "\n";
+
+		List<ParsedResult> results = this.parser.parse(stdout, "", twoTests());
+
+		assertThat(results.get(0).outcome()).isEqualTo(TestOutcome.FAILED);
+		assertThat(results.get(0).internalMessage()).contains("reported more than once");
+	}
+
 	/**
 	 * The sandbox merges the reporter's output with everything the submission prints, so
 	 * a student can write lines that are indistinguishable from a test result. None of

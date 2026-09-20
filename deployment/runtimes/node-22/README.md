@@ -37,12 +37,16 @@ hidden tests read-only at `/opt/hidden-tests` and opens the shim socket. S runs
 with no network, a read-only root filesystem, `tmpfs` at `/tmp`, dropped
 capabilities, and PID/memory/CPU limits, and never sees the hidden sources.
 
-S sets `SOLUTION_PATH=/workspace/src/string-utils.js` and `SHIM_SOCKET` to a
-socket both containers share, then runs:
+S picks the submitted module, then runs:
 
 ```sh
 node /opt/gitgrader-shim/server.js
 ```
+
+By default no per-assignment configuration is needed: an explicit `SOLUTION_PATH`
+wins, and otherwise the server loads the single `.js` file directly under
+`/workspace/src` and refuses to guess when the directory holds several. `SHIM_SOCKET`
+is set to the socket both containers share.
 
 T runs the Jasmine suite over the same socket and the custom reporter emits
 TAP:
@@ -54,9 +58,10 @@ cd /opt/hidden-tests && jasmine --config=jasmine.json --reporter=./jasmine-tap-r
 T's suite imports `createShimClient` from `/opt/gitgrader-shim/client.js` and
 awaits the sandbox's exports through it; a suite that never connects cannot be
 graded in two containers, so a shimmed runtime refuses it as an infrastructure
-error. The image keeps the single-process command (`npm ci --ignore-scripts &&
-Jasmine with the TAP reporter for non-shimmed runs. TAP is the report format registered in
-the runtime record.
+error. The node runtimes register no `install_command`: the sandbox runs with no
+network and the assignments are zero-dependency, with Jasmine baked into the
+image, so there is nothing to install at grading time. TAP is the report format
+registered in the runtime record.
 
 ## Register in GitGrader
 

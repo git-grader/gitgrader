@@ -43,7 +43,7 @@ verify_names() {
   emitted="$work/emitted-names.txt"
   manifest_names="$work/manifest-names.txt"
 
-  awk '/^(ok|not ok) - / { sub(/^(ok|not ok) - /, ""); print }' "$report" > "$emitted"
+  awk '/^(ok|not ok)( [0-9]+)? - / { sub(/^(ok|not ok)( [0-9]+)? - /, ""); print }' "$report" > "$emitted"
   node -e 'const fs = require("node:fs"); for (const test of JSON.parse(fs.readFileSync(process.argv[1], "utf8")).tests) console.log(test.name);' "$manifest" > "$manifest_names"
 
   if ! diff -u "$manifest_names" "$emitted"; then
