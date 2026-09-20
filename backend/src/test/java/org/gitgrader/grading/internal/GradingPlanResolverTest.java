@@ -181,9 +181,10 @@ class GradingPlanResolverTest {
 	}
 
 	private void givenRuntime() {
-		when(this.runtimes.findRuntime(any())).thenReturn(Optional.of(new RuntimeView(RUNTIME, "node-24", "Node.js 24",
-				"registry.example.org/runtime-node", "24.13.0", "sha256:" + "a".repeat(64), "npm ci", "npm test",
-				ReportFormat.TAP, true, Instant.parse("2026-01-01T00:00:00Z"), Instant.parse("2026-01-01T00:00:00Z"))));
+		when(this.runtimes.findRuntime(any())).thenReturn(
+				Optional.of(new RuntimeView(RUNTIME, "node-24", "Node.js 24", "registry.example.org/runtime-node",
+						"24.13.0", "sha256:" + "a".repeat(64), "npm ci", "npm test", ReportFormat.TAP, true,
+						Instant.parse("2026-01-01T00:00:00Z"), Instant.parse("2026-01-01T00:00:00Z"), null, null)));
 	}
 
 	private void givenSuite(String storagePath) {

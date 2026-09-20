@@ -17,7 +17,10 @@ for runtime_dir in "$script_dir"/node-*; do
 	image=${image_prefix}${key}:${image_tag}
 
 	printf '%s\n' "Building $key from $runtime_dir"
-	docker build --tag "$image" "$runtime_dir"
+	# The Dockerfile bakes the shared node-shim, so the build context is the
+	# parent directory that contains both the runtime and the shim, not the
+	# runtime directory alone.
+	docker build --tag "$image" -f "$runtime_dir/Dockerfile" "$script_dir"
 	digest=$(docker inspect --format='{{index .RepoDigests 0}}' "$image" 2>/dev/null || true)
 
 	printf '%s\n' "Built image: $image"

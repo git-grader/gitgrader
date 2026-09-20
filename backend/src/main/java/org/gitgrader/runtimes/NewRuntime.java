@@ -30,7 +30,12 @@ import org.jspecify.annotations.Nullable;
  * @param testCommand command that runs tests
  * @param reportFormat test report format
  * @param enabled whether assignments may select the runtime
+ * @param shimKind topology key that splits a run into a sandbox and a suite bound by the
+ * grading runtime protocol, or {@code null} for the legacy single-container run
+ * @param shimCommand command that starts the per-runtime shim server inside the sandbox,
+ * or {@code null} to use the runtime image's canonical one
  */
 public record NewRuntime(String runtimeKey, String displayName, String image, String tag, String imageDigest,
-		@Nullable String installCommand, String testCommand, ReportFormat reportFormat, boolean enabled) {
+		@Nullable String installCommand, String testCommand, ReportFormat reportFormat, boolean enabled,
+		@Nullable String shimKind, @Nullable String shimCommand) {
 }
