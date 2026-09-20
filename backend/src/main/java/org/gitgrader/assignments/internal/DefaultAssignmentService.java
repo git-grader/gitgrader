@@ -33,8 +33,9 @@ import org.gitgrader.assignments.AssignmentView;
 import org.gitgrader.assignments.DeadlineExtensionView;
 import org.gitgrader.assignments.domain.Assignment;
 import org.gitgrader.assignments.domain.DeadlineExtension;
-import org.springframework.stereotype.Service;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 /** Default assignment catalog and administration implementation. */
@@ -55,6 +56,7 @@ public class DefaultAssignmentService implements AssignmentCatalog, AssignmentAd
 		});
 	}
 
+	@Autowired
 	DefaultAssignmentService(AssignmentRepository assignments, DeadlineExtensionRepository extensions, Clock clock,
 			ApplicationEventPublisher events) {
 		this.assignments = assignments;
