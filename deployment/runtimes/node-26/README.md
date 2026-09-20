@@ -6,6 +6,9 @@ official multi-architecture `node:26-bookworm-slim` OCI index at
 This digest was resolved with `docker buildx imagetools inspect` on 2026-09-19.
 
 Sibling runtimes cover the other supported majors: `node-22` and `node-24`.
+Jasmine `6.3.0` is installed globally in the image for both student-visible
+and operator hidden Jasmine suites; the hidden suite will later emit TAP through
+the assignment runner.
 All Node runtimes bake one version-agnostic shim from
 `deployment/runtimes/node-shim/` into the image at `/opt/gitgrader-shim`.
 
@@ -41,17 +44,18 @@ socket both containers share, then runs:
 node /opt/gitgrader-shim/server.js
 ```
 
-T runs the suite over the same socket:
+T runs the Jasmine suite over the same socket and the custom reporter emits
+TAP:
 
 ```sh
-node --test --test-reporter=tap /opt/hidden-tests/hidden.test.js
+cd /opt/hidden-tests && jasmine --config=jasmine.json --reporter=./jasmine-tap-reporter.cjs
 ```
 
 T's suite imports `createShimClient` from `/opt/gitgrader-shim/client.js` and
 awaits the sandbox's exports through it; a suite that never connects cannot be
 graded in two containers, so a shimmed runtime refuses it as an infrastructure
 error. The image keeps the single-process command (`npm ci --ignore-scripts &&
-node --test ...`) for non-shimmed runs. TAP is the report format registered in
+Jasmine with the TAP reporter for non-shimmed runs. TAP is the report format registered in
 the runtime record.
 
 ## Register in GitGrader

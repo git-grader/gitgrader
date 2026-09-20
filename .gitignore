@@ -20,6 +20,7 @@ pnpm-debug.log*
 !.env.example
 /data/
 config/*.local.*
+/assignments/
 
 # IDEs
 .idea/

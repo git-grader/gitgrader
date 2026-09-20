@@ -7,7 +7,7 @@ the suite reaches the submission over the shim socket that the two containers
 share. `hidden.test.js` opens that channel as its first action:
 
 ```js
-import { createShimClient } from '/opt/gitgrader-shim/client.js';
+import { createShimClient } from "/opt/gitgrader-shim/client.js";
 
 const { proxy } = await createShimClient();
 ```

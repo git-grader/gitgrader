@@ -6,6 +6,10 @@
 # test suite inside the student tree.
 FROM node:22-bookworm-slim@sha256:48e4b67d85f87bd551df43704e24d252f56cc5f8e9718841aace50f19948f0f9
 
+# Jasmine is baked into the runtime so read-only operator test-suite mounts can
+# execute Jasmine specs without installing dependencies at grading time.
+RUN npm install --global --ignore-scripts jasmine@6.3.0
+
 RUN mkdir /workspace && chown 65534:65534 /workspace
 
 COPY node-shim/ /opt/gitgrader-shim/
@@ -14,4 +18,4 @@ WORKDIR /workspace
 USER 65534:65534
 
 ENTRYPOINT ["/bin/sh", "-c"]
-CMD ["npm ci --ignore-scripts && node --test --test-reporter=tap /opt/hidden-tests/hidden.test.js"]
+CMD ["cd /opt/hidden-tests && jasmine --config=jasmine.json --reporter=./jasmine-tap-reporter.cjs"]

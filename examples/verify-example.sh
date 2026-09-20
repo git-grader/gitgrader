@@ -12,10 +12,18 @@ manifest="$suite/manifest.json"
 shim="$repo/deployment/runtimes/node-shim"
 work=$(mktemp -d "${TMPDIR:-/tmp}/gitgrader-example.XXXXXX")
 
+# This proof intentionally exercises only the string-utils example. The WBE
+# assignment packages are separate course material and are never discovered or
+# included by this script.
+if [ "$(basename "$assignment")" != 'assignment-01-string-utils' ]; then
+	printf '%s\n' 'ERROR: example verification scope changed unexpectedly.' >&2
+	exit 1
+fi
+
 # The same digest-pinned image plays both halves. Pinning matches the runtime
 # registration in examples/seed-data.sql and the node-24 Dockerfile, so the
 # verification exercises exactly the image a deployment would grade with.
-node_image='node@sha256:2fe369e969550cde8e867afc3fe370b260140cab4a23d467074295b42163d553'
+node_image=${NODE_IMAGE:-gitgrader-node-24:local}
 
 cleanup() {
   for id in "$work"/*.server; do
@@ -35,7 +43,7 @@ verify_names() {
   emitted="$work/emitted-names.txt"
   manifest_names="$work/manifest-names.txt"
 
-  awk '/^[[:space:]]*# Subtest: / { sub(/^[[:space:]]*# Subtest: /, ""); print }' "$report" > "$emitted"
+  awk '/^(ok|not ok) - / { sub(/^(ok|not ok) - /, ""); print }' "$report" > "$emitted"
   node -e 'const fs = require("node:fs"); for (const test of JSON.parse(fs.readFileSync(process.argv[1], "utf8")).tests) console.log(test.name);' "$manifest" > "$manifest_names"
 
   if ! diff -u "$manifest_names" "$emitted"; then
@@ -72,7 +80,7 @@ run_suite() {
     --volume "$work/workspace:/workspace" \
     --volume "$socket:/gitgrader-shim" \
     --volume "$shim:/opt/gitgrader-shim:ro" \
-    "$node_image" node /opt/gitgrader-shim/server.js > "$sandbox"
+    --entrypoint /bin/sh "$node_image" -c 'node /opt/gitgrader-shim/server.js' > "$sandbox"
 
   if docker run --rm \
     --network none --cap-drop ALL --security-opt no-new-privileges \
@@ -82,7 +90,7 @@ run_suite() {
     --volume "$suite:/opt/hidden-tests:ro" \
     --volume "$socket:/gitgrader-shim" \
     --volume "$shim:/opt/gitgrader-shim:ro" \
-    "$node_image" node --test --test-reporter=tap /opt/hidden-tests/hidden.test.js > "$report" 2>&1; then
+    --entrypoint /bin/sh "$node_image" -c 'cd /opt/hidden-tests && jasmine --config=jasmine.json --reporter=./jasmine-tap-reporter.cjs' > "$report" 2>&1; then
     status=0
   else
     status=$?
