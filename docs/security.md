@@ -71,27 +71,34 @@ OpenAPI examples; or diagnostic/support logs. Store them only below the separate
 tests directory and mount them read-only for a single grading run. Raw hidden
 test names, assertion output, and grading logs are instructor-only.
 
-**"Hidden" means withheld from the result, not confidential from the submission.**
-The suite executes the submitted code in its own process — a test imports the
-student's module and calls it — so while a run is in progress that code can read
-the assertions and the expected values, whether or not the sources are still on
-disk. Removing the mount would not change this: in the same interpreter, a test
-callback's source is available from the function object itself.
+**Hidden is confidential from the submission on a shimmed runtime.** A shimmed
+runtime such as the shipped Node images grades in two containers split by the
+grading-runtime protocol: the sandbox container (S) holds the submitted
+repository and never mounts the hidden tests; the suite container (T) mounts
+them read-only. S and T communicate only over a shared Unix socket, and the
+protocol pins what crosses that socket to JSON values — assertions, expected
+values, and sources are never transmitted, and a stack trace is never
+transmitted either. A hidden suite is therefore unreadable by a determined
+student, not merely withheld from the result.
 
-Read-only mounting stops modification, and the manifest below stops an undeclared
-test inflating a score, so this is a confidentiality limit rather than a scoring
-one. Closing it needs the submission and the suite in separate processes, which is
-a change to the runner contract and to how a suite is packaged; it is tracked in
-issue #40. Set assessment policy accordingly: treat a hidden suite as unreadable
-by a marker, not as unreadable by a determined student.
+The split does not change the manifest's authority. T's process runs the suite's
+own code and emits the report the runner parses, so undeclared tests and forged
+passes are ruled out exactly as before. Legacy single-container runtimes (no
+shim kind) retain the earlier caveat: in a shared interpreter a test callback's
+source is available from the function object itself, so such a suite is withheld
+from the result while a run is in progress. Set assessment policy for a shimmed
+runtime accordingly: treat the hidden suite as unreadable by a determined
+student.
 
 ## Grading integrity: the manifest decides what exists
 
-A sandbox runs the reporter and the submission in one container, so both write
-to the same standard output. Nothing distinguishes a line the test reporter
-emitted from one the submission printed itself, and a submission containing
+In a legacy single-container run, the reporter and the submission share standard
+output: nothing distinguishes a line the test reporter emitted from one the
+submission printed itself, and a submission containing
 `process.stdout.write("ok 1 - anything\n")` produces output that reads exactly
-like a passing test.
+like a passing test. A shimmed run has already separated them — only the suite
+container T writes to the stream the runner parses — but the manifest stays the
+authority in both topologies, because a suite can miscount its own runs.
 
 `manifest.json` is therefore the authority on which tests exist, not the output.
 Exactly one result is recorded per declared test, in manifest order; a line
@@ -101,11 +108,12 @@ because a suite reports each test once. A suite published without a manifest, or
 with one declaring no tests, is refused as an infrastructure error rather than
 graded — a run that cannot produce a defensible grade must never produce a mark.
 
-What this does not close is a submission that guesses a hidden test's exact name
-and forges a pass for a test that never ran. That is why hidden names are secret:
-the result page shows a category and a hint, never a name. Closing it entirely
-requires running the reporter and the submission in separate containers, which
-the current single-sandbox design does not do.
+For a legacy single-container run this still leaves a submission that guesses a
+hidden test's exact name and forges a pass for a test that never ran: both sides
+share standard output, which is why hidden names stay secret — the result page
+shows a category and a hint, never a name. A shimmed run closes even that: S's
+standard output never reaches the reporter, so nothing the submitted code prints
+can mint a result line.
 
 ## The Docker socket, and what is on each side of it
 
