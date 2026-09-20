@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { useNavigate, useParams } from 'react-router';
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Box, Button, Chip, CircularProgress, Divider, Paper, Typography } from '@mui/material';
 import { api } from '../api';
 import { queryKeys } from '../api/queryKeys';
@@ -12,13 +12,23 @@ import { SubmissionStatusChip } from '../components/SubmissionStatusChip';
 export function SubmissionDetailPage() {
   const { id = '' } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const regrade = useMutation({
+    mutationFn: () => api.regradeSubmission(id),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: queryKeys.submissions.detail(id) });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.submissions.all });
+    }
+  });
   const query = useQuery({ queryKey: queryKeys.submissions.detail(id), queryFn: () => api.getSubmission(id), enabled: !!id });
   if (query.isLoading) return <CircularProgress aria-label="Loading submission" />;
   if (query.isError || !query.data) return <QueryErrorNotice message="The submission could not be loaded." onRetry={() => void query.refetch()} />;
   const submission = query.data;
   const field = (label: string, value: string) => <Box><Typography variant="caption" color="text.secondary">{label}</Typography><Typography sx={{ overflowWrap: 'anywhere' }}>{value || '—'}</Typography></Box>;
   return <Box sx={{ maxWidth: 900, display: 'flex', flexDirection: 'column', gap: 2 }}>
-    <Box sx={{ display: 'flex', justifyContent: 'space-between', gap: 2, alignItems: 'center', flexWrap: 'wrap' }}><Typography variant="h4" component="h1">Submission</Typography><Button onClick={() => void navigate('/submissions')}>Back to submissions</Button></Box>
+    <Box sx={{ display: 'flex', justifyContent: 'space-between', gap: 2, alignItems: 'center', flexWrap: 'wrap' }}><Typography variant="h4" component="h1">Submission</Typography><Box sx={{ display: 'flex', gap: 1 }}><Button variant="outlined" onClick={() => regrade.mutate()} disabled={regrade.isPending}> {regrade.isPending ? 'Queueing…' : 'Regrade'} </Button><Button onClick={() => void navigate('/submissions')}>Back to submissions</Button></Box></Box>
+    {regrade.isError && <QueryErrorNotice message="The submission could not be queued for regrading." onRetry={() => regrade.reset()} />}
+    {regrade.isSuccess && <Typography color="success.main">Regrade queued.</Typography>}
     <Paper variant="outlined" sx={{ p: 3, display: 'flex', flexDirection: 'column', gap: 2 }}>
       <Box sx={{ display: 'flex', gap: 1, alignItems: 'center', flexWrap: 'wrap' }}><SubmissionStatusChip status={submission.status} />{submission.late && <Chip size="small" color="warning" label="Late" />}<Chip size="small" variant="outlined" label={submission.signatureStatus} /></Box>
       <Divider />
