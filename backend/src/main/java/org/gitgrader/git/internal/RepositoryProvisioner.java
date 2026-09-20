@@ -24,11 +24,14 @@ import org.gitgrader.assignments.AssignmentCatalog;
 import org.gitgrader.assignments.AssignmentPublished;
 import org.gitgrader.assignments.AssignmentStatus;
 import org.gitgrader.assignments.AssignmentView;
-import org.gitgrader.registration.StudentRegistered;
 import org.gitgrader.courses.CourseCatalog;
+import org.gitgrader.git.domain.RepositoryRecord;
 import org.gitgrader.identity.StudentDirectory;
+import org.gitgrader.identity.StudentView;
+import org.gitgrader.registration.StudentRegistered;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.modulith.events.ApplicationModuleListener;
 import org.springframework.stereotype.Component;
 
@@ -62,6 +65,7 @@ class RepositoryProvisioner {
 		this(assignments, repositories, null, null);
 	}
 
+	@Autowired
 	RepositoryProvisioner(AssignmentCatalog assignments, GitRepositoryService repositories, CourseCatalog courses,
 			StudentDirectory students) {
 		this.assignments = assignments;
