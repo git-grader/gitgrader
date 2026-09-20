@@ -17,5 +17,7 @@ COPY node-shim/ /opt/gitgrader-shim/
 WORKDIR /workspace
 USER 65534:65534
 
-ENTRYPOINT ["/bin/sh", "-c"]
+# No ENTRYPOINT: the grading runner always supplies the command itself
+# (`sh -c "<installCommand && testCommand>"`), so a fixed entrypoint would wrap
+# it and break the run. The CMD below is only the default for `docker run`.
 CMD ["cd /opt/hidden-tests && jasmine --config=jasmine.json --reporter=./jasmine-tap-reporter.cjs"]
