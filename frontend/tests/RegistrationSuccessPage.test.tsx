@@ -25,7 +25,8 @@ const meta = {
   sshPort: 2222,
   registrationEnabled: true,
   requireInstructorVerification: false,
-  version: '0.1.0'
+  version: '0.1.0',
+  buildCommit: 'test-commit'
 };
 
 const cloneCommand = 'git clone ssh://git@localhost:2222/cs101/<assignment-key>/12345.git';

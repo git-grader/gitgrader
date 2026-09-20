@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { useState } from 'react';
-import { Box, Chip, CircularProgress, Tooltip, Typography, useMediaQuery, useTheme } from '@mui/material';
+import { Box, Chip, CircularProgress, FormControl, InputLabel, MenuItem, Select, Tooltip, Typography, useMediaQuery, useTheme } from '@mui/material';
 import { useQuery } from '@tanstack/react-query';
 import { DataGrid } from '@mui/x-data-grid';
 import type { GridColDef, GridRenderCellParams } from '@mui/x-data-grid';
@@ -10,6 +10,19 @@ import { api } from '../api';
 import { queryKeys } from '../api/queryKeys';
 import { QueryErrorNotice } from '../components/QueryErrorNotice';
 import type { AuditEvent } from '../api';
+
+const AUDIT_EVENT_TYPES = [
+  'STUDENT_REGISTERED', 'STUDENT_VERIFIED', 'STUDENT_SUSPENDED', 'STUDENT_ARCHIVED',
+  'STUDENT_ANONYMIZED', 'SSH_KEY_ADDED', 'SSH_KEY_REPLACED', 'SSH_KEY_REVOKED',
+  'SSH_KEY_REINSTATED', 'LOGIN_SUCCEEDED', 'LOGIN_FAILED', 'LOGOUT', 'COURSE_CHANGED',
+  'ASSIGNMENT_CHANGED', 'ASSIGNMENT_PUBLISHED', 'DEADLINE_CHANGED', 'EXTENSION_GRANTED',
+  'EXTENSION_REVOKED', 'TEMPLATE_PUBLISHED', 'TEST_SUITE_PUBLISHED', 'RUNTIME_CHANGED',
+  'REPOSITORY_PROVISIONED', 'SUBMISSION_RECEIVED', 'SUBMISSION_REJECTED', 'GRADING_COMPLETED',
+  'GRADING_RETRIED', 'RESULT_TOKEN_REVOKED', 'REPORT_EXPORTED', 'SETTING_CHANGED',
+  'RATE_LIMIT_TRIGGERED'
+] as const;
+
+const AUDIT_ACTOR_TYPES = ['STUDENT', 'INSTRUCTOR', 'ADMIN', 'SYSTEM', 'ANONYMOUS'] as const;
 
 const SEVERITY_COLOR: Record<string, 'default' | 'info' | 'warning' | 'error'> = {
   INFO: 'default',
@@ -38,10 +51,17 @@ function summariseDetail(detail: unknown): string {
 export function AdminAuditPage() {
   const theme = useTheme();
   const [pagination, setPagination] = useState({ page: 0, pageSize: 20 });
+  const [eventType, setEventType] = useState('');
+  const [actorType, setActorType] = useState('');
   const { data, isLoading, isError, refetch } = useQuery({
-    queryKey: queryKeys.audit(String(pagination.page), String(pagination.pageSize)),
+    queryKey: queryKeys.audit(String(pagination.page), String(pagination.pageSize), eventType, actorType),
     queryFn: () =>
-      api.getAuditLog({ page: String(pagination.page), size: String(pagination.pageSize) }),
+      api.getAuditLog({
+        page: String(pagination.page),
+        size: String(pagination.pageSize),
+        ...(eventType ? { eventType } : {}),
+        ...(actorType ? { actorType } : {})
+      }),
     retry: false,
     // Without this the row count drops to zero while the next page loads and the grid
     // resets itself to the first page, making paging past page one impossible.
@@ -137,6 +157,32 @@ export function AdminAuditPage() {
         <Box component="code" sx={{ mx: 0.5 }}>RATE_LIMIT_TRIGGERED</Box>
         with the limit and the decision recorded alongside.
       </Typography>
+      <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap', mb: 2 }}>
+        <FormControl size="small" sx={{ minWidth: 220 }}>
+          <InputLabel id="audit-event-type-label">Event Type</InputLabel>
+          <Select
+            labelId="audit-event-type-label"
+            value={eventType}
+            label="Event Type"
+            onChange={(e) => { setEventType(e.target.value); setPagination((p) => ({ ...p, page: 0 })); }}
+          >
+            <MenuItem value=""><em>All events</em></MenuItem>
+            {AUDIT_EVENT_TYPES.map((t) => <MenuItem key={t} value={t}>{t}</MenuItem>)}
+          </Select>
+        </FormControl>
+        <FormControl size="small" sx={{ minWidth: 180 }}>
+          <InputLabel id="audit-actor-type-label">Actor Type</InputLabel>
+          <Select
+            labelId="audit-actor-type-label"
+            value={actorType}
+            label="Actor Type"
+            onChange={(e) => { setActorType(e.target.value); setPagination((p) => ({ ...p, page: 0 })); }}
+          >
+            <MenuItem value=""><em>All actors</em></MenuItem>
+            {AUDIT_ACTOR_TYPES.map((t) => <MenuItem key={t} value={t}>{t}</MenuItem>)}
+          </Select>
+        </FormControl>
+      </Box>
 
       {/* The error used to be shown above the grid, which then rendered anyway: a reader
           got a failure notice and an empty table at once, and no way to try again. */}

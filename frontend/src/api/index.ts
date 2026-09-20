@@ -165,8 +165,39 @@ export const StudentSummarySchema = z.object({
   status
 });
 export type StudentSummary = z.infer<typeof StudentSummarySchema>;
-export const StudentDetailSchema = z.object({ student: StudentSummarySchema, sshKeys: z.array(z.unknown()) });
+export const StudentStatusResponseSchema = z.object({
+  id: z.string(),
+  studentUsername: z.string(),
+  fullName: z.string(),
+  email: z.string(),
+  status,
+  classLabel: z.string().nullish(),
+  registeredAt: z.string()
+});
+export type StudentStatusResponse = z.infer<typeof StudentStatusResponseSchema>;
+export const StudentDetailSchema = z.object({
+  student: StudentSummarySchema,
+  sshKeys: z.array(z.object({
+    id: z.string(),
+    studentId: z.string(),
+    label: z.string(),
+    keyType: z.string(),
+    publicKey: z.string(),
+    fingerprint: z.string(),
+    keyBits: z.number().nullish(),
+    comment: z.string().nullish(),
+    status: z.string(),
+    origin: z.string(),
+    addedBy: z.string().nullish(),
+    revokedAt: z.string().nullish(),
+    revocationReason: z.string().nullish(),
+    replacedById: z.string().nullish(),
+    lastUsedAt: z.string().nullish(),
+    createdAt: z.string()
+  }))
+});
 export type StudentDetail = z.infer<typeof StudentDetailSchema>;
+export type SshKey = StudentDetail['sshKeys'][number];
 export const StudentUpdateSchema = z.object({
   studentUsername: z.string().min(1), firstName: z.string().min(1), lastName: z.string().min(1), email: z.email()
 });
@@ -378,6 +409,26 @@ export type Submission = z.infer<typeof SubmissionSchema>;
 
 const RegradeAcceptedSchema = z.object({ gradingRunId: z.string() });
 
+export const DeadlineExtensionSchema = z.object({
+  id: z.string(),
+  assignmentId: z.string(),
+  studentId: z.string(),
+  extendedDueAt: z.string(),
+  reason: z.string(),
+  grantedBy: z.string(),
+  grantedAt: z.string(),
+  revokedAt: z.string().nullish(),
+  revokedBy: z.string().nullish(),
+  createdAt: z.string()
+});
+export type DeadlineExtension = z.infer<typeof DeadlineExtensionSchema>;
+export const DeadlineExtensionRequestSchema = z.object({
+  studentId: z.string().min(1, 'Student is required'),
+  extendedDueAt: z.string().min(1, 'Extended due date is required'),
+  reason: z.string().min(1, 'Reason is required')
+});
+export type DeadlineExtensionRequest = z.infer<typeof DeadlineExtensionRequestSchema>;
+
 export const CourseReportSchema = z.object({
   courseId: z.string(),
   totalMandatoryAssignments: z.number(),
@@ -490,8 +541,41 @@ export const api = {
     readJson(`/api/v1/students${queryString(params)}`, StudentPageSchema),
   getStudent: (id: string) => readJson(`/api/v1/students/${id}`, StudentDetailSchema),
   updateStudent: (id: string, req: StudentUpdate) => sendJson('PUT', `/api/v1/students/${id}`, req, StudentSummarySchema),
-  archiveStudent: (id: string) => sendJson('PATCH', `/api/v1/students/${id}/status`, { status: 'ARCHIVED', reason: 'Archived by instructor' }, StudentSummarySchema),
-  restoreStudent: (id: string) => sendJson('PATCH', `/api/v1/students/${id}/status`, { status: 'RESTORE', reason: 'Restored by instructor' }, StudentSummarySchema),
+  changeStudentStatus: (id: string, status: string, reason: string) =>
+    sendJson('PATCH', `/api/v1/students/${id}/status`, { status, reason }, StudentStatusResponseSchema),
+  archiveStudent: (id: string) => sendJson('PATCH', `/api/v1/students/${id}/status`, { status: 'ARCHIVED', reason: 'Archived by instructor' }, StudentStatusResponseSchema),
+  restoreStudent: (id: string) => sendJson('PATCH', `/api/v1/students/${id}/status`, { status: 'RESTORE', reason: 'Restored by instructor' }, StudentStatusResponseSchema),
+  verifyStudent: (id: string) => sendJson('PATCH', `/api/v1/students/${id}/status`, { status: 'VERIFIED_BY_INSTRUCTOR', reason: 'Verified by instructor' }, StudentStatusResponseSchema),
+  suspendStudent: (id: string, reason = 'Suspended by instructor') =>
+    sendJson('PATCH', `/api/v1/students/${id}/status`, { status: 'SUSPENDED', reason }, StudentStatusResponseSchema),
+  getStudentKeys: (id: string) => readJson(`/api/v1/students/${id}/keys`, z.array(z.object({
+    id: z.string(),
+    studentId: z.string(),
+    label: z.string(),
+    keyType: z.string(),
+    publicKey: z.string(),
+    fingerprint: z.string(),
+    keyBits: z.number().nullish(),
+    comment: z.string().nullish(),
+    status: z.string(),
+    origin: z.string(),
+    addedBy: z.string().nullish(),
+    revokedAt: z.string().nullish(),
+    revocationReason: z.string().nullish(),
+    replacedById: z.string().nullish(),
+    lastUsedAt: z.string().nullish(),
+    createdAt: z.string()
+  }))),
+  registerStudentKey: (id: string, req: { label: string; publicKey: string; reason: string }) =>
+    sendJson('POST', `/api/v1/students/${id}/keys`, req, z.looseObject({
+      id: z.string(), studentId: z.string(), label: z.string(), keyType: z.string(),
+      publicKey: z.string(), fingerprint: z.string(), status: z.string(), origin: z.string(),
+      createdAt: z.string()
+    })),
+  revokeStudentKey: (id: string, keyId: string, reason: string) =>
+    sendJson('POST', `/api/v1/students/${id}/keys/${keyId}/revoke`, { reason }, z.unknown()),
+  replaceStudentKey: (id: string, keyId: string, req: { label: string; publicKey: string; reason: string }) =>
+    sendJson('POST', `/api/v1/students/${id}/keys/${keyId}/replace`, req, z.unknown()),
 
   getAssignments: (params?: Record<string, string>) =>
     readJson(`/api/v1/assignments${queryString(params)}`, AssignmentPageSchema),
@@ -500,6 +584,12 @@ export const api = {
   updateAssignment: (id: string, req: AssignmentDefinition) =>
     sendJson('PUT', `/api/v1/assignments/${id}`, req, AssignmentSchema),
   publishAssignment: (id: string) => sendJson('POST', `/api/v1/assignments/${id}/publish`, undefined, AssignmentSchema),
+  getAssignmentExtensions: (id: string) =>
+    readJson(`/api/v1/assignments/${id}/extensions`, z.array(DeadlineExtensionSchema)),
+  grantAssignmentExtension: (id: string, req: DeadlineExtensionRequest) =>
+    sendJson('POST', `/api/v1/assignments/${id}/extensions`, req, DeadlineExtensionSchema),
+  revokeAssignmentExtension: (id: string, extensionId: string) =>
+    fetchApi(`/api/v1/assignments/${id}/extensions/${extensionId}`, { method: 'DELETE' }).then(() => undefined),
 
   getSubmissions: (params?: Record<string, string>) =>
     readJson(`/api/v1/submissions${queryString(params)}`, SubmissionPageSchema),

@@ -19,6 +19,7 @@ export function SubmissionsPage() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const selectedCourseId = searchParams.get('courseId') || '';
+  const selectedStatus = searchParams.get('status') || '';
 
   const { data: courses, isError: coursesFailed, refetch: refetchCourses } = useQuery({
     queryKey: queryKeys.courses.choices,
@@ -26,9 +27,14 @@ export function SubmissionsPage() {
   });
 
   const { paginationModel, setPaginationModel, params } = useServerPagination();
+  const submissionParams = {
+    ...params,
+    ...(selectedCourseId ? { courseId: selectedCourseId } : {}),
+    ...(selectedStatus ? { status: selectedStatus } : {})
+  };
   const { data, isLoading, isError, refetch } = useQuery({
-    queryKey: queryKeys.submissions.list(selectedCourseId, params.page, params.size),
-    queryFn: () => api.getSubmissions(selectedCourseId ? { ...params, courseId: selectedCourseId } : params),
+    queryKey: queryKeys.submissions.list(selectedCourseId, params.page, params.size, selectedStatus),
+    queryFn: () => api.getSubmissions(submissionParams),
     placeholderData: (previous) => previous
   });
 
@@ -109,6 +115,7 @@ export function SubmissionsPage() {
     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 1.5 }}>
         <Typography variant="h4" component="h1">Submissions</Typography>
+        <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
         <FormControl size="small" sx={{ minWidth: { xs: '100%', sm: 200 } }}>
           <InputLabel id="submission-course-filter-label">Course Filter</InputLabel>
           <Select
@@ -135,6 +142,31 @@ export function SubmissionsPage() {
             {courses?.content.map(c => <MenuItem key={c.id} value={c.id}>{c.name}</MenuItem>)}
           </Select>
         </FormControl>
+        <FormControl size="small" sx={{ minWidth: { xs: '100%', sm: 180 } }}>
+          <InputLabel id="submission-status-filter-label">Status Filter</InputLabel>
+          <Select
+            labelId="submission-status-filter-label"
+            value={selectedStatus}
+            label="Status Filter"
+            onChange={(e) => {
+              setPaginationModel({ ...paginationModel, page: 0 });
+              const newParams = new URLSearchParams(searchParams);
+              if (e.target.value) {
+                newParams.set('status', e.target.value);
+              }
+              else {
+                newParams.delete('status');
+              }
+              setSearchParams(newParams);
+            }}
+          >
+            <MenuItem value=""><em>All statuses</em></MenuItem>
+            {['RECEIVED', 'QUEUED', 'RUNNING', 'PASSED', 'FAILED', 'INFRASTRUCTURE_ERROR', 'CANCELLED', 'REJECTED'].map((s) => (
+              <MenuItem key={s} value={s}>{s}</MenuItem>
+            ))}
+          </Select>
+        </FormControl>
+        </Box>
       </Box>
 
       {coursesFailed && (
