@@ -250,7 +250,7 @@ services:
   # different base, read them back with:
   #   docker inspect --format '{{.Config.User}}' ghcr.io/git-grader/gitgrader:<tag>
   init-permissions:
-    image: alpine:3.24@sha256:28bd5fe8b56d1bd048e5babf5b10710ebe0bae67db86916198a6eec434943f8b
+    image: alpine:3.24@sha256:294b683cb724975bec92580e1e685676bd4b50bda910ddb8c51d4cabeaec77e6
     user: "0:0"
     command: ["chown", "-R", "${APP_UID:-1002}:${APP_GID:-1001}",
               "/data/git", "/data/grading", "/data/templates", "/data/tests", "/data/artifacts"]
@@ -273,7 +273,7 @@ services:
     # Pinned by digest for the same reason the alpine helper below is: a tag can be
     # moved, and the database is the one component that carries state a moved tag
     # could silently migrate.
-    image: postgres:18.6-alpine@sha256:d3e1620b530c944afa6e887d22eb899824da68e19c52024bf98f5220c88a65b2
+    image: postgres:18.6-alpine@sha256:6c538e7206ea40ff740ef27883529390a690b6ead6ba96b44c67a9f7c638e8fd
     restart: unless-stopped
     environment:
       POSTGRES_DB: gitgrader
