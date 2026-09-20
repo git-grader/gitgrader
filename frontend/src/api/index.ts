@@ -375,6 +375,8 @@ export const SubmissionSchema = z.object({
 });
 export type Submission = z.infer<typeof SubmissionSchema>;
 
+const RegradeAcceptedSchema = z.object({ gradingRunId: z.string() });
+
 export const CourseReportSchema = z.object({
   courseId: z.string(),
   totalMandatoryAssignments: z.number(),
@@ -501,6 +503,8 @@ export const api = {
   getSubmissions: (params?: Record<string, string>) =>
     readJson(`/api/v1/submissions${queryString(params)}`, SubmissionPageSchema),
   getSubmission: (id: string) => readJson(`/api/v1/submissions/${encodeURIComponent(id)}`, SubmissionSchema),
+  regradeSubmission: (id: string) =>
+    sendJson('POST', `/api/v1/submissions/${encodeURIComponent(id)}/regrade`, undefined, RegradeAcceptedSchema),
 
   getCourseReport: (courseId: string) => readJson(`/api/v1/reports/courses/${courseId}`, CourseReportSchema),
 
