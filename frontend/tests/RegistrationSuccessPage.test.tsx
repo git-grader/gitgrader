@@ -70,3 +70,20 @@ test('says so when the browser will not let it copy', async () => {
   expect(await screen.findByRole('button', { name: 'Copy it by hand' })).toBeInTheDocument();
   expect(screen.getByText(/ssh:\/\/git@localhost:2222\/cs101/)).toBeInTheDocument();
 });
+
+// Port 22 is SSH's default. It is usually the port in use, so the clone command omits it
+// rather than printing `:22`; a non-default port is the one worth spelling out.
+test('omits the default port 22 from the clone command', () => {
+  render(
+    <MetaContext.Provider value={{ ...meta, sshPort: 22 }}>
+      <MemoryRouter initialEntries={[{ pathname: '/register/success', state: { result, courseKey: 'cs101' } }]}>
+        <Routes>
+          <Route path="/register/success" element={<RegistrationSuccessPage />} />
+        </Routes>
+      </MemoryRouter>
+    </MetaContext.Provider>
+  );
+
+  expect(screen.getByText(/git clone ssh:\/\/git@localhost\/cs101/)).toBeInTheDocument();
+  expect(screen.queryByText(/localhost:22\//)).not.toBeInTheDocument();
+});

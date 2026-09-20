@@ -61,7 +61,10 @@ export function RegistrationSuccessPage() {
     state && typeof state === 'object' && 'courseKey' in state && typeof state.courseKey === 'string'
       ? state.courseKey
       : null;
-  const repositoryRoot = `ssh://git@${meta.sshHost}:${meta.sshPort}/${courseKey ?? '<course-key>'}`;
+  // Port 22 is SSH's default and is the port this page is usually on, so the clone
+  // command stays shorter while still working wherever a non-default port is bound.
+  const repositoryRoot =
+    `ssh://git@${meta.sshHost}${meta.sshPort === 22 ? '' : `:${meta.sshPort}`}/${courseKey ?? '<course-key>'}`;
 
   return (
     <Box sx={{ p: 4, maxWidth: 'md', mx: 'auto' }}>
