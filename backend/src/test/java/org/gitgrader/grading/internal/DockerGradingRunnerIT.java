@@ -171,8 +171,59 @@ class DockerGradingRunnerIT {
 			});
 			""";
 
+	// The shipped example suite is shim-only now: it always connects to the sandbox
+	// by importing the shim client, which a legacy round cannot satisfy. This suite
+	// exercises the runner's single-container branch with the same reference
+	// solution, importing the module from the workspace the way a pre-shim suite
+	// did, and keeps the "a runner that silently ran nothing would not pass" signal.
+	private static final String LEGACY_SUITE = """
+			import assert from 'node:assert/strict';
+			import test from 'node:test';
+			import { truncate, slugify, titleCase, wordCount, reverseWords, isPalindrome } from '/workspace/src/string-utils.js';
+
+			test('h01 truncate preserves text at the maximum length', () => {
+			  assert.equal(truncate('exact', 5), 'exact');
+			});
+
+			test('h02 truncate counts Unicode characters rather than UTF-16 units', () => {
+			  assert.equal(truncate('😀ab', 2), '😀a');
+			});
+
+			test('h03 slugify normalises accented letters', () => {
+			  assert.equal(slugify('Crème Brûlée'), 'creme-brulee');
+			});
+
+			test('h04 slugify collapses punctuation and whitespace', () => {
+			  assert.equal(slugify('Hello,   world!!!'), 'hello-world');
+			});
+
+			test('h05 titleCase capitalises hyphenated words', () => {
+			  assert.equal(titleCase('the quick-brown FOX'), 'The Quick-Brown Fox');
+			});
+
+			test('h06 wordCount returns zero for empty text', () => {
+			  assert.equal(wordCount(''), 0);
+			});
+
+			test('h07 wordCount accepts mixed whitespace', () => {
+			  assert.equal(wordCount('one\\t two\\nthree'), 3);
+			});
+
+			test('h08 reverseWords normalises repeated whitespace', () => {
+			  assert.equal(reverseWords('  one   two\\tthree  '), 'three two one');
+			});
+
+			test('h09 isPalindrome ignores case and punctuation', () => {
+			  assert.equal(isPalindrome('A man, a plan, a canal: Panama!'), true);
+			});
+
+			test('h10 isPalindrome rejects a non-palindrome', () => {
+			  assert.equal(isPalindrome('OpenAI'), false);
+			});
+			""";
+
 	@Test
-	@DisplayName("executes the hidden checks in a container and reports 7 of 10")
+	@DisplayName("executes a legacy single-container round and reports 7 of 10")
 	void gradesThePartialSolution(@TempDir Path tempDir) throws IOException, InterruptedException {
 		GradingProperties properties = properties();
 		DockerClient client = new DockerClientConfiguration().dockerClient(properties);
@@ -187,16 +238,20 @@ class DockerGradingRunnerIT {
 		copyDirectory(EXAMPLE.resolve("template"), workspace);
 		Files.copy(EXAMPLE.resolve("reference-solution/partial-70/string-utils.js"),
 				workspace.resolve("src/string-utils.js"), java.nio.file.StandardCopyOption.REPLACE_EXISTING);
-		// The container runs as an unprivileged user that is nobody in particular, so it
-		// can only read a workspace that is readable by everyone.
+		// The containers run as an unprivileged user that is nobody in particular, so
+		// they can only read a workspace that is readable by everyone.
 		makeWorldReadable(workspace);
+
+		Path suite = tempDir.resolve("suite");
+		Files.createDirectories(suite);
+		Files.writeString(suite.resolve("hidden.test.js"), LEGACY_SUITE);
 
 		GradingResult result = new DockerGradingRunner(client, properties, Clock.systemUTC(),
 				new StorageProperties("/data/git/repositories", "/data/templates", "/data/tests", "/data/artifacts",
 						"/data/tmp"),
 				(image) -> Optional.empty())
-			.execute(new GradingExecutionRequest(workspace, EXAMPLE.resolve("hidden-tests").toAbsolutePath(), IMAGE,
-					null, "node --test --test-reporter=tap /opt/hidden-tests/hidden.test.js", Duration.ofMinutes(3),
+			.execute(new GradingExecutionRequest(workspace, suite, IMAGE, null,
+					"node --test --test-reporter=tap /opt/hidden-tests/hidden.test.js", Duration.ofMinutes(3),
 					DataSize.ofMegabytes(512).toBytes(), 1.0, 256, false, DataSize.ofMegabytes(1).toBytes(), "corr-it",
 					Map.of()));
 
