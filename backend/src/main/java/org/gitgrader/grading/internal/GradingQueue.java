@@ -147,6 +147,25 @@ public class GradingQueue {
 	}
 
 	/**
+	 * Returns one job to the queue because its worker could not start it.
+	 *
+	 * <p>
+	 * Called when the executor pool rejects a claimed job at shutdown or saturation.
+	 * Without it the job stays {@code CLAIMED} until its lease runs out - fifteen minutes
+	 * by default - during which the student sees a stuck submission no worker will touch.
+	 * The attempt the claim consumed is refunded: failing to start is the platform's
+	 * doing, like an orderly shutdown, not a grading failure.
+	 * @param jobId the claimed job that never started
+	 * @param worker the worker that claimed it
+	 */
+	@Transactional
+	public void releaseClaim(UUID jobId, String worker) {
+		this.jobs.findById(jobId)
+			.filter((job) -> job.status() == GradingJobStatus.CLAIMED && worker.equals(job.claimedBy()))
+			.ifPresent((job) -> job.requeueAfterShutdown(this.clock));
+	}
+
+	/**
 	 * Loads a claimed job together with its run.
 	 * @param jobId the claimed job
 	 * @return the pair, or empty when either has disappeared

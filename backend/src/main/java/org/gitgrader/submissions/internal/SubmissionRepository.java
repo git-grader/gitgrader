@@ -120,10 +120,10 @@ public interface SubmissionRepository extends JpaRepository<Submission, UUID>, J
 	 * Reports whether this exact commit was already submitted to this repository.
 	 *
 	 * <p>
-	 * Answered from the leading columns of {@code submissions_unique_commit}, which is a
-	 * btree on (repository_id, commit_sha, received_at). That constraint does not prevent
-	 * a duplicate on its own, because it includes the receive time: the same commit
-	 * pushed twice a second apart produces two distinct keys.
+	 * Answered from the leading columns of {@code submissions_unique_commit}, a btree on
+	 * (repository_id, commit_sha) since V6. (The V1 baseline carried (repository_id,
+	 * commit_sha, received_at), which accepted the very duplicate it was named for; V6
+	 * narrowed it.)
 	 * @param repositoryId the repository pushed to
 	 * @param commitSha the commit at the branch tip
 	 * @return true when an earlier submission already recorded this commit

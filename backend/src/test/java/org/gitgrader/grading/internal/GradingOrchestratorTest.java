@@ -26,6 +26,8 @@ import java.util.UUID;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 
 import org.gitgrader.assignments.AssignmentCatalog;
+import org.gitgrader.assignments.AssignmentStatus;
+import org.gitgrader.assignments.AssignmentView;
 import org.gitgrader.audit.AuditService;
 import org.gitgrader.configuration.GradingProperties;
 import org.gitgrader.grading.domain.GradingJob;
@@ -68,6 +70,8 @@ class GradingOrchestratorTest {
 
 	private GradingJobRepository jobs;
 
+	private AssignmentCatalog assignments;
+
 	private SubmissionService submissions;
 
 	private GradingOrchestrator orchestrator;
@@ -76,6 +80,7 @@ class GradingOrchestratorTest {
 	void setUp() {
 		this.runs = mock(GradingRunRepository.class);
 		this.jobs = mock(GradingJobRepository.class);
+		this.assignments = mock(AssignmentCatalog.class);
 		this.submissions = mock(SubmissionService.class);
 		Clock clock = Clock.fixed(Instant.parse("2026-04-01T10:00:00Z"), ZoneOffset.UTC);
 
@@ -87,8 +92,15 @@ class GradingOrchestratorTest {
 				new GradingProperties.Queue(true, Duration.ofSeconds(2), Duration.ofMinutes(15), 3,
 						Duration.ofSeconds(30), 3, 500, 1000, Duration.ofSeconds(30)));
 
-		this.orchestrator = new GradingOrchestrator(this.runs, this.jobs, mock(AssignmentCatalog.class),
-				this.submissions, properties, mock(AuditService.class), new SimpleMeterRegistry(), clock);
+		this.orchestrator = new GradingOrchestrator(this.runs, this.jobs, this.assignments, this.submissions,
+				properties, mock(AuditService.class), new SimpleMeterRegistry(), clock);
+		when(this.assignments.findAssignment(ASSIGNMENT)).thenReturn(Optional.of(usableAssignment()));
+	}
+
+	private static AssignmentView usableAssignment() {
+		return new AssignmentView(ASSIGNMENT, COURSE, "a1", "Assignment 1", null, 0, AssignmentStatus.OPEN, true, null,
+				null, null, java.math.BigDecimal.TEN, 10, new java.math.BigDecimal("70"), true, null, UUID.randomUUID(),
+				UUID.randomUUID(), null, null, null, null, false);
 	}
 
 	@Test
@@ -152,6 +164,19 @@ class GradingOrchestratorTest {
 
 		assertThat(queued).isPresent();
 		verify(this.runs).save(any(GradingRun.class));
+	}
+
+	@Test
+	@DisplayName("refuses fast when the assignment has no usable runtime or test suite")
+	void refusesWhenAssignmentIsUnusable() {
+		when(this.assignments.findAssignment(ASSIGNMENT)).thenReturn(Optional.empty());
+
+		Optional<GradingRun> queued = this.orchestrator.enqueue(SUBMISSION, STUDENT, COURSE, ASSIGNMENT, "PUSH");
+
+		assertThat(queued).isEmpty();
+		verify(this.runs, never()).save(any());
+		verify(this.jobs, never()).save(any());
+		verify(this.submissions).markStatus(SUBMISSION, org.gitgrader.submissions.SubmissionStatus.CANCELLED);
 	}
 
 	private static SubmissionRecorded recorded() {

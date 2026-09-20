@@ -183,6 +183,10 @@ public class GradingJob {
 		return this.claimExpiresAt;
 	}
 
+	public @Nullable String claimedBy() {
+		return this.claimedBy;
+	}
+
 	public long leaseGeneration() {
 		return this.leaseGeneration;
 	}

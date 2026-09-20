@@ -117,3 +117,24 @@ export async function fetchApi<T>(path: string, options: RequestInit = {}): Prom
   const res = await fetch(path, { ...options, headers });
   return readBody<T>(res);
 }
+
+/**
+ * Downloads a non-JSON response (file export) with the same CSRF and
+ * problem-document handling as `fetchApi`.
+ *
+ * Report exports were fetched with a bare `fetch()`, so an expired session or
+ * a server error surfaced as an unhandled blob instead of an `ApiProblem` the
+ * caller can report. The path must already be encoded by the caller.
+ */
+export async function fetchBlob(path: string, options: RequestInit = {}): Promise<Blob> {
+  const headers = new Headers(options.headers || {});
+  if (METHODS_NEEDING_CSRF.has(options.method?.toUpperCase() || 'GET')) {
+    withCsrfToken(headers);
+  }
+
+  const res = await fetch(path, { ...options, headers });
+  if (!res.ok) {
+    throw await failureOf(res);
+  }
+  return res.blob();
+}

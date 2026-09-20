@@ -185,7 +185,24 @@ public class GradingDispatcher implements SmartLifecycle {
 			this.active.put(lease.jobId(), task);
 			this.workers.execute(task);
 		}
+		catch (java.util.concurrent.RejectedExecutionException ex) {
+			// The pool is shutting down or saturated: the batch was already
+			// claimed, so handing this lease straight back keeps it runnable on
+			// the next tick instead of stranded CLAIMED until the 15-minute
+			// lease expires. Swallowed rather than rethrown so the remaining
+			// leases in the batch still get their own attempt below.
+			this.active.remove(lease.jobId());
+			this.inFlight.decrementAndGet();
+			try {
+				this.queue.releaseClaim(lease.jobId(), lease.worker());
+			}
+			catch (RuntimeException releaseFailure) {
+				logger.warn("Could not return rejected grading job {} to the queue", lease.jobId(), releaseFailure);
+			}
+			logger.info("Grading pool rejected job {}; returned it to the queue", lease.jobId());
+		}
 		catch (RuntimeException ex) {
+			this.active.remove(lease.jobId());
 			this.inFlight.decrementAndGet();
 			throw ex;
 		}

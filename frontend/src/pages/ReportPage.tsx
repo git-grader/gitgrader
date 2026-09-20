@@ -5,6 +5,7 @@ import { useState } from 'react';
 import { useParams } from 'react-router';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '../api';
+import { ApiProblem, fetchBlob } from '../api/client';
 import { queryKeys } from '../api/queryKeys';
 import { QueryErrorNotice } from '../components/QueryErrorNotice';
 import { Alert, Box, Typography, CircularProgress, Button, Paper, Stack } from '@mui/material';
@@ -72,12 +73,9 @@ export function ReportPage() {
     setExporting(format);
     setExportError(null);
     try {
-      const response = await fetch(`/api/v1/reports/courses/${courseId ?? ''}/export?format=${format}`);
-      if (!response.ok) {
-        setExportError(`The ${format.toUpperCase()} export failed (${String(response.status)}).`);
-        return;
-      }
-      const blob = await response.blob();
+      const blob = await fetchBlob(
+        `/api/v1/reports/courses/${encodeURIComponent(courseId ?? '')}/export?format=${encodeURIComponent(format)}`
+      );
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
@@ -87,8 +85,13 @@ export function ReportPage() {
       link.remove();
       URL.revokeObjectURL(url);
     }
-    catch {
-      setExportError('The export could not be downloaded. Check your connection and try again.');
+    catch (err) {
+      if (err instanceof ApiProblem) {
+        setExportError(`The ${format.toUpperCase()} export failed (${String(err.status)}).`);
+      }
+      else {
+        setExportError('The export could not be downloaded. Check your connection and try again.');
+      }
     }
     finally {
       setExporting(null);

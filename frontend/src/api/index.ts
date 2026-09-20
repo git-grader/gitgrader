@@ -597,7 +597,8 @@ export const api = {
   regradeSubmission: (id: string) =>
     sendJson('POST', `/api/v1/submissions/${encodeURIComponent(id)}/regrade`, undefined, RegradeAcceptedSchema),
 
-  getCourseReport: (courseId: string) => readJson(`/api/v1/reports/courses/${courseId}`, CourseReportSchema),
+  getCourseReport: (courseId: string) =>
+    readJson(`/api/v1/reports/courses/${encodeURIComponent(courseId)}`, CourseReportSchema),
 
   getCourses: (params?: Record<string, string>) => readJson(`/api/v1/courses${queryString(params)}`, CoursePageSchema),
   getCourse: (id: string) => readJson(`/api/v1/courses/${id}`, CourseViewSchema),
