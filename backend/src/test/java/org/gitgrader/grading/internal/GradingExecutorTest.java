@@ -239,6 +239,41 @@ class GradingExecutorTest {
 		assertThat(request.getValue().timeout()).isEqualTo(Duration.ofSeconds(300));
 	}
 
+	@Test
+	@DisplayName("forwards the runtime shim topology to the runner request")
+	void forwardsTheRuntimeShimTopology() throws Exception {
+		// A shimmed runtime grades in two containers, so buildRequest requires the suite
+		// to carry the harness that reaches the submission over the protocol.
+		Files.writeString(this.hiddenTests.resolve("harness.js"),
+				"import { createShimClient } from '/opt/gitgrader-shim/client.js';\n");
+		when(this.plans.resolve(any()))
+			.thenReturn(planWithShimRuntime("node-ipc", "node /opt/gitgrader-shim/server.js"));
+		when(this.runner.execute(any())).thenReturn(new GradingResult(0, "", "", 10, false, false, null));
+		when(this.reportParser.parse(any(), any(), any())).thenReturn(List.of());
+
+		this.executor.execute(this.run);
+
+		ArgumentCaptor<GradingExecutionRequest> request = ArgumentCaptor.forClass(GradingExecutionRequest.class);
+		verify(this.runner).execute(request.capture());
+		assertThat(request.getValue().shimKind()).isEqualTo("node-ipc");
+		assertThat(request.getValue().shimCommand()).isEqualTo("node /opt/gitgrader-shim/server.js");
+	}
+
+	@Test
+	@DisplayName("refuses to grade a shimmed run whose suite never connects to the sandbox")
+	void refusesAShimmedRunWithoutTheShimHarness() {
+		when(this.plans.resolve(any())).thenReturn(planWithShimRuntime("node-ipc", null));
+		// No hidden.test.js or other script references createShimClient in the fixture
+		// suite, so the suite could never reach the submission in two containers; every
+		// check would fail with a connection error before testing anything.
+		when(this.runner.execute(any())).thenReturn(new GradingResult(0, "", "", 10, false, false, null));
+
+		assertThatExceptionOfType(IllegalStateException.class).isThrownBy(() -> this.executor.execute(this.run))
+			.withMessageContaining("createShimClient");
+
+		verify(this.workspaces).discard(WORKSPACE);
+	}
+
 	private GradingPlan planWithTimeout(int timeoutSeconds) {
 		GradingPlan base = plan();
 		AssignmentView a = base.assignment();
@@ -248,6 +283,17 @@ class GradingExecutorTest {
 				a.testSuiteVersionId(), a.runtimeId(), timeoutSeconds, a.memoryLimitBytes(), a.cpuLimit(), a.pidLimit(),
 				a.networkEnabled());
 		return new GradingPlan(base.submission(), base.repositoryPath(), withTimeout, base.runtime(),
+				base.hiddenTests());
+	}
+
+	private GradingPlan planWithShimRuntime(String shimKind, String shimCommand) {
+		GradingPlan base = plan();
+		RuntimeView withShim = new RuntimeView(base.runtime().id(), base.runtime().runtimeKey(),
+				base.runtime().displayName(), base.runtime().image(), base.runtime().tag(),
+				base.runtime().imageDigest(), base.runtime().installCommand(), base.runtime().testCommand(),
+				base.runtime().reportFormat(), base.runtime().enabled(), base.runtime().createdAt(),
+				base.runtime().updatedAt(), shimKind, shimCommand);
+		return new GradingPlan(base.submission(), base.repositoryPath(), base.assignment(), withShim,
 				base.hiddenTests());
 	}
 
@@ -263,7 +309,8 @@ class GradingExecutorTest {
 				false);
 		RuntimeView runtime = new RuntimeView(UUID.randomUUID(), "node-24", "Node.js 24",
 				"registry.example.org/runtime-node", "24.13.0", "sha256:" + "a".repeat(64), "npm ci", "npm test",
-				ReportFormat.TAP, true, Instant.parse("2026-01-01T00:00:00Z"), Instant.parse("2026-01-01T00:00:00Z"));
+				ReportFormat.TAP, true, Instant.parse("2026-01-01T00:00:00Z"), Instant.parse("2026-01-01T00:00:00Z"),
+				null, null);
 		return new GradingPlan(submission, "course-a/assignment-01/12345", assignment, runtime, this.hiddenTests);
 	}
 

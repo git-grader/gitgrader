@@ -219,6 +219,7 @@ docker compose -f compose.yaml -f compose.dev.yaml exec -T database psql -U gitg
 | Instead you saw | It means |
 |---|---|
 | `INFRASTRUCTURE_ERROR`, log says `No such image` | the runtime image was never pulled (step 1) |
+| `INFRASTRUCTURE_ERROR`, log says the suite "never connects to the sandbox" | the suite was graded without the shim harness, or the runtime lost its `shim_kind`; the submission is left ungraded, which is correct rather than a 0 |
 | `INFRASTRUCTURE_ERROR`, "not visible inside the sandbox" | the daemon cannot resolve the mount roots (preconditions) |
 | `COMPLETED` but `0/10` | on a build before the mount probe existed, the same mount problem |
 | any other score | a real grading regression |
@@ -265,7 +266,7 @@ rows naming a *category* and a *hint*.
 instructor-only field:
 
 ```sh
-curl -s http://localhost:8080/api/v1/results/<token> | grep -ciE 'h0[0-9]|hidden\.test|assert'
+curl -s http://localhost:8080/api/v1/results/<token> | grep -ciE 'h0[0-9]|hidden\.test|assert|shim|runner\.sock|/opt/'
 ```
 
 **Expect** `0`, and the response headers to carry `Referrer-Policy: no-referrer`,
@@ -314,11 +315,11 @@ docker volume ls | grep gitgrader
 ## What this run has proven
 
 Signed-push admission and each of its refusals; registration validation, enrolment and
-repository provisioning; hidden tests reaching the sandbox and never the student; grading
-in a throwaway container with the documented score; the submission record keeping the
-signing key and the real ref; instructor authentication, authorisation and the admin
-boundary; the token-only result page with its headers; and that a restart changes neither
-the host key nor the data.
+repository provisioning; a grading run split across a sandbox container and a suite
+container where the hidden tests reach only the suite and never the sandbox; the
+submission record keeping the signing key and the real ref; instructor authentication,
+authorisation and the admin boundary; the token-only result page with its headers; and
+that a restart changes neither the host key nor the data.
 
 It does not cover: LDAP over TLS (the demo directory is plaintext on purpose), a restore
 onto a running instance, upgrades across versions, or more than one grading worker under

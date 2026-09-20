@@ -105,7 +105,9 @@ Open the printed link. It needs no sign-in: the token in the URL is the credenti
 Expect **7 of 10 passed** and **70.0 %**. Failing checks show their category and a
 hint, never the name of the hidden check or the assertion it failed on.
 
-Grading runs in a container, so allow a few seconds. To watch it:
+Grading runs in two throwaway containers, so allow a few seconds: a suite container drives
+the hidden checks over the shared shim socket while a sandbox container holds your
+submission and never sees the hidden sources. To watch it:
 
 ```sh
 docker compose -f compose.yaml -f compose.dev.yaml exec -T database \

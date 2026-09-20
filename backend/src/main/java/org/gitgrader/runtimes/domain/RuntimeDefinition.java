@@ -79,6 +79,12 @@ public class RuntimeDefinition {
 	@Column(nullable = false)
 	private boolean enabled;
 
+	@Column(name = "shim_kind")
+	private @Nullable String shimKind;
+
+	@Column(name = "shim_command")
+	private @Nullable String shimCommand;
+
 	@Column(name = "created_at", nullable = false)
 	private Instant createdAt;
 
@@ -130,7 +136,8 @@ public class RuntimeDefinition {
 	 */
 	public RuntimeView toView() {
 		return new RuntimeView(this.id, this.runtimeKey, this.displayName, this.image, this.tag, this.imageDigest,
-				this.installCommand, this.testCommand, this.reportFormat, this.enabled, this.createdAt, this.updatedAt);
+				this.installCommand, this.testCommand, this.reportFormat, this.enabled, this.createdAt, this.updatedAt,
+				this.shimKind, this.shimCommand);
 	}
 
 	private void apply(NewRuntime definition, Instant updatedAt) {
@@ -143,6 +150,8 @@ public class RuntimeDefinition {
 		this.testCommand = definition.testCommand();
 		this.reportFormat = definition.reportFormat();
 		this.enabled = definition.enabled();
+		this.shimKind = definition.shimKind();
+		this.shimCommand = definition.shimCommand();
 		this.updatedAt = updatedAt;
 	}
 

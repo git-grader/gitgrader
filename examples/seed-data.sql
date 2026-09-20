@@ -9,16 +9,16 @@ INSERT INTO course_classes (id, course_id, class_key, name, created_at, updated_
 VALUES ('10000000-0000-4000-8000-000000000002', '10000000-0000-4000-8000-000000000001', 'main', 'Main class', now(), now())
 ON CONFLICT DO NOTHING;
 
-INSERT INTO runtimes (id, runtime_key, display_name, image, tag, image_digest, install_command, test_command, report_format, enabled, created_at, updated_at)
-VALUES ('10000000-0000-4000-8000-000000000003', 'node-24', 'Node.js 24', 'node', '24-bookworm-slim', 'sha256:2fe369e969550cde8e867afc3fe370b260140cab4a23d467074295b42163d553', 'npm ci --ignore-scripts', 'node --test --test-reporter=tap /opt/hidden-tests/hidden.test.js', 'TAP', TRUE, now(), now())
+INSERT INTO runtimes (id, runtime_key, display_name, image, tag, image_digest, install_command, test_command, report_format, enabled, shim_kind, created_at, updated_at)
+VALUES ('10000000-0000-4000-8000-000000000003', 'node-24', 'Node.js 24', 'node', '24-bookworm-slim', 'sha256:2fe369e969550cde8e867afc3fe370b260140cab4a23d467074295b42163d553', 'npm ci --ignore-scripts', 'node --test --test-reporter=tap /opt/hidden-tests/hidden.test.js', 'TAP', TRUE, 'node-ipc', now(), now())
 ON CONFLICT DO NOTHING;
 
-INSERT INTO runtimes (id, runtime_key, display_name, image, tag, image_digest, install_command, test_command, report_format, enabled, created_at, updated_at)
-VALUES ('10000000-0000-4000-8000-000000000013', 'node-22', 'Node.js 22', 'node', '22-bookworm-slim', 'sha256:48e4b67d85f87bd551df43704e24d252f56cc5f8e9718841aace50f19948f0f9', 'npm ci --ignore-scripts', 'node --test --test-reporter=tap /opt/hidden-tests/hidden.test.js', 'TAP', TRUE, now(), now())
+INSERT INTO runtimes (id, runtime_key, display_name, image, tag, image_digest, install_command, test_command, report_format, enabled, shim_kind, created_at, updated_at)
+VALUES ('10000000-0000-4000-8000-000000000013', 'node-22', 'Node.js 22', 'node', '22-bookworm-slim', 'sha256:48e4b67d85f87bd551df43704e24d252f56cc5f8e9718841aace50f19948f0f9', 'npm ci --ignore-scripts', 'node --test --test-reporter=tap /opt/hidden-tests/hidden.test.js', 'TAP', TRUE, 'node-ipc', now(), now())
 ON CONFLICT DO NOTHING;
 
-INSERT INTO runtimes (id, runtime_key, display_name, image, tag, image_digest, install_command, test_command, report_format, enabled, created_at, updated_at)
-VALUES ('10000000-0000-4000-8000-000000000014', 'node-26', 'Node.js 26', 'node', '26-bookworm-slim', 'sha256:582460f614631b59b824ac6020533b9bf339c7fdf3a6d7db31abb6b4065f0212', 'npm ci --ignore-scripts', 'node --test --test-reporter=tap /opt/hidden-tests/hidden.test.js', 'TAP', TRUE, now(), now())
+INSERT INTO runtimes (id, runtime_key, display_name, image, tag, image_digest, install_command, test_command, report_format, enabled, shim_kind, created_at, updated_at)
+VALUES ('10000000-0000-4000-8000-000000000014', 'node-26', 'Node.js 26', 'node', '26-bookworm-slim', 'sha256:582460f614631b59b824ac6020533b9bf339c7fdf3a6d7db31abb6b4065f0212', 'npm ci --ignore-scripts', 'node --test --test-reporter=tap /opt/hidden-tests/hidden.test.js', 'TAP', TRUE, 'node-ipc', now(), now())
 ON CONFLICT DO NOTHING;
 
 INSERT INTO project_templates (id, template_key, name, description, created_at, updated_at)

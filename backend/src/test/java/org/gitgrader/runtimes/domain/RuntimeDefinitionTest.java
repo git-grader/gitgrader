@@ -55,7 +55,7 @@ class RuntimeDefinitionTest {
 
 	private static RuntimeDefinition runtime(String tag, String digest) {
 		return new RuntimeDefinition(new NewRuntime("java-25", "Java 25", "ghcr.io/git-grader/java", tag, digest, null,
-				"./mvnw test", ReportFormat.JUNIT_XML, true), CLOCK);
+				"./mvnw test", ReportFormat.JUNIT_XML, true, null, null), CLOCK);
 	}
 
 }

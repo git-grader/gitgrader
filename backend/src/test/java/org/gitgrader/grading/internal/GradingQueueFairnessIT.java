@@ -410,9 +410,9 @@ class GradingQueueFairnessIT {
 	private AssignmentView createAssignment(String key) throws IOException {
 		String templateKey = unique("tpl");
 		String suiteKey = unique("suite");
-		RuntimeView runtime = this.runtimes
-			.create(new NewRuntime(unique("rt"), "Node.js 24", "registry.example.org/gitgrader/runtime-node", "24.13.0",
-					"sha256:" + "a".repeat(64), "npm ci", "npm test", org.gitgrader.runtimes.ReportFormat.TAP, true));
+		RuntimeView runtime = this.runtimes.create(new NewRuntime(unique("rt"), "Node.js 24",
+				"registry.example.org/gitgrader/runtime-node", "24.13.0", "sha256:" + "a".repeat(64), "npm ci",
+				"npm test", org.gitgrader.runtimes.ReportFormat.TAP, true, null, null));
 		writeContent(templateKey, suiteKey);
 
 		UUID templateId = this.templates.createTemplate(templateKey, "Template", null);

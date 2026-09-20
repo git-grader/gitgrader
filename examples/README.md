@@ -21,16 +21,11 @@ This is a hard security boundary: once a test input or assertion reaches a
 student clone, it can no longer be used to independently assess that student's
 submission.
 
-At grading time, the runner copies the submitted repository to `/workspace`;
-it then mounts the operator-owned test-suite read-only at `/opt/hidden-tests`.
-The mount is deliberately outside `/workspace`: a student path traversal cannot
-discover the suite through the repository tree. The runner provides
-`SOLUTION_PATH=/workspace/src/string-utils.js` and executes:
-
-```sh
-node --test --test-reporter=tap /opt/hidden-tests/hidden.test.js
-```
-
+At grading time, a shimmed round splits the suite and the submission across two
+containers: the sandbox (S) container copies the submitted repository to
+`/workspace` and starts the shared Node shim server; the suite (T) container
+mounts the operator-owned test-suite read-only at `/opt/hidden-tests`. S never
+sees the suite; only the shared shim socket at `/gitgrader-shim` connects them.
 GitGrader standardises this example on Node's **TAP** reporter. The grader joins
 the TAP subtest names exactly to the operator manifest, then presents only its
 sanitised categories and hints to students.
@@ -39,16 +34,16 @@ sanitised categories and hints to students.
 
 The score formula is `passed / total * 100`. All ten checks carry weight one,
 so seven passing checks produce `7 / 10 * 100 = 70.0 %`. Run the proof from the
-repository root:
+repository root (it needs Docker, and pulls the pinned runtime digest on first
+use):
 
 ```sh
-export PATH="$HOME/.nvm/versions/node/v22.23.1/bin:$PATH"
 ./examples/verify-example.sh
 ```
 
-The script runs the operator suite against the complete implementation and the
-intentional 70% implementation, checks TAP-to-manifest names, and rejects any
-result other than 10/10 and 7/10 respectively.
+The script grades the complete implementation and the intentional 70%
+implementation through the two-container shimmed path, checks TAP-to-manifest
+names, and rejects any result other than 10/10 and 7/10 respectively.
 
 ## Add an assignment
 

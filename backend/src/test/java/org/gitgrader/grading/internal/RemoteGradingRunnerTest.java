@@ -33,6 +33,7 @@ import org.springframework.util.unit.DataSize;
 import org.springframework.web.client.RestClient;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.springframework.test.web.client.match.MockRestRequestMatchers.content;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.header;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.method;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.requestTo;
@@ -54,6 +55,11 @@ class RemoteGradingRunnerTest {
 		server.expect(requestTo("http://runner:8080/internal/grading/runs"))
 			.andExpect(method(org.springframework.http.HttpMethod.POST))
 			.andExpect(header(GradingRunnerApiController.SECRET_HEADER, SECRET))
+			// The shim topology is part of the request contract: a shimmed runtime must
+			// reach the runner service still shimmed, or the remote deployment would
+			// silently grade the submission and the suite in one shared process.
+			.andExpect(content().json("{\"shimKind\":\"node-ipc\"}"))
+			.andExpect(content().json("{\"shimCommand\":\"node /opt/gitgrader-shim/server.js\"}"))
 			.andRespond(withSuccess("""
 					{"exitCode":0,"stdout":"1..1\\nok 1 adds","stderr":"","durationMillis":42,
 					 "timedOut":false,"infrastructureFailure":false,"failureDetail":null}
@@ -89,7 +95,7 @@ class RemoteGradingRunnerTest {
 	private static GradingExecutionRequest request() {
 		return new GradingExecutionRequest(Path.of("/data/grading/run-1"), Path.of("/data/tests/suite"), "sha256:abc",
 				null, "npm test", Duration.ofSeconds(60), DataSize.ofMegabytes(256).toBytes(), 1.0, 128, false,
-				DataSize.ofKilobytes(512).toBytes(), "cid", Map.of());
+				DataSize.ofKilobytes(512).toBytes(), "cid", Map.of(), "node-ipc", "node /opt/gitgrader-shim/server.js");
 	}
 
 	private static GradingProperties properties() {

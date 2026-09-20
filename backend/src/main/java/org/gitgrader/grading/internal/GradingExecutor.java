@@ -17,6 +17,7 @@
 package org.gitgrader.grading.internal;
 
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Clock;
@@ -253,9 +254,25 @@ public class GradingExecutor {
 		int pids = (pidOverride != null) ? pidOverride : this.properties.defaultPidLimit();
 		boolean network = this.properties.networkEnabled() && assignment.networkEnabled();
 
+		// A shimmed runtime splits the submission and the suite into two containers, so
+		// the suite must reach the sandbox over the grading protocol to load the module
+		// at all. A suite that never connects would fail every check with a
+		// connection error before it can test anything, which is not a defensible grade;
+		// refusing is the same rule the rest of the module follows for a missing
+		// manifest, an infrastructure error rather than a mark.
+		String shimKind = runtime.shimKind();
+		if (shimKind != null && !shimKind.isBlank() && !hasShimHarness(hiddenTests)) {
+			throw new IllegalStateException("The runtime '" + runtime.runtimeKey() + "' is shimmed but the hidden "
+					+ "test suite at " + hiddenTests
+					+ " never connects to the sandbox. A suite graded in two containers must import the shim "
+					+ "client (createShimClient) from /opt/gitgrader-shim/client.js; without it no check could "
+					+ "reach the submission.");
+		}
+
 		return new GradingExecutionRequest(workspace, hiddenTests, runtime.pinnedReference(), runtime.installCommand(),
 				runtime.testCommand(), timeout, memory, cpu, pids, network, this.properties.logSizeLimit().toBytes(),
-				run.correlationId(), Map.of("HIDDEN_TESTS", HIDDEN_TESTS_MOUNT));
+				run.correlationId(), Map.of("HIDDEN_TESTS", HIDDEN_TESTS_MOUNT), runtime.shimKind(),
+				runtime.shimCommand());
 	}
 
 	/**
@@ -294,6 +311,45 @@ public class GradingExecutor {
 					+ " declares no tests, so nothing could be scored against it.");
 		}
 		return parsed;
+	}
+
+	/**
+	 * Whether the hidden suite can reach the sandbox over the grading protocol.
+	 *
+	 * <p>
+	 * The shim harness is the suite's connection to the submission: it imports the shim
+	 * client and awaits its proxy. Requiring the marker to be present is what stops a
+	 * shimmed runtime from silently regressing to grading in one shared process, where
+	 * the submission could once again read the hidden sources (issue #40). The marker is
+	 * deliberately the same reference a working suite has to write, so the rule is a
+	 * guard, not a parallel contract.
+	 * @param hiddenTests the mounted hidden suite directory
+	 * @return whether some script in the suite references the shim client
+	 */
+	private static boolean hasShimHarness(Path hiddenTests) {
+		try (var scripts = Files.walk(hiddenTests)) {
+			return scripts.filter(Files::isRegularFile).filter(path -> {
+				Path fileName = path.getFileName();
+				if (fileName == null) {
+					return false;
+				}
+				String name = fileName.toString();
+				return name.endsWith(".js") || name.endsWith(".cjs") || name.endsWith(".mjs");
+			}).anyMatch(GradingExecutor::referencesShimClient);
+		}
+		catch (IOException ex) {
+			// An unreadable suite is no harness; the refusal below explains itself.
+			return false;
+		}
+	}
+
+	private static boolean referencesShimClient(Path script) {
+		try {
+			return Files.readString(script, StandardCharsets.UTF_8).contains("createShimClient");
+		}
+		catch (IOException ex) {
+			return false;
+		}
 	}
 
 	private static TestResultRecord toRecord(GradingRun run, ParsedResult parsed, int order) {

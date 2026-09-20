@@ -36,10 +36,14 @@ import org.jspecify.annotations.Nullable;
  * @param enabled whether assignments may select the runtime
  * @param createdAt creation timestamp
  * @param updatedAt last update timestamp
+ * @param shimKind topology key that splits a run into a sandbox and a suite bound by the
+ * grading runtime protocol, or {@code null} for the legacy single-container run
+ * @param shimCommand command that starts the per-runtime shim server inside the sandbox,
+ * or {@code null} to use the runtime image's canonical one
  */
 public record RuntimeView(UUID id, String runtimeKey, String displayName, String image, String tag, String imageDigest,
 		@Nullable String installCommand, String testCommand, ReportFormat reportFormat, boolean enabled,
-		Instant createdAt, Instant updatedAt) {
+		Instant createdAt, Instant updatedAt, @Nullable String shimKind, @Nullable String shimCommand) {
 
 	/**
 	 * Returns the only image reference safe to execute.
