@@ -513,10 +513,13 @@ export const api = {
   getCourse: (id: string) => readJson(`/api/v1/courses/${id}`, CourseViewSchema),
   createCourse: (req: CourseDefinition) => sendJson('POST', '/api/v1/courses', req, CourseViewSchema),
   updateCourse: (id: string, req: CourseDefinition) => sendJson('PUT', `/api/v1/courses/${id}`, req, CourseViewSchema),
+  deleteCourse: (id: string) => fetchApi(`/api/v1/courses/${id}`, { method: 'DELETE' }).then(() => undefined),
   getCourseClasses: (id: string) => readJson(`/api/v1/courses/${id}/classes`, z.array(ClassSchema)),
   createClass: (id: string, req: ClassDefinition) => sendJson('POST', `/api/v1/courses/${id}/classes`, req, ClassSchema),
   updateClass: (id: string, classId: string, req: ClassDefinition) =>
     sendJson('PUT', `/api/v1/courses/${id}/classes/${classId}`, req, ClassSchema),
+  deleteClass: (id: string, classId: string) =>
+    fetchApi(`/api/v1/courses/${id}/classes/${classId}`, { method: 'DELETE' }).then(() => undefined),
 
   getTemplates: (params?: Record<string, string>) =>
     readJson(`/api/v1/templates${queryString(params)}`, TemplatePageSchema),

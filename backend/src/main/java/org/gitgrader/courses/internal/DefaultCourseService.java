@@ -114,6 +114,14 @@ public class DefaultCourseService implements CourseCatalog, CourseAdministration
 	}
 
 	@Override
+	public void deleteCourse(UUID id) {
+		if (!this.courses.existsById(id)) {
+			throw new EntityNotFoundException("Course not found: " + id);
+		}
+		this.courses.deleteById(id);
+	}
+
+	@Override
 	public CourseClassView createClass(UUID courseId, String classKey, String name) {
 		requireCourse(courseId);
 		return this.classes.save(new CourseClass(courseId, classKey, name, this.clock)).toView();
@@ -131,6 +139,16 @@ public class DefaultCourseService implements CourseCatalog, CourseAdministration
 		}
 		courseClass.update(classKey, name, this.clock);
 		return this.classes.save(courseClass).toView();
+	}
+
+	@Override
+	public void deleteClass(UUID courseId, UUID classId) {
+		CourseClass courseClass = this.classes.findById(classId)
+			.orElseThrow(() -> new EntityNotFoundException("Course class not found: " + classId));
+		if (!courseClass.courseId().equals(courseId)) {
+			throw new EntityNotFoundException("Course class not found: " + classId);
+		}
+		this.classes.delete(courseClass);
 	}
 
 	@Override

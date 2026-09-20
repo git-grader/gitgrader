@@ -38,6 +38,9 @@ public interface CourseAdministration {
 	 */
 	CourseView update(UUID id, CourseDefinition definition);
 
+	/** Deletes a course when its dependent records permit deletion. */
+	void deleteCourse(UUID id);
+
 	/**
 	 * Adds a class to a course.
 	 * @param courseId course identifier
@@ -56,6 +59,9 @@ public interface CourseAdministration {
 	 * @return updated class
 	 */
 	CourseClassView updateClass(UUID courseId, UUID classId, String classKey, String name);
+
+	/** Deletes a class belonging to the course. */
+	void deleteClass(UUID courseId, UUID classId);
 
 	/**
 	 * Enrolls one student once in a course and optional class.

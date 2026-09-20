@@ -34,6 +34,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
@@ -80,6 +81,12 @@ public class CourseController {
 		return this.administration.update(id, definition);
 	}
 
+	@DeleteMapping("/{id}")
+	@ResponseStatus(HttpStatus.NO_CONTENT)
+	public void delete(@PathVariable UUID id) {
+		this.administration.deleteCourse(id);
+	}
+
 	@GetMapping("/{id}")
 	public CourseView detail(@PathVariable UUID id) {
 		return this.catalog.findCourse(id).orElseThrow(() -> new EntityNotFoundException("Course not found"));
@@ -107,6 +114,12 @@ public class CourseController {
 	public CourseClassView updateClass(@PathVariable UUID id, @PathVariable UUID classId,
 			@Valid @RequestBody ClassRequest request) {
 		return this.administration.updateClass(id, classId, request.classKey(), request.name());
+	}
+
+	@DeleteMapping("/{id}/classes/{classId}")
+	@ResponseStatus(HttpStatus.NO_CONTENT)
+	public void deleteClass(@PathVariable UUID id, @PathVariable UUID classId) {
+		this.administration.deleteClass(id, classId);
 	}
 
 	/** Course class creation request. */
