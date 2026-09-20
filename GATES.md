@@ -259,7 +259,10 @@ Decisions locked before Phase 1 (per the plan's "Decide before any coding"):
     vitest + coverage, license, checkstyle, PMD/CPD, SpotBugs, forbiddenapis and
     unit tests all green. Run recorded at the Phase 4 commit; the first attempt
     had to be re-run for a SpotBugs finding and a transient frontend-lint
-    node_modules race, see the deviations below.
+    node_modules race, see the deviations below. Final proof with a Docker
+    engine present: BUILD SUCCESS (03:41) with all 50 integration tests
+    executed, 0 skipped, including `DockerGradingRunnerIT` 4/4 — the run that
+    surfaced the stale legacy IT fixed and recorded in the deviations.
 
 ## Phase 4 — guarantee and docs
 
@@ -292,9 +295,12 @@ Decisions locked before Phase 1 (per the plan's "Decide before any coding"):
 - [x] P4-G4: full verify still green and the issue is closed.
   - CHECK: `./mvnw -B -Plicense clean verify` BUILD SUCCESS; issue #40 closed
     with the plan-comment referenced.
-  - EVIDENCE: `./mvnw -B -Plicense clean verify` BUILD SUCCESS (02:24, same run as
-    P3-G6); issue #40 closure status recorded on the tracker after push with
-    this plan referenced.
+  - EVIDENCE: `./mvnw -B -Plicense clean verify` BUILD SUCCESS (03:41, Docker
+    engine present: 396 unit + 50 integration tests, 0 skipped, shim 10/10);
+    issue #40 closure status recorded on the tracker after push with this plan
+    referenced. The original tracker was deleted when the repository was
+    recreated; the web link in this file no longer resolves, so closure is
+    recorded here in the plan instead.
 
 ## Issue #40 acceptance criteria
 
@@ -324,6 +330,17 @@ Decisions locked before Phase 1 (per the plan's "Decide before any coding"):
   paragraph no longer says the split "is not done". Both are now qualified as
   legacy single-container behaviour, with the shimmed two-container behaviour
   stated as the stronger property.
+- The first Docker-enabled `clean verify` failed on exactly what P3-G6 exists to
+  catch: `DockerGradingRunnerIT.gradesThePartialSolution`, the pre-shim legacy
+  IT, still graded `examples/.../hidden-tests` through the single-container path
+  against the plain `node` image. After P3-G4 migrated the example suite to
+  import the shim client at `/opt/gitgrader-shim/client.js`, that run died with
+  `ERR_MODULE_NOT_FOUND`. The test now writes its own non-shim `LEGACY_SUITE`
+  (importing the module from `/workspace`), so the single-container branch keeps
+  live-Docker coverage without claiming the shim-only example still runs in one
+  container; the two-container and hostile-submission ITs exercise the shipped
+  topology. `./mvnw -B -Plicense clean verify` with Docker present is green
+  (50 ITs, 0 skipped) after the fix.
 
 ## Abandoned
 
