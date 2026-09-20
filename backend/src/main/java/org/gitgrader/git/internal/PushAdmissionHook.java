@@ -173,6 +173,32 @@ public class PushAdmissionHook {
 				// Recording the submission rolled back, so the ref must not move either.
 				// The audit entry survives: it is written in its own transaction.
 				reject(pack, entry.getKey(), student, repository, ex.getMessage());
+				rejectNotAttemptedAfter(pack, verdicts, entry.getKey(), student, repository, ex.getMessage());
+				return;
+			}
+		}
+	}
+
+	/**
+	 * Rejects every ref after a refused one without attempting it.
+	 *
+	 * <p>
+	 * Refs already recorded earlier in this push will land, but no later ref is attempted
+	 * once one is refused. Letting later refs succeed after an earlier refusal would
+	 * produce a push the client sees as failed yet partially graded, with no way to tell
+	 * which refs landed from the feedback alone.
+	 */
+	private void rejectNotAttemptedAfter(ReceivePack pack, Map<ReceiveCommand, PushVerdict> verdicts,
+			ReceiveCommand failed, AuthenticatedStudent student, RepositoryRecord repository, String reason) {
+		boolean seenFailed = false;
+		for (ReceiveCommand command : verdicts.keySet()) {
+			if (command == failed) {
+				seenFailed = true;
+				continue;
+			}
+			if (seenFailed && command.getResult() == ReceiveCommand.Result.NOT_ATTEMPTED) {
+				reject(pack, command, student, repository,
+						"Not attempted: an earlier ref in this push was refused (" + reason + ").");
 			}
 		}
 	}

@@ -489,7 +489,7 @@
           </execution>
         </executions>
         <configuration>
-          <dotGitDirectory>${project.basedir}/.git</dotGitDirectory>
+          <dotGitDirectory>${maven.multiModuleProjectDirectory}/.git</dotGitDirectory>
           <generateGitPropertiesFile>true</generateGitPropertiesFile>
           <generateGitPropertiesFilename>${project.build.outputDirectory}/git.properties</generateGitPropertiesFilename>
           <abbrevLength>7</abbrevLength>
@@ -888,7 +888,8 @@
       <id>frontend</id>
       <activation>
         <property>
-          <name>!skipFrontend</name>
+          <name>skipFrontend</name>
+          <value>!true</value>
         </property>
       </activation>
       <build>

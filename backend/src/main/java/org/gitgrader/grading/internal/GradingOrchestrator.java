@@ -191,11 +191,22 @@ public class GradingOrchestrator {
 		}
 
 		Optional<AssignmentView> assignment = this.assignments.findAssignment(assignmentId);
+		if (assignment.isEmpty() || assignment.get().runtimeId() == null
+				|| assignment.get().testSuiteVersionId() == null) {
+			// Refuse fast: without a runtime and a published suite there is nothing
+			// a sandbox could run. Queueing anyway burns maxAttempts worker cycles
+			// through GradingPlanResolver failures before the submission lands in
+			// INFRASTRUCTURE_ERROR. The submission stays CANCELLED so a later
+			// regrade after the assignment is fixed can still queue fresh work.
+			this.submissions.markStatus(submissionId, SubmissionStatus.CANCELLED);
+			logger.warn("Refused to queue submission {}: assignment {} has no usable runtime/published test suite",
+					submissionId, assignmentId);
+			return Optional.empty();
+		}
 		String correlationId = UUID.randomUUID().toString();
 
 		GradingRun run = this.runs.save(new GradingRun(submissionId, this.runs.nextAttempt(submissionId), trigger,
-				assignment.map(AssignmentView::runtimeId).orElse(null), null,
-				assignment.map(AssignmentView::testSuiteVersionId).orElse(null), correlationId, this.clock));
+				assignment.get().runtimeId(), null, assignment.get().testSuiteVersionId(), correlationId, this.clock));
 
 		this.jobs.save(new GradingJob(run.id(), submissionId, studentId, courseId, assignmentId,
 				this.properties.queue().maxAttempts(), this.clock));

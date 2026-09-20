@@ -118,6 +118,7 @@ public class SecureZipExtractor {
 					continue;
 				}
 				Files.createDirectories(java.util.Objects.requireNonNull(output.getParent()));
+				checkCompressionRatioUpfront(entry);
 				try (InputStream input = zip.getInputStream(entry)) {
 					total = copyBounded(input, output, total);
 				}
@@ -147,6 +148,25 @@ public class SecureZipExtractor {
 		long compressedSize = entry.getCompressedSize();
 		if (uncompressedSize > 0
 				&& (compressedSize <= 0 || uncompressedSize > compressedSize * MAX_COMPRESSION_RATIO)) {
+			throw new ArchiveUploadException("The ZIP archive exceeds the 100:1 compression ratio limit.");
+		}
+	}
+
+	/**
+	 * Refuses a declared zip bomb before its bytes reach the disk.
+	 *
+	 * <p>
+	 * The bounded copy below and the post-write check above already cap what an archive
+	 * can consume, but both act while or after writing: a hostile entry still costs disk
+	 * I/O up to the 50 MB ceiling before it is rejected. The central directory usually
+	 * declares both sizes, so an entry advertising a ratio over the limit is refused
+	 * before anything is written. Unknown sizes ({@code -1}) skip this check and rely on
+	 * the write-time bounds.
+	 */
+	private static void checkCompressionRatioUpfront(ZipArchiveEntry entry) {
+		long compressedSize = entry.getCompressedSize();
+		long declaredSize = entry.getSize();
+		if (declaredSize > 0 && (compressedSize <= 0 || declaredSize > compressedSize * MAX_COMPRESSION_RATIO)) {
 			throw new ArchiveUploadException("The ZIP archive exceeds the 100:1 compression ratio limit.");
 		}
 	}

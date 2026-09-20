@@ -49,7 +49,8 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
  */
 @RestControllerAdvice(basePackages = { "org.gitgrader.api", "org.gitgrader.identity.web", "org.gitgrader.courses.web",
 		"org.gitgrader.assignments.web", "org.gitgrader.submissions.web", "org.gitgrader.runtimes.web",
-		"org.gitgrader.audit.web", "org.gitgrader.reports", "org.gitgrader.templates.web" })
+		"org.gitgrader.audit.web", "org.gitgrader.reports", "org.gitgrader.templates.web",
+		"org.gitgrader.grading.internal" })
 public class GlobalExceptionHandler {
 
 	private static final Logger logger = LoggerFactory.getLogger(GlobalExceptionHandler.class);

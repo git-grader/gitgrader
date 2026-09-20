@@ -250,6 +250,15 @@ public record NewSubmission(UUID repositoryId, @Nullable String repositoryPath, 
 
 		/**
 		 * Records why a push was refused.
+		 *
+		 * <p>
+		 * Persists a {@code REJECTED} row that is never graded: the grading orchestrator
+		 * skips non-gradable submissions, and {@code REJECTED} has no outgoing status
+		 * transition. The push admission path currently throws instead of saving such
+		 * rows (a refused push is carried by the audit trail so that recording refusals
+		 * cannot defeat the rate limit); this builder exists so any future caller that
+		 * does persist a refusal lands in a final state rather than one a later grading
+		 * run can overwrite.
 		 * @param reason the technical reason
 		 * @return this builder
 		 */

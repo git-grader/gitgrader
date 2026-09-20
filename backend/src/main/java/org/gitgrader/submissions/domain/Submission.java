@@ -60,8 +60,9 @@ public class Submission {
 
 	/**
 	 * A finished submission returns to {@code QUEUED} because a regrade is a second
-	 * attempt at the same push, not a new submission. Only {@code REJECTED} is final: it
-	 * describes a push that never became work, so there is nothing to attempt again.
+	 * attempt at the same push, not a new submission. {@code REJECTED} is final: it
+	 * describes a push that was recorded for the audit trail but never became work, so
+	 * there is nothing to attempt again.
 	 */
 	private static final Map<SubmissionStatus, Set<SubmissionStatus>> STATUS_TRANSITIONS = Map.of(
 			SubmissionStatus.RECEIVED, EnumSet.of(SubmissionStatus.QUEUED, SubmissionStatus.CANCELLED),
@@ -71,7 +72,8 @@ public class Submission {
 					SubmissionStatus.INFRASTRUCTURE_ERROR, SubmissionStatus.CANCELLED),
 			SubmissionStatus.PASSED, EnumSet.of(SubmissionStatus.QUEUED), SubmissionStatus.FAILED,
 			EnumSet.of(SubmissionStatus.QUEUED), SubmissionStatus.INFRASTRUCTURE_ERROR,
-			EnumSet.of(SubmissionStatus.QUEUED), SubmissionStatus.CANCELLED, EnumSet.of(SubmissionStatus.QUEUED));
+			EnumSet.of(SubmissionStatus.QUEUED), SubmissionStatus.CANCELLED, EnumSet.of(SubmissionStatus.QUEUED),
+			SubmissionStatus.REJECTED, EnumSet.noneOf(SubmissionStatus.class));
 
 	/** Number of hash characters shown in abbreviated output, matching git's default. */
 	private static final int SHORT_SHA_LENGTH = 7;
