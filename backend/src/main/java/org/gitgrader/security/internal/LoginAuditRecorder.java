@@ -118,7 +118,7 @@ public class LoginAuditRecorder {
 	}
 
 	private void recordLoginFailed(HttpServletRequest request, AuthenticationException exception) {
-		Authentication attempted = exception.getAuthentication();
+		Authentication attempted = exception.getAuthenticationRequest();
 		String username = attempted != null ? attempted.getName() : null;
 		this.auditService.record(AuditRecord.of(AuditEventType.LOGIN_FAILED)
 			.failed()

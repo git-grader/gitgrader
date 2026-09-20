@@ -21,10 +21,10 @@ import java.util.Arrays;
 import java.util.List;
 
 import org.gitgrader.audit.AuditEventType;
-import org.gitgrader.audit.AuditOutcome;
 import org.gitgrader.audit.AuditProperties;
 import org.gitgrader.audit.AuditRecord;
 import org.gitgrader.audit.AuditRecord.ActorType;
+import org.gitgrader.audit.AuditRecord.AuditOutcome;
 import org.gitgrader.audit.AuditService;
 import org.gitgrader.audit.ClientAddressHasher;
 import org.junit.jupiter.api.BeforeEach;
@@ -71,7 +71,7 @@ class LoginAuditRecorderTest {
 
 	@Test
 	@DisplayName("records a successful sign-in with the granted role and the hashed caller address")
-	void recordsSuccessfulSignInAsAdmin() {
+	void recordsSuccessfulSignInAsAdmin() throws Exception {
 		MockHttpServletResponse response = new MockHttpServletResponse();
 		this.recorder.successHandler()
 			.onAuthenticationSuccess(requestWithForwardedForHeader(), response,
@@ -92,7 +92,7 @@ class LoginAuditRecorderTest {
 
 	@Test
 	@DisplayName("classifies an instructor-only sign-in as an instructor")
-	void recordsSuccessfulSignInAsInstructor() {
+	void recordsSuccessfulSignInAsInstructor() throws Exception {
 		this.recorder.successHandler()
 			.onAuthenticationSuccess(request(), new MockHttpServletResponse(),
 					authentication("lee", "ROLE_INSTRUCTOR"));
@@ -104,7 +104,7 @@ class LoginAuditRecorderTest {
 
 	@Test
 	@DisplayName("records an account in neither role without mislabelling it")
-	void recordsRolelessSignInAsSystem() {
+	void recordsRolelessSignInAsSystem() throws Exception {
 		this.recorder.successHandler()
 			.onAuthenticationSuccess(request(), new MockHttpServletResponse(), authentication("ghost"));
 
@@ -117,9 +117,9 @@ class LoginAuditRecorderTest {
 
 	@Test
 	@DisplayName("records a rejected sign-in with the attempted account and the rejection reason")
-	void recordsRejectedSignIn() {
+	void recordsRejectedSignIn() throws Exception {
 		AuthenticationException failure = new BadCredentialsException("bad credentials");
-		failure.setAuthentication(authentication("attacker"));
+		failure.setAuthenticationRequest(authentication("attacker"));
 
 		MockHttpServletResponse response = new MockHttpServletResponse();
 		this.recorder.failureHandler().onAuthenticationFailure(request(), response, failure);
@@ -137,7 +137,7 @@ class LoginAuditRecorderTest {
 
 	@Test
 	@DisplayName("still records a rejection when the attempted account cannot be read")
-	void recordsRejectedSignInWithoutAttemptedAccount() {
+	void recordsRejectedSignInWithoutAttemptedAccount() throws Exception {
 		this.recorder.failureHandler()
 			.onAuthenticationFailure(request(), new MockHttpServletResponse(), new BadCredentialsException("boom"));
 
