@@ -60,7 +60,8 @@ export const MetaSchema = z.object({
   sshPort: z.number(),
   registrationEnabled: z.boolean(),
   requireInstructorVerification: z.boolean(),
-  version: z.string()
+  version: z.string(),
+  buildCommit: z.string()
 });
 export type Meta = z.infer<typeof MetaSchema>;
 

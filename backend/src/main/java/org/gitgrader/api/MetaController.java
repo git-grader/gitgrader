@@ -47,10 +47,14 @@ public class MetaController {
 
 	private final @Nullable BuildProperties buildProperties;
 
-	public MetaController(AppProperties app, GitProperties git, @Nullable BuildProperties buildProperties) {
+	private final @Nullable org.springframework.boot.info.GitProperties buildGit;
+
+	public MetaController(AppProperties app, GitProperties git, @Nullable BuildProperties buildProperties,
+			@Nullable org.springframework.boot.info.GitProperties buildGit) {
 		this.app = app;
 		this.git = git;
 		this.buildProperties = buildProperties;
+		this.buildGit = buildGit;
 	}
 
 	/**
@@ -62,7 +66,9 @@ public class MetaController {
 		return new MetaResponse(this.app.name(), this.app.organizationName(), this.app.supportEmail(),
 				this.app.documentationUrl().toString(), this.app.baseUrl(), this.git.sshHost(), this.git.sshPort(),
 				this.app.registration().enabled(), this.app.registration().requireInstructorVerification(),
-				(this.buildProperties != null) ? this.buildProperties.getVersion() : "dev");
+				(this.buildProperties != null) ? this.buildProperties.getVersion() : "dev",
+				(this.buildGit != null && this.buildGit.getShortCommitId() != null) ? this.buildGit.getShortCommitId()
+						: "dev");
 	}
 
 	/**
@@ -83,10 +89,11 @@ public class MetaController {
 	 * @param requireInstructorVerification whether an unverified self-registration may
 	 * push
 	 * @param version running build version
+	 * @param buildCommit short commit this build was made from
 	 */
 	public record MetaResponse(String name, String organizationName, String supportEmail, String documentationUrl,
 			String publicUrl, String sshHost, int sshPort, boolean registrationEnabled,
-			boolean requireInstructorVerification, String version) {
+			boolean requireInstructorVerification, String version, String buildCommit) {
 	}
 
 }

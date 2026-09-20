@@ -19,6 +19,7 @@ package org.gitgrader.api;
 import java.net.URI;
 import java.time.Duration;
 import java.time.ZoneId;
+import java.util.Properties;
 import java.util.Set;
 
 import org.gitgrader.configuration.AppProperties;
@@ -103,6 +104,22 @@ class MetaControllerTest {
 	}
 
 	@Test
+	@DisplayName("reports the short commit the build was made from")
+	void reportsBuildCommit() throws Exception {
+		Properties scm = new Properties();
+		scm.setProperty("commit.id.abbrev", "a1b2c3d");
+		org.springframework.boot.info.GitProperties buildGit = new org.springframework.boot.info.GitProperties(scm);
+
+		MockMvc mockMvc = MockMvcBuilders
+			.standaloneSetup(controller("GitGrader", "Example Organization", "localhost", 2222, buildGit))
+			.build();
+
+		mockMvc.perform(get("/api/v1/meta"))
+			.andExpect(status().isOk())
+			.andExpect(jsonPath("$.buildCommit").value("a1b2c3d"));
+	}
+
+	@Test
 	@DisplayName("reports a version even when no build information is present")
 	void toleratesMissingBuildInformation() throws Exception {
 		// BuildProperties only exists when the build-info goal ran. A developer running
@@ -111,10 +128,16 @@ class MetaControllerTest {
 			.build()
 			.perform(get("/api/v1/meta"))
 			.andExpect(status().isOk())
-			.andExpect(jsonPath("$.version").value("dev"));
+			.andExpect(jsonPath("$.version").value("dev"))
+			.andExpect(jsonPath("$.buildCommit").value("dev"));
 	}
 
 	private static MetaController controller(String name, String organization, String sshHost, int sshPort) {
+		return controller(name, organization, sshHost, sshPort, null);
+	}
+
+	private static MetaController controller(String name, String organization, String sshHost, int sshPort,
+			org.springframework.boot.info.GitProperties buildGit) {
 		AppProperties app = new AppProperties(name, URI.create("https://" + sshHost), "support@example.org",
 				organization, URI.create("https://docs.example.org"), ZoneId.of("UTC"), "/data",
 				new AppProperties.Registration(true, false, 5),
@@ -122,7 +145,7 @@ class MetaControllerTest {
 		GitProperties git = new GitProperties(true, sshHost, sshPort, "0.0.0.0", sshPort, "git", "/data/hostkey.ser",
 				"/data/repositories", DataSize.ofMegabytes(50), DataSize.ofMegabytes(10), 2000, Set.of("ssh-ed25519"),
 				true, Duration.ofMinutes(10));
-		return new MetaController(app, git, null);
+		return new MetaController(app, git, null, buildGit);
 	}
 
 	private static MetaController privateController(boolean requireInstructorVerification) {
@@ -133,7 +156,7 @@ class MetaControllerTest {
 		GitProperties git = new GitProperties(true, "localhost", 2222, "0.0.0.0", 2222, "git", "/data/hostkey.ser",
 				"/data/repositories", DataSize.ofMegabytes(50), DataSize.ofMegabytes(10), 2000, Set.of("ssh-ed25519"),
 				true, Duration.ofMinutes(10));
-		return new MetaController(app, git, null);
+		return new MetaController(app, git, null, null);
 	}
 
 }

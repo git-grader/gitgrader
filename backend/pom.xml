@@ -48,6 +48,7 @@
     <!-- Build tooling versions. -->
     <frontend-maven-plugin.version>2.0.2</frontend-maven-plugin.version>
     <frontend.directory>${project.basedir}/../frontend</frontend.directory>
+    <git-commit-id-maven-plugin.version>10.0.0</git-commit-id-maven-plugin.version>
 
     <!-- Ahead of the version Spring Boot manages: 5.4.2 accepts an unbounded number of
 		     HTTP/1.1 headers (CVE-2026-54399) and an oversized HPACK block before the
@@ -471,6 +472,30 @@
             <phase>validate</phase>
           </execution>
         </executions>
+      </plugin>
+
+      <!-- ============ Build provenance: git.properties ============ -->
+      <plugin>
+        <groupId>io.github.git-commit-id</groupId>
+        <artifactId>git-commit-id-maven-plugin</artifactId>
+        <version>${git-commit-id-maven-plugin.version}</version>
+        <executions>
+          <execution>
+            <id>revision</id>
+            <goals>
+              <goal>revision</goal>
+            </goals>
+            <phase>initialize</phase>
+          </execution>
+        </executions>
+        <configuration>
+          <dotGitDirectory>${project.basedir}/.git</dotGitDirectory>
+          <generateGitPropertiesFile>true</generateGitPropertiesFile>
+          <generateGitPropertiesFilename>${project.build.outputDirectory}/git.properties</generateGitPropertiesFilename>
+          <abbrevLength>7</abbrevLength>
+          <failOnNoGitDirectory>false</failOnNoGitDirectory>
+          <failOnUnableToExtractRepoInfo>false</failOnUnableToExtractRepoInfo>
+        </configuration>
       </plugin>
 
       <!-- ============ Checkstyle: semantic rules only ============ -->
