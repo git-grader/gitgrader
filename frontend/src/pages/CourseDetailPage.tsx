@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { useEffect, useState } from 'react';
-import { useParams, Link } from 'react-router';
+import { useParams, Link, useNavigate } from 'react-router';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '../api';
 import { queryKeys } from '../api/queryKeys';
@@ -20,7 +20,7 @@ import {
 
 const COURSE_STATUSES = ['DRAFT', 'ACTIVE', 'CLOSED', 'ARCHIVED'] as const;
 
-function EditCourseForm({ course, open, onClose }: { course: CourseView; open: boolean; onClose: () => void }) {
+function EditCourseForm({ course, open, onClose, onDeleted }: { course: CourseView; open: boolean; onClose: () => void; onDeleted: () => void }) {
   const queryClient = useQueryClient();
   const [form, setForm] = useState<Partial<CourseDefinition>>(() => ({
     ...course,
@@ -36,6 +36,14 @@ function EditCourseForm({ course, open, onClose }: { course: CourseView; open: b
       queryClient.setQueryData(queryKeys.courses.detail(course.id), updated);
       void queryClient.invalidateQueries({ queryKey: queryKeys.courses.all });
       onClose();
+    }
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: () => api.deleteCourse(course.id),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: queryKeys.courses.all });
+      onDeleted();
     }
   });
 
@@ -65,6 +73,7 @@ function EditCourseForm({ course, open, onClose }: { course: CourseView; open: b
         <DialogTitle>Edit Course</DialogTitle>
         <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2, pt: 2 }}>
           <MutationErrorAlert error={updateMutation.error} />
+          <MutationErrorAlert error={deleteMutation.error} />
           <TextField
             label="Course Key"
             value={course.courseKey}
@@ -171,6 +180,11 @@ function EditCourseForm({ course, open, onClose }: { course: CourseView; open: b
           </Box>
         </DialogContent>
         <DialogActions>
+          <Button color="error" onClick={() => {
+            if (window.confirm('Delete this course? This cannot be undone.')) deleteMutation.mutate();
+          }} disabled={updateMutation.isPending || deleteMutation.isPending}>
+            {deleteMutation.isPending ? 'Deleting...' : 'Delete Course'}
+          </Button>
           <Button onClick={onClose} disabled={updateMutation.isPending}>Cancel</Button>
           <Button type="submit" variant="contained" disabled={updateMutation.isPending}>
             {updateMutation.isPending ? 'Saving...' : 'Save'}
@@ -199,6 +213,17 @@ function EditClassForm({ courseId, cls, open, onClose }: { courseId: string; cls
     }
   });
 
+  const deleteMutation = useMutation({
+    mutationFn: () => {
+      if (!cls) throw new Error('Cannot delete a new class');
+      return api.deleteClass(courseId, cls.id);
+    },
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: queryKeys.courses.classes(courseId) });
+      onClose();
+    }
+  });
+
   const handleSubmit = (e: React.SyntheticEvent) => {
     e.preventDefault();
     mutation.mutate({
@@ -215,6 +240,7 @@ function EditClassForm({ courseId, cls, open, onClose }: { courseId: string; cls
         <DialogTitle>{cls ? 'Edit Class' : 'New Class'}</DialogTitle>
         <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2, pt: 2 }}>
           <MutationErrorAlert error={mutation.error} />
+          <MutationErrorAlert error={deleteMutation.error} />
           <TextField
             label="Class Key"
             required
@@ -237,6 +263,11 @@ function EditClassForm({ courseId, cls, open, onClose }: { courseId: string; cls
           />
         </DialogContent>
         <DialogActions>
+          {cls && <Button color="error" onClick={() => {
+            if (window.confirm('Delete this class? This cannot be undone.')) deleteMutation.mutate();
+          }} disabled={mutation.isPending || deleteMutation.isPending}>
+            {deleteMutation.isPending ? 'Deleting...' : 'Delete Class'}
+          </Button>}
           <Button onClick={onClose} disabled={mutation.isPending}>Cancel</Button>
           <Button type="submit" variant="contained" disabled={mutation.isPending}>
             {mutation.isPending ? 'Saving...' : 'Save'}
@@ -250,6 +281,7 @@ function EditClassForm({ courseId, cls, open, onClose }: { courseId: string; cls
 export function CourseDetailPage() {
   const { id } = useParams<{ id: string }>();
   const courseId = id ?? '';
+  const navigate = useNavigate();
   const [courseOpen, setCourseOpen] = useState(false);
   const [classOpen, setClassOpen] = useState(false);
   const [editingClass, setEditingClass] = useState<Class | null>(null);
@@ -407,6 +439,7 @@ export function CourseDetailPage() {
           course={course}
           open={courseOpen}
           onClose={() => setCourseOpen(false)}
+          onDeleted={() => void navigate('/courses')}
         />
       )}
 
