@@ -70,6 +70,7 @@ export function meta(overrides: Record<string, unknown> = {}) {
     registrationEnabled: true,
     requireInstructorVerification: false,
     version: '1.0.0',
+    buildCommit: 'a1b2c3d',
     ...overrides
   };
 }
