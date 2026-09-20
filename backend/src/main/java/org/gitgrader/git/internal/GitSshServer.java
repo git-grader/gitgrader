@@ -91,16 +91,20 @@ public class GitSshServer implements SmartLifecycle {
 
 	private final GitRepositoryService repositoryService;
 
+	private final RepositoryProvisioner repositoryProvisioner;
+
 	private final PushAdmissionHook admissionHook;
 
 	private SshServer server;
 
 	public GitSshServer(GitProperties gitProperties, StorageProperties storage, StudentKeyAuthenticator authenticator,
-			GitRepositoryService repositoryService, PushAdmissionHook admissionHook) {
+			GitRepositoryService repositoryService, RepositoryProvisioner repositoryProvisioner,
+			PushAdmissionHook admissionHook) {
 		this.gitProperties = gitProperties;
 		this.storage = storage;
 		this.authenticator = authenticator;
 		this.repositoryService = repositoryService;
+		this.repositoryProvisioner = repositoryProvisioner;
 		this.admissionHook = admissionHook;
 	}
 
@@ -281,7 +285,7 @@ public class GitSshServer implements SmartLifecycle {
 	 */
 	private RepositoryRecord authorize(String command, String requested, AuthenticatedStudent student)
 			throws IOException {
-		Optional<RepositoryRecord> record = this.repositoryService.resolve(requested);
+		Optional<RepositoryRecord> record = this.repositoryProvisioner.resolveOrProvision(requested, student);
 		if (record.isEmpty() || !record.get().studentId().equals(student.studentId())) {
 			logger.info("Refused {} for student {} on path {}", command, student.studentId(), requested);
 			throw new IOException("Repository not found, or you do not have access to it.");

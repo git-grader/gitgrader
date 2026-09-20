@@ -33,6 +33,9 @@ public interface CourseCatalog {
 	 */
 	Optional<CourseView> findCourse(UUID id);
 
+	/** Finds a course by its stable clone-path key. */
+	Optional<CourseView> findCourseByKey(String courseKey);
+
 	/**
 	 * Lists courses by lifecycle state.
 	 * @param status course status

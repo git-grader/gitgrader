@@ -72,6 +72,12 @@ public class DefaultCourseService implements CourseCatalog, CourseAdministration
 
 	@Override
 	@Transactional(readOnly = true)
+	public Optional<CourseView> findCourseByKey(String courseKey) {
+		return this.courses.findByCourseKey(courseKey).map(Course::toView);
+	}
+
+	@Override
+	@Transactional(readOnly = true)
 	public Page<CourseView> findCourses(CourseStatus status, Pageable pageable) {
 		return this.courses.findByStatus(status, pageable).map(Course::toView);
 	}
