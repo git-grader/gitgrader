@@ -17,9 +17,9 @@
 package org.gitgrader.api;
 
 import org.gitgrader.configuration.AppProperties;
-import org.gitgrader.configuration.GitProperties;
 import org.jspecify.annotations.Nullable;
 import org.springframework.boot.info.BuildProperties;
+import org.springframework.boot.info.GitProperties;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -43,14 +43,14 @@ public class MetaController {
 
 	private final AppProperties app;
 
-	private final GitProperties git;
+	private final org.gitgrader.configuration.GitProperties git;
 
 	private final @Nullable BuildProperties buildProperties;
 
-	private final @Nullable org.springframework.boot.info.GitProperties buildGit;
+	private final @Nullable GitProperties buildGit;
 
-	public MetaController(AppProperties app, GitProperties git, @Nullable BuildProperties buildProperties,
-			@Nullable org.springframework.boot.info.GitProperties buildGit) {
+	public MetaController(AppProperties app, org.gitgrader.configuration.GitProperties git,
+			@Nullable BuildProperties buildProperties, @Nullable GitProperties buildGit) {
 		this.app = app;
 		this.git = git;
 		this.buildProperties = buildProperties;
