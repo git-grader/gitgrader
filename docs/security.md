@@ -205,6 +205,14 @@ introduces at least one and at most 1000 new commits, produces a tree within
 carries a commit not already submitted to that repository, and — when signing is
 required — has an acceptable SSHSIG on **every** commit it introduces.
 
+The account behind the SSH key must also still be active. The profile is looked
+up again at admission rather than trusted from the handshake, so a suspension or
+archive that lands mid-session takes effect on the next push and the source of a
+refusal is the student's own status: suspended and archived profiles cannot push,
+and a self-registration that is still unverified cannot push under a deployment
+that sets `app.registration.require-instructor-verification` (it can anywhere
+else — see the registration policy in configuration.md).
+
 The commit ceiling refuses the push rather than truncating the walk. Truncating
 would leave the commits past the ceiling unverified while still admitting them,
 which would let a large enough push carry unsigned history in behind a signed

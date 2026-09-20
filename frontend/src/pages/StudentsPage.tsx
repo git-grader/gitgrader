@@ -21,6 +21,10 @@ export function StudentsPage() {
     mutationFn: (id: string) => api.archiveStudent(id),
     onSuccess: () => { void queryClient.invalidateQueries({ queryKey: queryKeys.students.list(params.page, params.size).slice(0, 2) }); }
   });
+  const restoreMutation = useMutation({
+    mutationFn: (id: string) => api.restoreStudent(id),
+    onSuccess: () => { void queryClient.invalidateQueries({ queryKey: queryKeys.students.list(params.page, params.size).slice(0, 2) }); }
+  });
   const { paginationModel, setPaginationModel, params } = useServerPagination();
   const { data, isLoading, isError, refetch } = useQuery({
     queryKey: queryKeys.students.list(params.page, params.size),
@@ -50,12 +54,22 @@ export function StudentsPage() {
       renderCell: (params: GridRenderCellParams<StudentSummary>) => <StudentStatusChip status={params.row.status} />
     },
     {
-      field: 'actions', headerName: 'Actions', width: 120, sortable: false,
+      // An archived student can only be restored, a live one only archived. Both
+      // transitions are confirmations: an accidental click removes a student from the
+      // grading pool or, no worse, brings the wrong profile back.
+      field: 'actions', headerName: 'Actions', width: 130, sortable: false,
       renderCell: (params: GridRenderCellParams<StudentSummary>) => (
-        <Button size="small" color="error" disabled={params.row.status === 'ARCHIVED' || archiveMutation.isPending}
-          onClick={() => { if (window.confirm(`Archive ${params.row.firstName} ${params.row.lastName}?`)) archiveMutation.mutate(params.row.id); }}>
-          Archive
-        </Button>
+        params.row.status === 'ARCHIVED' ? (
+          <Button size="small" disabled={restoreMutation.isPending}
+            onClick={() => { if (window.confirm(`Restore ${params.row.firstName} ${params.row.lastName} so they can submit again?`)) restoreMutation.mutate(params.row.id); }}>
+            Restore
+          </Button>
+        ) : (
+          <Button size="small" color="error" disabled={archiveMutation.isPending}
+            onClick={() => { if (window.confirm(`Archive ${params.row.firstName} ${params.row.lastName}?`)) archiveMutation.mutate(params.row.id); }}>
+            Archive
+          </Button>
+        )
       )
     }
   ];

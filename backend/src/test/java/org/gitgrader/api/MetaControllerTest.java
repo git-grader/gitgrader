@@ -58,7 +58,17 @@ class MetaControllerTest {
 			.andExpect(jsonPath("$.name").value("Coursework Checker"))
 			.andExpect(jsonPath("$.organizationName").value("Example University"))
 			.andExpect(jsonPath("$.sshHost").value("grader.example.org"))
-			.andExpect(jsonPath("$.sshPort").value(2299));
+			.andExpect(jsonPath("$.sshPort").value(2299))
+			.andExpect(jsonPath("$.registrationEnabled").value(true))
+			.andExpect(jsonPath("$.requireInstructorVerification").value(false));
+	}
+
+	@Test
+	@DisplayName("exposes whether verification is required before pushing")
+	void reportsVerificationRequirement() throws Exception {
+		MockMvc mockMvc = MockMvcBuilders.standaloneSetup(privateController(true)).build();
+
+		mockMvc.perform(get("/api/v1/meta")).andExpect(jsonPath("$.requireInstructorVerification").value(true));
 	}
 
 	@Test
@@ -110,6 +120,17 @@ class MetaControllerTest {
 				new AppProperties.Registration(true, false, 5),
 				new AppProperties.ResultTokens(256, Duration.ofDays(180), 8));
 		GitProperties git = new GitProperties(true, sshHost, sshPort, "0.0.0.0", sshPort, "git", "/data/hostkey.ser",
+				"/data/repositories", DataSize.ofMegabytes(50), DataSize.ofMegabytes(10), 2000, Set.of("ssh-ed25519"),
+				true, Duration.ofMinutes(10));
+		return new MetaController(app, git, null);
+	}
+
+	private static MetaController privateController(boolean requireInstructorVerification) {
+		AppProperties app = new AppProperties("GitGrader", URI.create("https://localhost"), "support@example.org",
+				"Example Organization", URI.create("https://docs.example.org"), ZoneId.of("UTC"), "/data",
+				new AppProperties.Registration(true, requireInstructorVerification, 5),
+				new AppProperties.ResultTokens(256, Duration.ofDays(180), 8));
+		GitProperties git = new GitProperties(true, "localhost", 2222, "0.0.0.0", 2222, "git", "/data/hostkey.ser",
 				"/data/repositories", DataSize.ofMegabytes(50), DataSize.ofMegabytes(10), 2000, Set.of("ssh-ed25519"),
 				true, Duration.ofMinutes(10));
 		return new MetaController(app, git, null);

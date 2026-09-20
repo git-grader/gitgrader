@@ -73,13 +73,16 @@ export function RegistrationSuccessPage() {
         <Typography component="p" sx={{ mb: 1 }}>
           Welcome, {result.fullName}. Your student username is {result.studentUsername} and your SSH key fingerprint is {result.keyFingerprint}.
         </Typography>
-        {/* The registration status decides whether pushes are accepted yet, and leaving
-            it out let a student whose account still needs verifying leave this page
-            believing they were ready to submit. */}
+        {/* May a self-registration push yet? That is decided by the deployment's
+            registration policy, not by the status alone, so the copy has to follow the
+            flag rather than assert what this status does unconditionally. The identity is
+            the email and student username collected at registration: self-registration
+            never confirms identity, so nothing here promises a later verification. */}
         {result.status === 'SELF_REGISTERED' && (
           <Alert severity="info" sx={{ mb: 2 }}>
-            Your registration is recorded but not yet verified by an instructor. You can clone now; ask your instructor
-            if a push is refused.
+            {meta.requireInstructorVerification
+              ? 'Your registration is recorded but not yet verified by an instructor. You can clone now; pushes are accepted once an instructor verifies your registration.'
+              : 'Your registration is recorded. Your email and student username identify your work, and you can clone and push now.'}
           </Alert>
         )}
         <Typography variant="h6" gutterBottom>Cloning your work</Typography>
