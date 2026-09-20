@@ -33,7 +33,8 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
 /**
- * Parses node test runner TAP output.
+ * Parses TAP test runner output, as emitted by node's {@code --test} runner ("ok 1 -
+ * name") and by custom TAP reporters ("ok - name").
  *
  * <p>
  * The manifest, not the output, decides which tests exist. That is a grading integrity
@@ -60,7 +61,10 @@ import org.springframework.stereotype.Component;
 @Component
 public class TapReportParser implements ReportParser {
 
-	private static final Pattern TEST_LINE_PATTERN = Pattern.compile("^(not ok|ok)\\s+\\d+\\s+-\\s+(.*)$");
+	// Accepts both node's TAP ("ok 1 - name") and the leaner "ok - name" emitted
+	// by some custom reporters (for example a Jasmine TAP reporter). A missing
+	// number still yields a name to join against the manifest.
+	private static final Pattern TEST_LINE_PATTERN = Pattern.compile("^(not ok|ok)\\s+(?:\\d+\\s+)?-\\s+(.*)$");
 
 	private static final Pattern DURATION_PATTERN = Pattern.compile("^\\s+duration_ms:\\s+([0-9.]+)$");
 

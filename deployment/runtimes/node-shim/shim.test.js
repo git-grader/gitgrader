@@ -4,14 +4,14 @@
  */
 
 import assert from 'node:assert/strict';
-import { mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { test } from 'node:test';
 
 import { createShimClient, ShimError } from './client.js';
 import { PHASES } from './phases.js';
-import { createShimServer } from './server.js';
+import { createShimServer, discoverSolutionModules, resolveSolutionPath, ShimStartupError } from './server.js';
 import { assertJsonSerializable } from './serializable.js';
 
 const CONNECT_TIMEOUT_MS = 2_000;
@@ -187,6 +187,71 @@ test('connect-timeout when the sandbox side never appears', async (context) => {
 		assert.equal(error.phase, PHASES.CONNECT_TIMEOUT);
 		return true;
 	});
+});
+
+test('discoverSolutionModules lists the js files directly under a given src dir', async (context) => {
+	const directory = await mkdtemp(join(tmpdir(), 'gitgrader-shim-'));
+	context.after(() => rm(directory, { recursive: true, force: true }));
+	const srcDir = join(directory, 'src');
+
+	assert.deepEqual(discoverSolutionModules(srcDir), []);
+
+	await mkdir(srcDir);
+	await writeFile(join(srcDir, 'power.js'), 'export const power = () => null;');
+	assert.deepEqual(discoverSolutionModules(srcDir), [join(srcDir, 'power.js')]);
+
+	await writeFile(join(srcDir, 'extra.test.js'), '');
+	await writeFile(join(directory, 'README.md'), '');
+	assert.deepEqual(discoverSolutionModules(srcDir), [join(srcDir, 'extra.test.js'), join(srcDir, 'power.js')]);
+});
+
+test('resolveSolutionPath falls back to the sole module when nothing is configured', async (context) => {
+	const directory = await mkdtemp(join(tmpdir(), 'gitgrader-shim-'));
+	context.after(() => rm(directory, { recursive: true, force: true }));
+	await mkdir(join(directory, 'src'));
+	await writeFile(join(directory, 'src', 'power.js'), 'export const power = () => null;');
+
+	assert.equal(resolveSolutionPath(undefined, join(directory, 'src', 'string-utils.js')), join(directory, 'src', 'power.js'));
+});
+
+test('resolveSolutionPath prefers an explicit existing SOLUTION_PATH', async (context) => {
+	const directory = await mkdtemp(join(tmpdir(), 'gitgrader-shim-'));
+	context.after(() => rm(directory, { recursive: true, force: true }));
+	await mkdir(join(directory, 'src'));
+	await writeFile(join(directory, 'src', 'string-utils.js'), '');
+	await writeFile(join(directory, 'src', 'power.js'), '');
+
+	assert.equal(resolveSolutionPath(join(directory, 'src', 'string-utils.js'), join(directory, 'src', 'string-utils.js')),
+		join(directory, 'src', 'string-utils.js'));
+});
+
+test('resolveSolutionPath refuses to guess among several modules', async (context) => {
+	const directory = await mkdtemp(join(tmpdir(), 'gitgrader-shim-'));
+	context.after(() => rm(directory, { recursive: true, force: true }));
+	await mkdir(join(directory, 'src'));
+	await writeFile(join(directory, 'src', 'power.js'), '');
+	await writeFile(join(directory, 'src', 'factorial.js'), '');
+
+	assert.throws(
+		() => resolveSolutionPath(undefined, join(directory, 'src', 'string-utils.js')),
+		(error) => {
+			assert.ok(error instanceof ShimStartupError);
+			assert.ok(error.message.includes('SOLUTION_PATH'));
+			return true;
+		});
+});
+
+test('resolveSolutionPath fails clearly when the workspace holds no module', async (context) => {
+	const directory = await mkdtemp(join(tmpdir(), 'gitgrader-shim-'));
+	context.after(() => rm(directory, { recursive: true, force: true }));
+
+	assert.throws(
+		() => resolveSolutionPath(undefined, join(directory, 'src', 'string-utils.js')),
+		(error) => {
+			assert.ok(error instanceof ShimStartupError);
+			assert.ok(error.message.includes('no module'));
+			return true;
+		});
 });
 
 test('the value contract admits plain JSON values and rejects the rest', () => {

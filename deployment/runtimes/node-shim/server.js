@@ -5,6 +5,7 @@
 
 import net from 'node:net';
 import { mkdir, rm } from 'node:fs/promises';
+import { existsSync, readdirSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
@@ -14,6 +15,50 @@ import { assertJsonSerializable } from './serializable.js';
 export const DEFAULT_SOCKET = '/gitgrader-shim/runner.sock';
 export const DEFAULT_SOLUTION_PATH = '/workspace/src/string-utils.js';
 export const DEFAULT_CALL_TIMEOUT_MS = 30_000;
+
+/**
+ * Lists the submitted modules a workspace offers in its src/ directory.
+ * @param {string} srcDir absolute path of the src/ directory to scan
+ * @returns {string[]} absolute paths of the .js files directly under it,
+ * sorted, or [] when the directory is absent
+ */
+export function discoverSolutionModules(srcDir) {
+	if (!existsSync(srcDir)) return [];
+	return readdirSync(srcDir, { withFileTypes: true })
+		.filter((entry) => entry.isFile() && entry.name.endsWith('.js'))
+		.map((entry) => resolve(srcDir, entry.name))
+		.sort();
+}
+
+/**
+ * Resolves which submitted module the server should load.
+ *
+ * An explicit {@code SOLUTION_PATH} wins when the named file exists. Otherwise
+ * the server looks for the single module in the workspace's src/ directory, so
+ * assignments such as the WBE set work without a per-assignment path wired into
+ * the grader. When src/ holds several modules the server refuses to guess and
+ * asks for an explicit SOLUTION_PATH.
+ *
+ * @param {string|undefined} explicit from the SOLUTION_PATH environment
+ * @param {string} fallback the runtime's default solution path
+ * @returns {string} the absolute path of the module to load
+ * @throws {ShimStartupError} when no source module can be chosen
+ */
+export function resolveSolutionPath(explicit, fallback = DEFAULT_SOLUTION_PATH) {
+	if (explicit !== undefined && explicit !== '' && existsSync(explicit)) {
+		return explicit;
+	}
+	const srcDir = dirname(explicit ?? fallback);
+	const modules = discoverSolutionModules(srcDir);
+	if (modules.length === 1) return modules[0];
+	if (modules.length === 0) {
+		throw new ShimStartupError(
+			`Could not find the submitted solution: nothing named ${fallback} exists and ${srcDir} holds no module.`);
+	}
+	throw new ShimStartupError(
+		`Could not choose the submitted solution: ${srcDir} holds ${modules.length} modules ` +
+			`(${modules.join(', ')}). Set SOLUTION_PATH to the one to test.`);
+}
 
 /**
  * Error thrown before the server listens, e.g. because the submitted module
@@ -238,7 +283,7 @@ const runAsScript = process.argv[1] !== undefined && resolve(process.argv[1]) ==
 if (runAsScript) {
 	createShimServer({
 		socketPath: process.env.SHIM_SOCKET ?? DEFAULT_SOCKET,
-		solutionPath: process.env.SOLUTION_PATH ?? DEFAULT_SOLUTION_PATH,
+		solutionPath: resolveSolutionPath(process.env.SOLUTION_PATH, DEFAULT_SOLUTION_PATH),
 		callTimeoutMs: Number(process.env.SHIM_CALL_TIMEOUT_MS ?? DEFAULT_CALL_TIMEOUT_MS),
 		log: (line) => process.stderr.write(line + '\n')
 	}).catch((error) => {

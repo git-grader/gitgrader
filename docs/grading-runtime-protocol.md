@@ -36,9 +36,15 @@ renegotiating the runner.
   | variable | default | read by | meaning |
   | --- | --- | --- | --- |
   | `SHIM_SOCKET` | `/gitgrader-shim/runner.sock` | both | socket path |
-  | `SOLUTION_PATH` | `/workspace/src/string-utils.js` | server | submitted module to load |
+  | `SOLUTION_PATH` | held by the server as `/workspace/src/string-utils.js` | server | submitted module to load |
   | `SHIM_CALL_TIMEOUT_MS` | `30000` | server | ceiling on one call |
   | `SHIM_CONNECT_TIMEOUT_MS` | `30000` | client | ceiling on the initial connect |
+
+When `SOLUTION_PATH` names an existing file it is used as-is; otherwise the
+server loads the single `.js` file directly under `/workspace/src`, so a
+zero-dependency assignment needs no per-assignment configuration. The server
+refuses to guess (and asks for an explicit `SOLUTION_PATH`) when that directory
+holds several modules.
 
 ## Messages
 

@@ -32,7 +32,7 @@ for runtime_dir in "$script_dir"/node-*; do
 	printf '%s\n' "displayName: Node.js $major"
 	printf '%s\n' "image: $image"
 	printf '%s\n' "imageDigest: ${digest#*@}"
-	printf '%s\n' 'installCommand: npm ci --ignore-scripts'
+	printf '%s\n' 'installCommand: (none; Jasmine is baked in and the sandbox runs without network)'
 	printf '%s\n' 'testCommand: cd /opt/hidden-tests && jasmine --config=jasmine.json --reporter=./jasmine-tap-reporter.cjs'
 	printf '%s\n' 'reportFormat: TAP'
 	printf '%s\n' 'jasmineVersion: 7.0.0 (baked into the runtime image)'
