@@ -12,7 +12,7 @@ import { test } from 'node:test';
 import { createShimClient, ShimError } from './client.js';
 import { PHASES } from './phases.js';
 import { createShimServer, discoverSolutionModules, resolveSolutionPath, ShimStartupError } from './server.js';
-import { assertJsonSerializable } from './serializable.js';
+import { serialize, deserialize } from './serializable.js';
 
 const CONNECT_TIMEOUT_MS = 2_000;
 
@@ -45,6 +45,14 @@ const SOLUTION = String.raw`
     return a + b;
   }
 
+  export function echo(value) {
+    return 'echoed:' + typeof value;
+  }
+
+  export function bigAdd(a, b) {
+    return a + b;
+  }
+
   export async function slow(value) {
     await new Promise((resolve) => setTimeout(resolve, 5));
     return value;
@@ -52,6 +60,17 @@ const SOLUTION = String.raw`
 
   export function struct() {
     return { letters: ['a', 'b'], nested: { plus: 1 } };
+  }
+
+  export function structBig() {
+    return { big: 10n, list: [1n, 2n] };
+  }
+
+  export function protoo() {
+    const proto = { category: 'animal' };
+    const object = Object.create(proto);
+    object.age = 3;
+    return object;
   }
 
   export function boom() {
@@ -137,10 +156,35 @@ test('rejects non-serialisable arguments before sending, without tearing the str
 	assert.equal(await client.proxy.add(1, 2), 3);
 });
 
-test('rejects results that JSON would mangle or refuse', async (context) => {
+test('carries bigint arguments and results across the socket', async (context) => {
 	const { client } = await pair(context, SOLUTION);
 
-	for (const member of ['big', 'closure', 'nan', 'undef', 'circular', 'instance']) {
+	assert.equal(await client.proxy.bigAdd(2n, 3n), 5n);
+	assert.equal(typeof (await client.proxy.bigAdd(2n, 3n)), 'bigint');
+	assert.equal(await client.proxy.big(), 1n);
+	assert.deepEqual(await client.proxy.structBig(), { big: 10n, list: [1n, 2n] });
+});
+
+test('carries undefined as a result and as an argument', async (context) => {
+	const { client } = await pair(context, SOLUTION);
+
+	assert.equal(await client.proxy.undef(), undefined);
+	assert.equal(await client.proxy.echo(undefined), 'echoed:undefined');
+});
+
+test('carries objects with a custom prototype across the socket', async (context) => {
+	const { client } = await pair(context, SOLUTION);
+
+	const restored = await client.proxy.protoo();
+	assert.equal(restored.category, 'animal');
+	assert.equal(restored.age, 3);
+	assert.equal(Object.getPrototypeOf(restored).category, 'animal');
+});
+
+test('still rejects results the codec cannot carry', async (context) => {
+	const { client } = await pair(context, SOLUTION);
+
+	for (const member of ['closure', 'nan', 'circular', 'instance']) {
 		await assert.rejects(client.proxy[member](), (error) => {
 			assert.equal(error.phase, PHASES.NON_SERIALIZABLE_RESULT, `expected ${member} to fail so`);
 			return true;
@@ -254,36 +298,59 @@ test('resolveSolutionPath fails clearly when the workspace holds no module', asy
 		});
 });
 
-test('the value contract admits plain JSON values and rejects the rest', () => {
-	for (const [value, name] of [
-		[null, 'null'],
-		[false, 'boolean'],
-		[17, 'integer'],
-		[1.5, 'decimal'],
-		['text', 'string'],
-		[[1, 'two', null], 'array'],
-		[{ nested: { list: [true] } }, 'plain object']
+test('the value contract round-trips JSON values and tagged extensions', () => {
+	for (const value of [
+		null,
+		false,
+		17,
+		1.5,
+		'text',
+		[1, 'two', null],
+		{ nested: { list: [true] } },
+		undefined,
+		1n,
+		-12345678901234567890n,
+		[undefined, 1n],
+		{ a: undefined, b: 2n }
 	]) {
-		assert.doesNotThrow(() => assertJsonSerializable(value, name));
+		const onTheWire = JSON.parse(JSON.stringify(serialize(value, 'test')));
+		assert.deepEqual(deserialize(onTheWire), value);
 	}
 
+	const proto = { category: 'animal' };
+	const withProto = Object.create(proto);
+	withProto.age = 3;
+	const restored = deserialize(JSON.parse(JSON.stringify(serialize(withProto, 'test'))));
+	assert.equal(restored.category, 'animal');
+	assert.equal(restored.age, 3);
+});
+
+test('the value contract still rejects what the codec cannot carry', () => {
 	for (const [value, name] of [
 		[NaN, 'NaN'],
 		[Infinity, 'Infinity'],
-		[undefined, 'undefined'],
-		[1n, 'bigint'],
+		[-Infinity, '-Infinity'],
 		[Symbol('x'), 'symbol'],
 		[() => null, 'function'],
 		[new Date(0), 'class instance'],
 		[new Map([[1, 2]]), 'Map'],
 		[new Set([1]), 'Set'],
-		[[undefined], 'undefined inside an array'],
-		[{ key: Infinity }, 'Infinity inside an object']
+		[new Float64Array([1, 2]), 'typed array'],
+		[[Symbol('x')], 'symbol inside an array'],
+		[{ key: Infinity }, 'Infinity inside an object'],
+		[{ key: () => null }, 'function inside an object'],
+		[{ [Symbol('k')]: 1 }, 'symbol-keyed member']
 	]) {
-		assert.throws(() => assertJsonSerializable(value, name), TypeError, name);
+		assert.throws(() => serialize(value, 'test'), TypeError, name);
 	}
 
 	const circular = { label: 'x' };
 	circular.self = circular;
-	assert.throws(() => assertJsonSerializable(circular, 'circular object'), TypeError);
+	assert.throws(() => serialize(circular, 'circular object'), TypeError);
+
+	const withProto = Object.create({ category: 'animal' });
+	withProto.self = withProto;
+	assert.throws(() => serialize(withProto, 'self-referencing object'), TypeError);
+
+	assert.throws(() => deserialize({ $gitgrader: ['bigint'] }), TypeError, 'malformed marker');
 });

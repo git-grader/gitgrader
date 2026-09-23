@@ -10,7 +10,7 @@ import { dirname, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
 import { PHASES } from './phases.js';
-import { assertJsonSerializable } from './serializable.js';
+import { serialize, deserialize } from './serializable.js';
 
 export const DEFAULT_SOCKET = '/gitgrader-shim/runner.sock';
 export const DEFAULT_SOLUTION_PATH = '/workspace/src/string-utils.js';
@@ -73,7 +73,8 @@ export class ShimStartupError extends Error {
  * The server loads the module named by {@code solutionPath} and serves each of
  * its exported functions to the suite side over a Unix socket: one NDJSON
  * request per call, one NDJSON response per request, correlated by id. Values
- * are checked against the JSON contract in both directions. A call may finish
+ * are carried in both directions through {@code serialize}/{@code
+ * deserialize}. A call may finish
  * in whatever time it takes up to {@code callTimeoutMs}; a call that exceeds
  * it fails with {@code invocation-timeout} so the suite is not stuck on a
  * solution that never returns.
@@ -172,11 +173,12 @@ function serve(socket, line, namespace, callTimeoutMs) {
 		write(socket, { error: phaseError(PHASES.BAD_REQUEST, 'A shim request needs a numeric id, a string method and an array of args') });
 		return;
 	}
-	const { id, method, args } = request;
+	const { id, method, args: wireArgs } = request;
 
 	void (async () => {
+		let args;
 		try {
-			assertJsonSerializable(args, 'shim arguments');
+			args = deserialize(wireArgs);
 		}
 		catch (error) {
 			write(socket, { id, error: phaseError(PHASES.NON_SERIALIZABLE_ARGS, error.message) });
@@ -214,14 +216,15 @@ function serve(socket, line, namespace, callTimeoutMs) {
 			return;
 		}
 
+		let wireResult;
 		try {
-			assertJsonSerializable(result, 'shim result');
+			wireResult = serialize(result, 'shim result');
 		}
 		catch (error) {
 			write(socket, { id, error: phaseError(PHASES.NON_SERIALIZABLE_RESULT, error.message) });
 			return;
 		}
-		write(socket, { id, result });
+		write(socket, { id, result: wireResult });
 	})();
 }
 

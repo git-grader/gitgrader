@@ -78,22 +78,39 @@ well-behaved client always ignores it rather than misattributing it.
 
 ## The value contract
 
-Only JSON values cross the socket, in both directions:
+Values still travel as JSON on the wire, in both directions:
 
-> `null` · boolean · finite number · string · array of JSON values · plain
-> object whose own string-keyed values are JSON values
+> `null` · boolean · finite number · string · array of values · plain
+> object whose own string-keyed values are values
 
-Everything else is **rejected with an error, never silently mangled**:
-`undefined`, `NaN`, `Infinity`, functions, class instances, `Map`, `Set`,
-`Date`, symbols, `bigint`, symbol-keyed properties, and circular structures.
-A single `JSON.stringify` would instead turn `NaN`/`Infinity`/`undefined` into
-JSON-safe artefacts and this is precisely the silent loss of information the
-boundary exists to prevent; both sides validate with a structural walk, not a
-stringify attempt.
+A small set of values that JSON cannot carry is transported exactly because a
+structured codec, not a bare `JSON.stringify`, decides what goes on the line.
+Both sides encode and decode with the same structural walk; the encoded
+representation stays plain JSON at every point:
 
-Arguments are validated by the client before they are sent
-(`non-serializable-args`) and defensively again by the server; a result is
-validated by the server before it is sent (`non-serializable-result`). A
+| JavaScript value | wire representation |
+| --- | --- |
+| `bigint` | `{ "$gitgrader": ["bigint", "123"] }` |
+| `undefined` | `{ "$gitgrader": ["undefined"] }` |
+| object with a non-plain prototype | `{ "$gitgrader": ["proto-object", <encoded prototype>, <encoded own fields>] }` |
+
+The marker object is an object with the single reserved own key `$gitgrader`;
+it is decoded back into the original value and is never delivered as such. The
+`proto-object` form is rebuilt on the suite side with `Object.create`, so the
+result of an exercise like «attach a prototype with `Object.create`» keeps its
+behaviour (`obj.category` resolving through the chain) instead of being refused.
+
+Everything else is still **rejected with an error, never silently mangled**:
+`NaN`, `Infinity`, functions, symbols, symbol-keyed members, class instances
+(`Date`, `Map`, `Set`, `RegExp`, typed arrays, ...), and circular structures.
+A single `JSON.stringify` would turn `NaN`/`Infinity`/`undefined` into
+JSON-safe artefacts or drop symbol keys, which is precisely the silent loss of
+information the boundary exists to prevent; both sides validate with a
+structural walk, not a stringify attempt.
+
+Arguments are encoded by the client before they are sent
+(`non-serializable-args`) and decoded defensively by the server; a result is
+encoded by the server before it is sent (`non-serializable-result`). A
 boundary violation fails exactly that call; the connection stays usable.
 
 ## Error envelope
@@ -138,10 +155,11 @@ instructor-only diagnostics and never parses as a report.
 The wire contract is language-independent. The shipped Node shim lives in
 `deployment/runtimes/node-shim/` as `server.js` (loads `SOLUTION_PATH` and
 serves exports) and `client.js` (an async `Proxy` of those exports where every
-member is an awaited call), with `serializable.js` enforcing the value contract
-and `phases.js` the vocabulary above. All Node runtimes (`node-22`,
-`node-24`, `node-26`) share it; a new runtime ships a server and client for
-its language; the suite side only ever completes `await`ed calls.
+member is an awaited call), with `serializable.js` implementing the value codec
+(`serialize`/`deserialize`) and `phases.js` the vocabulary above. All Node
+runtimes (`node-22`, `node-24`, `node-26`) share it; a new runtime ships a
+server and client for its language; the suite side only ever completes
+`await`ed calls.
 
 Run the shim's own tests, which need no Docker:
 
