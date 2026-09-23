@@ -6,7 +6,7 @@
 import net from 'node:net';
 
 import { PHASES } from './phases.js';
-import { assertJsonSerializable } from './serializable.js';
+import { serialize, deserialize } from './serializable.js';
 
 export const DEFAULT_SOCKET = '/gitgrader-shim/runner.sock';
 export const DEFAULT_CONNECT_TIMEOUT_MS = 30_000;
@@ -103,7 +103,7 @@ export async function createShimClient({
 			}
 			pending.delete(message.id);
 			if (Object.prototype.hasOwnProperty.call(message, 'result')) {
-				entry.resolve(message.result);
+				entry.resolve(deserialize(message.result));
 			}
 			else if (message.error) {
 				entry.reject(new ShimError(message.error.phase ?? PHASES.BAD_REQUEST,
@@ -125,17 +125,19 @@ export async function createShimClient({
 	});
 
 	/**
-	 * Invokes one exported member with JSON-safe arguments on the sandbox side.
+	 * Invokes one exported member with shim-carryable arguments on the sandbox
+	 * side.
 	 * @param {string} method the export to call
 	 * @param {unknown[]} args arguments already parsed from the suite's source
-	 * @returns {Promise<unknown>} the serialised return value
+	 * @returns {Promise<unknown>} the decoded return value
 	 */
 	const call = async (method, args) => {
 		if (closed || socket.destroyed) {
 			throw new ShimError(PHASES.CONNECTION_CLOSED, `The shim connection to ${socketPath} is closed`);
 		}
+		let wire;
 		try {
-			assertJsonSerializable(args, 'shim arguments');
+			wire = serialize(args, 'shim arguments');
 		}
 		catch (error) {
 			throw new ShimError(PHASES.NON_SERIALIZABLE_ARGS, error.message);
@@ -144,7 +146,7 @@ export async function createShimClient({
 		const promise = new Promise((resolve, reject) => pending.set(id, { resolve, reject }));
 		updateRefCount();
 		try {
-			socket.write(JSON.stringify({ id, method, args }) + '\n');
+			socket.write(JSON.stringify({ id, method, args: wire }) + '\n');
 		}
 		catch {
 			pending.delete(id);
