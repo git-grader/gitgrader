@@ -18,7 +18,7 @@ VALUES ('10000000-0000-4000-8000-000000000013', 'node-22', 'Node.js 22', 'node',
 ON CONFLICT DO NOTHING;
 
 INSERT INTO runtimes (id, runtime_key, display_name, image, tag, image_digest, install_command, test_command, report_format, enabled, shim_kind, created_at, updated_at)
-VALUES ('10000000-0000-4000-8000-000000000014', 'node-26', 'Node.js 26', 'node', '26-bookworm-slim', 'sha256:582460f614631b59b824ac6020533b9bf339c7fdf3a6d7db31abb6b4065f0212', NULL, 'cd /opt/hidden-tests && jasmine --config=jasmine.json --reporter=./jasmine-tap-reporter.cjs', 'TAP', TRUE, 'node-ipc', now(), now())
+VALUES ('10000000-0000-4000-8000-000000000014', 'node-26', 'Node.js 26', 'node', '26-bookworm-slim', 'sha256:662933cf47f013bc8e4beb31a6116448427a82057ba7c42c97e4c5ba766504c2', NULL, 'cd /opt/hidden-tests && jasmine --config=jasmine.json --reporter=./jasmine-tap-reporter.cjs', 'TAP', TRUE, 'node-ipc', now(), now())
 ON CONFLICT DO NOTHING;
 
 INSERT INTO project_templates (id, template_key, name, description, created_at, updated_at)
