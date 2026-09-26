@@ -43,7 +43,7 @@
     <docker-java.version>3.7.1</docker-java.version>
     <findsecbugs.version>1.14.0</findsecbugs.version>
     <forbiddenapis.skip>${skipQuality}</forbiddenapis.skip>
-    <forbiddenapis.version>3.10</forbiddenapis.version>
+    <forbiddenapis.version>3.11</forbiddenapis.version>
 
     <!-- Build tooling versions. -->
     <frontend-maven-plugin.version>2.0.2</frontend-maven-plugin.version>
