@@ -48,7 +48,7 @@
     <!-- Build tooling versions. -->
     <frontend-maven-plugin.version>2.0.2</frontend-maven-plugin.version>
     <frontend.directory>${project.basedir}/../frontend</frontend.directory>
-    <git-commit-id-maven-plugin.version>10.0.0</git-commit-id-maven-plugin.version>
+    <git-commit-id-maven-plugin.version>10.0.1</git-commit-id-maven-plugin.version>
 
     <!-- Ahead of the version Spring Boot manages: 5.4.2 accepts an unbounded number of
 		     HTTP/1.1 headers (CVE-2026-54399) and an oversized HPACK block before the
