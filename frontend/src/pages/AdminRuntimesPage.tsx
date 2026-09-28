@@ -179,7 +179,7 @@ export function AdminRuntimesPage() {
   };
 
   return (
-    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3, minWidth: 0 }}>
+    <Box sx={{ display: 'flex', flexDirection: 'column', flex: '1 1 0', minHeight: 0, gap: 3, minWidth: 0 }}>
       <PageHeader title="Runtimes" actions={isAdmin ? (
           <Button variant="contained" onClick={() => setOpen(true)}>New Runtime</Button>
         ) : (
@@ -189,12 +189,12 @@ export function AdminRuntimesPage() {
       {runtimes.length === 0 ? (
         <Alert severity="info">No runtimes configured. At least one runtime is required to publish assignments.</Alert>
       ) : (
-        <Box sx={{ height: { xs: 520, md: 600 }, width: '100%', minWidth: 0, overflowX: 'auto' }}>
+        <Box sx={{ flex: '1 1 0', minHeight: { xs: 520, md: 0 }, width: '100%', minWidth: 0, overflowX: 'auto' }}>
           <DataGrid
             rows={runtimes}
             columns={isNarrow ? [narrowColumn] : wideColumns}
             {...(isNarrow ? { getRowHeight: () => 'auto' as const } : {})}
-            pageSizeOptions={[20, 50, 100]}
+            hideFooterPagination
             disableRowSelectionOnClick
             sx={{ minWidth: isNarrow ? 260 : 1180 }}
           />

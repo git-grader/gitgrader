@@ -58,8 +58,8 @@ export const queryKeys = {
   },
 
   students: {
-    list: (page: string, size: string, query = "", status = "", sort = "") =>
-      ["students", "list", query, status, page, size, sort] as const,
+    list: (query = "", status = "") =>
+      ["students", "list", query, status] as const,
     detail: (id: string) => ["students", "detail", id] as const,
     keys: (id: string) => ["students", "detail", id, "keys"] as const,
   },

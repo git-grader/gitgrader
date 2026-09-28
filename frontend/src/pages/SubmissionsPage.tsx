@@ -115,7 +115,7 @@ export function SubmissionsPage() {
   };
 
   return (
-    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+    <Box sx={{ display: 'flex', flexDirection: 'column', flex: '1 1 0', minHeight: 0, gap: 3 }}>
       <PageHeader title="Submissions" actions={
         <Box sx={{ display: 'flex', gap: 1.5, flexWrap: 'wrap', width: { xs: '100%', sm: 'auto' } }}>
         <FormControl size="small" sx={{ minWidth: { xs: '100%', sm: 200 } }}>
@@ -185,7 +185,7 @@ export function SubmissionsPage() {
       ) : isError ? (
         <QueryErrorNotice message="The submissions could not be loaded." onRetry={() => void refetch()} />
       ) : (
-        <Box sx={{ height: { xs: 520, md: 600 }, width: '100%', minWidth: 0 }}>
+        <Box sx={{ flex: '1 1 0', minHeight: { xs: 520, md: 0 }, width: '100%', minWidth: 0 }}>
           <DataGrid
             rows={data?.content ?? []}
             columns={isNarrow ? [narrowColumn] : wideColumns}

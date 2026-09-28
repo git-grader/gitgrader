@@ -3,7 +3,7 @@
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router';
-import { api } from '../api';
+import { api, getAllPages } from '../api';
 import { queryKeys } from '../api/queryKeys';
 import { QueryErrorNotice } from '../components/QueryErrorNotice';
 import { PageHeader } from '../components/PageHeader';
@@ -11,8 +11,7 @@ import { Box, Typography, CircularProgress, Button, TextField, FormControl, Inpu
 import { DataGrid } from '@mui/x-data-grid';
 import { StudentStatusChip } from '../components/StudentStatusChip';
 import { useIsNarrow } from '../components/responsiveColumns';
-import { useServerPagination } from '../components/useServerPagination';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import type { GridColDef, GridRenderCellParams } from '@mui/x-data-grid';
 import type { StudentSummary } from '../api';
 
@@ -21,14 +20,8 @@ const STUDENT_STATUSES = ['', 'SELF_REGISTERED', 'VERIFIED_BY_INSTRUCTOR', 'SUSP
 export function StudentsPage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const { paginationModel, setPaginationModel, sortModel, setSortModel, params } = useServerPagination();
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('');
-  const listParams = {
-    ...params,
-    ...(search.trim() ? { query: search.trim() } : {}),
-    ...(statusFilter ? { status: statusFilter } : {})
-  };
   const archiveMutation = useMutation({
     mutationFn: (id: string) => api.archiveStudent(id),
     onSuccess: () => { void queryClient.invalidateQueries({ queryKey: ['students', 'list'] }); }
@@ -46,12 +39,22 @@ export function StudentsPage() {
     onSuccess: () => { void queryClient.invalidateQueries({ queryKey: ['students', 'list'] }); }
   });
   const { data, isLoading, isError, refetch } = useQuery({
-    queryKey: queryKeys.students.list(params.page, params.size, search.trim(), statusFilter, params.sort),
-    queryFn: () => api.getStudents(listParams),
-    // Keeps the current rows on screen while the next page loads; without it the row
-    // count drops to zero and the grid bounces back to page one.
-    placeholderData: (previous) => previous
+    queryKey: queryKeys.students.list(),
+    queryFn: () => getAllPages(api.getStudents, {}, (student) => student.id),
   });
+
+  const students = useMemo(() => {
+    const query = search.trim().toLocaleLowerCase();
+    return (data ?? []).filter((student) => {
+      const matchesSearch = !query || [
+        student.studentUsername,
+        student.firstName,
+        student.lastName,
+        student.email,
+      ].some((value) => value.toLocaleLowerCase().includes(query));
+      return matchesSearch && (!statusFilter || student.status === statusFilter);
+    });
+  }, [data, search, statusFilter]);
 
   // Declared before the early returns below: a hook must run on every render.
   const isNarrow = useIsNarrow();
@@ -150,7 +153,7 @@ export function StudentsPage() {
   };
 
   return (
-    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+    <Box sx={{ display: 'flex', flexDirection: 'column', flex: '1 1 0', minHeight: 0, gap: 2 }}>
       <PageHeader title="Students" />
       <Box sx={{ display: 'flex', gap: 1.5, flexWrap: 'wrap', alignItems: 'center' }}>
         <TextField
@@ -158,7 +161,7 @@ export function StudentsPage() {
           label="Search"
           placeholder="Name, username or email"
           value={search}
-          onChange={(e) => { setSearch(e.target.value); setPaginationModel({ ...paginationModel, page: 0 }); }}
+          onChange={(e) => { setSearch(e.target.value); }}
           sx={{ minWidth: { xs: '100%', sm: 260 }, flex: '0 1 320px' }}
         />
         <FormControl size="small" sx={{ minWidth: { xs: '100%', sm: 200 } }}>
@@ -167,7 +170,7 @@ export function StudentsPage() {
             labelId="student-status-filter-label"
             value={statusFilter}
             label="Status Filter"
-            onChange={(e) => { setStatusFilter(e.target.value); setPaginationModel({ ...paginationModel, page: 0 }); }}
+            onChange={(e) => { setStatusFilter(e.target.value); }}
           >
             {STUDENT_STATUSES.map((s) => (
               <MenuItem key={s} value={s}>{s === '' ? 'All statuses' : s}</MenuItem>
@@ -175,19 +178,12 @@ export function StudentsPage() {
           </Select>
         </FormControl>
       </Box>
-      <Box sx={{ height: { xs: 520, md: 600 }, width: '100%', minWidth: 0 }}>
+      <Box sx={{ flex: '1 1 0', minHeight: { xs: 520, md: 0 }, width: '100%', minWidth: 0 }}>
         <DataGrid
-          rows={data.content}
+          rows={students}
           columns={isNarrow ? [narrowColumn] : wideColumns}
           {...(isNarrow ? { getRowHeight: () => 'auto' as const } : {})}
-          paginationMode="server"
-          rowCount={data.totalElements}
-          paginationModel={paginationModel}
-          onPaginationModelChange={setPaginationModel}
-          pageSizeOptions={[20, 50, 100]}
-          sortingMode="server"
-          sortModel={sortModel}
-          onSortModelChange={setSortModel}
+          hideFooterPagination
           disableRowSelectionOnClick
           onRowClick={(params) => { void navigate(`/students/${params.id}`); }}
         />

@@ -159,7 +159,7 @@ export function ReportPage() {
   };
 
   return (
-    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3, minWidth: 0 }}>
+    <Box sx={{ display: 'flex', flexDirection: 'column', flex: '1 1 0', minHeight: 0, gap: 3, minWidth: 0 }}>
       <PageHeader title="Course Report" />
 
       <Paper variant="outlined" sx={{ p: { xs: 2, sm: 3 } }}>
@@ -205,16 +205,13 @@ export function ReportPage() {
           <Typography>No enrolled students are included in this course report.</Typography>
         </Paper>
       ) : (
-        <Box sx={{ height: { xs: 520, md: 600 }, width: '100%', minWidth: 0, overflow: 'hidden' }}>
+        <Box sx={{ flex: '1 1 0', minHeight: { xs: 520, md: 0 }, width: '100%', minWidth: 0, overflow: 'hidden' }}>
           <DataGrid
             getRowId={(row: StudentRow) => row.studentId}
             rows={data.students}
             columns={isNarrow ? [narrowColumn] : columns}
             {...(isNarrow ? { getRowHeight: () => 'auto' as const } : {})}
-            initialState={{
-              pagination: { paginationModel: { pageSize: 50 } }
-            }}
-            pageSizeOptions={[50, 100]}
+            hideFooterPagination
             disableRowSelectionOnClick
             sx={{ minWidth: 0, width: '100%' }}
           />

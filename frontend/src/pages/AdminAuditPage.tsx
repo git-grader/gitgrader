@@ -150,7 +150,7 @@ export function AdminAuditPage() {
   ];
 
   return (
-    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, minWidth: 0 }}>
+    <Box sx={{ display: 'flex', flexDirection: 'column', flex: '1 1 0', minHeight: 0, gap: 2, minWidth: 0 }}>
       <PageHeader title="Audit Log" />
       <Typography variant="body2" color="text.secondary" sx={{ maxWidth: '80ch' }}>
         Every recorded action, newest first. Throttling decisions appear as
@@ -193,7 +193,7 @@ export function AdminAuditPage() {
           <CircularProgress aria-label="Loading audit log" />
         </Box>
       ) : (
-        <Box sx={{ height: { xs: 520, md: 600 }, width: '100%', minWidth: 0, overflowX: 'auto' }}>
+        <Box sx={{ flex: '1 1 0', minHeight: { xs: 520, md: 0 }, width: '100%', minWidth: 0, overflowX: 'auto' }}>
           <DataGrid
             rows={data?.content ?? []}
             columns={isNarrow ? [summaryColumn] : wideColumns}

@@ -159,7 +159,7 @@ export function InstructorLayout() {
   );
 
   return (
-    <Box sx={{ display: 'flex' }}>
+    <Box sx={{ display: 'flex', minHeight: '100dvh' }}>
       {/* The drawer repeats every link on every page, so a keyboard or screen-reader
           user met the whole navigation again before reaching the content each time. */}
       <Box
@@ -282,6 +282,11 @@ export function InstructorLayout() {
           // its content, so a wide table pushed the whole page sideways rather than
           // scrolling within itself.
           minWidth: 0,
+          minHeight: 0,
+          display: 'flex',
+          flexDirection: 'column',
+          height: '100dvh',
+          boxSizing: 'border-box',
           p: { xs: 2, md: 3 },
           '&:focus': { outline: 'none' }
         }}

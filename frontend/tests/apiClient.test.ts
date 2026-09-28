@@ -8,7 +8,8 @@ import {
   postForm,
   postMultipart,
 } from "../src/api/client";
-import { api, SubmissionSchema } from "../src/api";
+import { api, getAllPages, SubmissionSchema } from "../src/api";
+import type { Page } from "../src/api";
 import { queryKeys } from "../src/api/queryKeys";
 
 /**
@@ -259,6 +260,37 @@ describe("api client", () => {
       await fetchApi("/api/v1/courses", { headers: { Accept: "text/plain" } });
 
       expect(headersOfLastCall().get("Accept")).toBe("text/plain");
+    });
+  });
+
+  describe("bounded pageable collections", () => {
+    it("requests every page and de-duplicates rows by ID", async () => {
+      const getPage = vi
+        .fn<(params: Record<string, string>) => Promise<Page<{ id: string }>>>()
+        .mockResolvedValueOnce({
+          content: [{ id: "student-1" }, { id: "student-2" }],
+          totalElements: 3,
+          totalPages: 2,
+          size: 200,
+          number: 0,
+        })
+        .mockResolvedValueOnce({
+          content: [{ id: "student-2" }, { id: "student-3" }],
+          totalElements: 3,
+          totalPages: 2,
+          size: 200,
+          number: 1,
+        });
+
+      await expect(
+        getAllPages(getPage, {}, (student) => student.id),
+      ).resolves.toEqual([
+        { id: "student-1" },
+        { id: "student-2" },
+        { id: "student-3" },
+      ]);
+      expect(getPage).toHaveBeenNthCalledWith(1, { page: "0", size: "200" });
+      expect(getPage).toHaveBeenNthCalledWith(2, { page: "1", size: "200" });
     });
   });
 

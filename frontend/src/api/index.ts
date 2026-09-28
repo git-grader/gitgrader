@@ -176,6 +176,44 @@ export type Page<T> = {
   number: number;
 };
 
+export const ALL_PAGES_SIZE = "200";
+
+/**
+ * Collects each server page for a bounded resource into one stable, unique list.
+ *
+ * The API keeps its pageable contracts so unbounded resources can still page on the
+ * server. Instructor lists that are known to remain bounded use this to load every row
+ * once and let the grid filter and sort locally.
+ */
+export async function getAllPages<T>(
+  getPage: (params: Record<string, string>) => Promise<Page<T>>,
+  params: Record<string, string>,
+  getId: (item: T) => string,
+): Promise<T[]> {
+  const firstPage = await getPage({
+    ...params,
+    page: "0",
+    size: ALL_PAGES_SIZE,
+  });
+  const laterPages = await Promise.all(
+    Array.from(
+      { length: Math.max(0, firstPage.totalPages - 1) },
+      (_value, index) =>
+        getPage({ ...params, page: String(index + 1), size: ALL_PAGES_SIZE }),
+    ),
+  );
+  const seen = new Set<string>();
+
+  return [firstPage, ...laterPages]
+    .flatMap((page) => page.content)
+    .filter((item) => {
+      const id = getId(item);
+      if (seen.has(id)) return false;
+      seen.add(id);
+      return true;
+    });
+}
+
 export const StudentSummarySchema = z.object({
   id: z.string(),
   studentUsername: z.string(),
