@@ -26,6 +26,7 @@ import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.stream.IntStream;
 
 import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
@@ -106,6 +107,37 @@ class ReportExporterTest {
 			assertThat(sheet.getRow(2)
 				.getCell(column(header, "assignment-one Latest submission status"))
 				.getStringCellValue()).isEmpty();
+		}
+	}
+
+	@Test
+	void blanksOnlyTheColumnsWhoseSourceIsAbsent() throws IOException {
+		UUID submissionId = UUID.fromString("00000000-0000-0000-0000-000000000004");
+		UUID assignmentId = UUID.fromString("00000000-0000-0000-0000-000000000006");
+		ClassProgressReport.AssignmentProgress noSubmissionYet = new ClassProgressReport.AssignmentProgress(
+				new BigDecimal("25.00"), new BigDecimal("2.50"), null, null);
+		ClassProgressReport.AssignmentProgress stillGrading = new ClassProgressReport.AssignmentProgress(
+				new BigDecimal("25.00"), new BigDecimal("2.50"), null,
+				new SubmissionScoreView(submissionId, 1, GradingRunStatus.RUNNING, 0, 4, null, null, null, null));
+		ClassProgressReport report = new ClassProgressReport(COURSE_ID,
+				UUID.fromString("00000000-0000-0000-0000-000000000005"), "class-a", "Class A", 1,
+				new BigDecimal("10.00"),
+				List.of(new ClassProgressReport.AssignmentSummary(assignmentId, "assignment-one", "Assignment One",
+						true, new BigDecimal("10.00"), 4, 1, 1, 0, 0, 1, new BigDecimal("25.00"))),
+				List.of(classStudent(STUDENT_ID, "s1", "Ada Lovelace", noSubmissionYet), classStudent(
+						UUID.fromString("00000000-0000-0000-0000-000000000003"), "s2", "Grace Hopper", stillGrading)));
+
+		byte[] bytes = new ReportExportService(List.of(new XlsxReportExporter())).exportClassReport(report);
+
+		try (XSSFWorkbook workbook = new XSSFWorkbook(new ByteArrayInputStream(bytes))) {
+			var sheet = workbook.getSheet("Class report");
+			Row header = sheet.getRow(0);
+			List<String> withoutSubmission = assignmentCells(sheet.getRow(1), header);
+			List<String> whileGrading = assignmentCells(sheet.getRow(2), header);
+
+			assertThat(withoutSubmission).containsExactly("25.00", "2.50", "", "", "", "", "", "", "");
+			// A grading run that has not finished still knows its own test counters.
+			assertThat(whileGrading).containsExactly("25.00", "2.50", "", "", "", "", "0", "4", "RUNNING");
 		}
 	}
 
@@ -194,6 +226,14 @@ class ReportExporterTest {
 				EnrollmentStatus.ACTIVE, 1, 0, 0, BigDecimal.ONE, new BigDecimal("7.50"), new BigDecimal("0.75"),
 				new BigDecimal("10.00"), progress == null ? 0 : 1, progress == null ? null : CLOCK.instant(),
 				assignments);
+	}
+
+	private static List<String> assignmentCells(Row row, Row header) {
+		int first = column(header, "assignment-one Best percent");
+		return IntStream.range(first, row.getLastCellNum())
+			.mapToObj(row::getCell)
+			.map(cell -> cell.getStringCellValue())
+			.toList();
 	}
 
 	private static int column(Row header, String name) {

@@ -18,6 +18,7 @@ package org.gitgrader.reports;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
@@ -25,6 +26,9 @@ import java.util.List;
 import org.jspecify.annotations.Nullable;
 import java.util.function.Function;
 
+import org.gitgrader.grading.SubmissionScoreView;
+import org.gitgrader.reports.ClassProgressReport.AssignmentProgress;
+import org.gitgrader.reports.ClassProgressReport.LatestSubmission;
 import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
@@ -49,6 +53,19 @@ public class XlsxReportExporter implements ReportExporter {
 	private static final List<String> CLASS_HEADERS = List.of("Student ID", "Student ID / Username", "Full name",
 			"Student status", "Enrollment status", "Fully completed", "Partially completed", "Not started",
 			"Completion rate", "Points earned", "Points rate", "Total points", "Submission count", "Last activity");
+
+	/**
+	 * Columns that assignmentHeaders emits per assignment, and that assignmentValues
+	 * fills.
+	 */
+	private static final int ASSIGNMENT_COLUMN_COUNT = 9;
+
+	// One blank cell per column that assignmentHeaders emits, in the same order.
+	private static final List<String> BLANK_ASSIGNMENT_VALUES = List.of("", "", "", "", "", "", "", "", "");
+
+	private static final List<String> BLANK_SUBMISSION_VALUES = List.of("", "");
+
+	private static final List<String> BLANK_GRADING_VALUES = List.of("", "", "", "", "");
 
 	/**
 	 * Renders a nullable instant for a spreadsheet cell.
@@ -126,20 +143,34 @@ public class XlsxReportExporter implements ReportExporter {
 				assignmentKey + " Latest grading status");
 	}
 
-	private static List<String> assignmentValues(ClassProgressReport.AssignmentProgress progress) {
+	private static List<String> assignmentValues(@Nullable AssignmentProgress progress) {
 		if (progress == null) {
-			return List.of("", "", "", "", "", "", "", "", "");
+			return BLANK_ASSIGNMENT_VALUES;
 		}
-		ClassProgressReport.LatestSubmission submission = progress.latestSubmission();
-		var grading = progress.latestGrading();
-		return List.of(progress.bestPercent().toPlainString(), progress.bestPoints().toPlainString(),
-				submission == null ? "" : formatInstant(submission.receivedAt()),
-				submission == null ? "" : submission.status().name(),
-				grading == null || grading.scorePercent() == null ? "" : grading.scorePercent().toPlainString(),
-				grading == null || grading.pointsAwarded() == null ? "" : grading.pointsAwarded().toPlainString(),
-				grading == null ? "" : Integer.toString(grading.testsPassed()),
-				grading == null ? "" : Integer.toString(grading.testsTotal()),
-				grading == null ? "" : grading.status().name());
+		List<String> values = new ArrayList<>(ASSIGNMENT_COLUMN_COUNT);
+		values.add(progress.bestPercent().toPlainString());
+		values.add(progress.bestPoints().toPlainString());
+		values.addAll(submissionValues(progress.latestSubmission()));
+		values.addAll(gradingValues(progress.latestGrading()));
+		return List.copyOf(values);
+	}
+
+	private static List<String> submissionValues(@Nullable LatestSubmission submission) {
+		if (submission == null) {
+			return BLANK_SUBMISSION_VALUES;
+		}
+		return List.of(formatInstant(submission.receivedAt()), submission.status().name());
+	}
+
+	private static List<String> gradingValues(@Nullable SubmissionScoreView grading) {
+		if (grading == null) {
+			return BLANK_GRADING_VALUES;
+		}
+		BigDecimal percent = grading.scorePercent();
+		BigDecimal pointsAwarded = grading.pointsAwarded();
+		return List.of((percent != null) ? percent.toPlainString() : "",
+				(pointsAwarded != null) ? pointsAwarded.toPlainString() : "", Integer.toString(grading.testsPassed()),
+				Integer.toString(grading.testsTotal()), grading.status().name());
 	}
 
 }

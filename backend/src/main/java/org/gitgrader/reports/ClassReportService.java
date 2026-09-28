@@ -118,7 +118,7 @@ class ClassReportService {
 					? BigDecimal.ZERO : entry.getValue().scorePercent()));
 		return data.students()
 			.stream()
-			.map((student) -> calculate(student, data.assignments(), data.assessments(), scores))
+			.map((student) -> StudentProgressRows.of(student, data.assignments(), data.assessments(), scores))
 			.collect(Collectors.toMap(StudentProgressRow::studentId, (row) -> row));
 	}
 
@@ -173,8 +173,9 @@ class ClassReportService {
 					}
 				}
 				SubmissionScoreView score = data.latestScores().get(newest.submissionId());
-				if (score != null && score.status() == GradingRunStatus.COMPLETED && score.scorePercent() != null) {
-					percentTotal = percentTotal.add(score.scorePercent());
+				BigDecimal percent = (score == null) ? null : score.scorePercent();
+				if (score != null && score.status() == GradingRunStatus.COMPLETED && percent != null) {
+					percentTotal = percentTotal.add(percent);
 					graded++;
 				}
 			}
@@ -212,24 +213,6 @@ class ClassReportService {
 				: new ClassProgressReport.LatestSubmission(assessment.submissionId(), assessment.commitSha(),
 						assessment.gitRef(), assessment.commitMessage(), assessment.receivedAt(), assessment.status(),
 						assessment.late());
-	}
-
-	private static StudentProgressRow calculate(StudentView student, List<AssignmentView> assignments,
-			List<SubmissionAssessmentView> assessments, Map<UUID, BigDecimal> scores) {
-		List<ReportCalculator.Assignment> definitions = assignments.stream()
-			.map((item) -> new ReportCalculator.Assignment(item.id(), item.assignmentKey(), item.mandatory(),
-					item.maxPoints(), item.passThreshold()))
-			.toList();
-		List<ReportCalculator.Assessment> studentAssessments = assessments.stream()
-			.filter((assessment) -> assessment.studentId().equals(student.id()))
-			.map((assessment) -> new ReportCalculator.Assessment(assessment.assignmentId(), assessment.status(),
-					assessment.status().isGraded() ? scores.getOrDefault(assessment.submissionId(), BigDecimal.ZERO)
-							: null,
-					assessment.receivedAt()))
-			.toList();
-		return ReportCalculator.calculate(
-				new ReportCalculator.Student(student.id(), student.studentUsername(), student.fullName()), definitions,
-				studentAssessments);
 	}
 
 	private static int mandatoryCount(List<AssignmentView> assignments) {

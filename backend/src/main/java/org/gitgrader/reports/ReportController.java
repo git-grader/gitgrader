@@ -93,7 +93,7 @@ public class ReportController {
 			.collect(Collectors.toMap(SubmissionScoreView::submissionId,
 					(score) -> score.scorePercent() == null ? BigDecimal.ZERO : score.scorePercent()));
 		List<StudentProgressRow> rows = enrolledStudents.stream()
-			.map((student) -> calculate(student, courseAssignments, assessments, scores))
+			.map((student) -> StudentProgressRows.of(student, courseAssignments, assessments, scores))
 			.toList();
 		int mandatory = (int) courseAssignments.stream().filter(AssignmentView::mandatory).count();
 		BigDecimal points = courseAssignments.stream()
@@ -137,24 +137,6 @@ public class ReportController {
 		headers.setContentType(MediaType.parseMediaType(representation.mediaType()));
 		headers.setContentDisposition(ContentDisposition.attachment().filename("class-report.xlsx").build());
 		return ResponseEntity.ok().headers(headers).body(new ByteArrayResource(content));
-	}
-
-	private static StudentProgressRow calculate(StudentView student, List<AssignmentView> assignments,
-			List<SubmissionAssessmentView> assessments, Map<UUID, BigDecimal> scores) {
-		List<ReportCalculator.Assignment> definitions = assignments.stream()
-			.map((item) -> new ReportCalculator.Assignment(item.id(), item.assignmentKey(), item.mandatory(),
-					item.maxPoints(), item.passThreshold()))
-			.toList();
-		List<ReportCalculator.Assessment> studentAssessments = assessments.stream()
-			.filter((assessment) -> assessment.studentId().equals(student.id()))
-			.map((assessment) -> new ReportCalculator.Assessment(assessment.assignmentId(), assessment.status(),
-					assessment.status().isGraded() ? scores.getOrDefault(assessment.submissionId(), BigDecimal.ZERO)
-							: null,
-					assessment.receivedAt()))
-			.toList();
-		return ReportCalculator.calculate(
-				new ReportCalculator.Student(student.id(), student.studentUsername(), student.fullName()), definitions,
-				studentAssessments);
 	}
 
 }
