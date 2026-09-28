@@ -1,3 +1,6 @@
+// Copyright the GitGrader contributors.
+// SPDX-License-Identifier: Apache-2.0
+
 import { render, screen } from '@testing-library/react';
 import { expect, test } from 'vitest';
 import { PageHeader } from '../src/components/PageHeader';
