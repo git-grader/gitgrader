@@ -35,4 +35,14 @@ public interface ReportExporter {
 	 */
 	byte[] export(CourseReport report) throws IOException;
 
+	/**
+	 * Serializes a class report when supported by this exporter.
+	 * @param report report to serialize
+	 * @return serialized bytes
+	 * @throws IOException when serialization fails
+	 */
+	default byte[] export(ClassProgressReport report) throws IOException {
+		throw new IllegalArgumentException("Class reports are not supported by this exporter");
+	}
+
 }

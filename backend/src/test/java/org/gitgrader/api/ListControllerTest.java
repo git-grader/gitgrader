@@ -16,16 +16,23 @@
 
 package org.gitgrader.api;
 
+import java.time.Instant;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 import org.gitgrader.assignments.AssignmentAdministration;
 import org.gitgrader.assignments.AssignmentCatalog;
 import org.gitgrader.assignments.web.AssignmentController;
 import org.gitgrader.identity.ActorProvider;
+import org.gitgrader.identity.StudentDirectory;
+import org.gitgrader.identity.StudentStatus;
+import org.gitgrader.identity.StudentView;
 import org.gitgrader.submissions.SubmissionSearch;
+import org.gitgrader.submissions.SignatureVerdict;
 import org.gitgrader.submissions.SubmissionService;
 import org.gitgrader.submissions.SubmissionStatus;
+import org.gitgrader.submissions.SubmissionView;
 import org.gitgrader.submissions.web.SubmissionController;
 import org.junit.jupiter.api.Test;
 import org.springframework.data.domain.PageImpl;
@@ -41,6 +48,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 
 class ListControllerTest {
 
@@ -66,8 +74,9 @@ class ListControllerTest {
 	@Test
 	void submissionsListWorksWithAndWithoutCourseId() throws Exception {
 		SubmissionService submissions = mock(SubmissionService.class);
+		StudentDirectory students = mock(StudentDirectory.class);
 		when(submissions.search(any(), any())).thenReturn(new PageImpl<>(List.of(), PageRequest.of(0, 20), 0));
-		MockMvc mockMvc = MockMvcBuilders.standaloneSetup(new SubmissionController(submissions))
+		MockMvc mockMvc = MockMvcBuilders.standaloneSetup(new SubmissionController(submissions, students))
 			.setCustomArgumentResolvers(new PageableHandlerMethodArgumentResolver())
 			.build();
 		UUID courseId = UUID.randomUUID();
@@ -77,6 +86,56 @@ class ListControllerTest {
 
 		verify(submissions).search(eq(new SubmissionSearch(null, null, null, null)), any());
 		verify(submissions).search(eq(new SubmissionSearch(courseId, null, null, null)), any());
+	}
+
+	@Test
+	void submissionsListIncludesStudentUsername() throws Exception {
+		SubmissionService submissions = mock(SubmissionService.class);
+		StudentDirectory students = mock(StudentDirectory.class);
+		UUID studentId = UUID.randomUUID();
+		StudentView student = student(studentId);
+		SubmissionView submission = new SubmissionView(UUID.randomUUID(), UUID.randomUUID(), null, studentId,
+				UUID.randomUUID(), UUID.randomUUID(), "a".repeat(40), "aaaaaaa", "refs/heads/main", null,
+				Instant.parse("2026-03-01T10:00:00Z"), SignatureVerdict.VERIFIED, null, SubmissionStatus.PASSED, false,
+				null, null, null);
+		when(submissions.search(any(), any()))
+			.thenReturn(new PageImpl<>(List.of(submission), PageRequest.of(0, 20), 1));
+		when(students.findByIds(any())).thenReturn(List.of(student));
+		MockMvc mockMvc = MockMvcBuilders.standaloneSetup(new SubmissionController(submissions, students))
+			.setCustomArgumentResolvers(new PageableHandlerMethodArgumentResolver())
+			.build();
+
+		mockMvc.perform(get("/api/v1/submissions"))
+			.andExpect(status().isOk())
+			.andExpect(jsonPath("$.content[0].studentUsername").value("alice"));
+		verify(students).findByIds(eq(List.of(studentId)));
+	}
+
+	@Test
+	void submissionDetailIncludesStudentUsername() throws Exception {
+		SubmissionService submissions = mock(SubmissionService.class);
+		StudentDirectory students = mock(StudentDirectory.class);
+		UUID studentId = UUID.randomUUID();
+		UUID submissionId = UUID.randomUUID();
+		SubmissionView submission = submission(submissionId, studentId);
+		when(submissions.findById(submissionId)).thenReturn(Optional.of(submission));
+		when(students.findById(studentId)).thenReturn(Optional.of(student(studentId)));
+		MockMvc mockMvc = MockMvcBuilders.standaloneSetup(new SubmissionController(submissions, students)).build();
+
+		mockMvc.perform(get("/api/v1/submissions/{id}", submissionId))
+			.andExpect(status().isOk())
+			.andExpect(jsonPath("$.studentUsername").value("alice"));
+	}
+
+	private static StudentView student(UUID id) {
+		return new StudentView(id, "alice", "Alice Example", "alice@example.edu", StudentStatus.SELF_REGISTERED, null,
+				Instant.parse("2026-03-01T10:00:00Z"));
+	}
+
+	private static SubmissionView submission(UUID id, UUID studentId) {
+		return new SubmissionView(id, UUID.randomUUID(), null, studentId, UUID.randomUUID(), UUID.randomUUID(),
+				"a".repeat(40), "aaaaaaa", "refs/heads/main", null, Instant.parse("2026-03-01T10:00:00Z"),
+				SignatureVerdict.VERIFIED, null, SubmissionStatus.PASSED, false, null, null, null);
 	}
 
 	/**
@@ -91,8 +150,9 @@ class ListControllerTest {
 	@Test
 	void submissionFiltersReachTheQueryRatherThanThePage() throws Exception {
 		SubmissionService submissions = mock(SubmissionService.class);
+		StudentDirectory students = mock(StudentDirectory.class);
 		when(submissions.search(any(), any())).thenReturn(new PageImpl<>(List.of(), PageRequest.of(0, 20), 0));
-		MockMvc mockMvc = MockMvcBuilders.standaloneSetup(new SubmissionController(submissions))
+		MockMvc mockMvc = MockMvcBuilders.standaloneSetup(new SubmissionController(submissions, students))
 			.setCustomArgumentResolvers(new PageableHandlerMethodArgumentResolver())
 			.build();
 		UUID courseId = UUID.randomUUID();

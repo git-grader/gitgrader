@@ -18,20 +18,20 @@ export class ApiProblem extends Error {
     public readonly status: number,
     public readonly detail?: string,
     public readonly instance?: string,
-    public readonly errors?: { field: string; message: string }[]
+    public readonly errors?: { field: string; message: string }[],
   ) {
     super(title);
-    this.name = 'ApiProblem';
+    this.name = "ApiProblem";
   }
 }
 
 const XSRF_COOKIE = /(^| )XSRF-TOKEN=([^;]+)/;
 
-const METHODS_NEEDING_CSRF = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);
+const METHODS_NEEDING_CSRF = new Set(["POST", "PUT", "PATCH", "DELETE"]);
 
 function getXsrfToken(): string | null {
   const match = document.cookie.match(XSRF_COOKIE);
-  return match ? decodeURIComponent(match[2] || '') : null;
+  return match ? decodeURIComponent(match[2] || "") : null;
 }
 
 /**
@@ -42,13 +42,13 @@ function getXsrfToken(): string | null {
 function withCsrfToken(headers: Headers): Headers {
   const xsrf = getXsrfToken();
   if (xsrf) {
-    headers.set('X-XSRF-TOKEN', xsrf);
+    headers.set("X-XSRF-TOKEN", xsrf);
   }
   return headers;
 }
 
 async function failureOf(res: Response): Promise<Error> {
-  if (res.headers.get('content-type')?.includes('application/problem+json')) {
+  if (res.headers.get("content-type")?.includes("application/problem+json")) {
     const problem = (await res.json()) as ProblemDocument;
     return new ApiProblem(
       problem.type,
@@ -56,7 +56,7 @@ async function failureOf(res: Response): Promise<Error> {
       problem.status,
       problem.detail,
       problem.instance,
-      problem.errors
+      problem.errors,
     );
   }
   return new Error(`API error: ${res.status} ${res.statusText}`);
@@ -66,12 +66,11 @@ async function readBody<T>(res: Response): Promise<T> {
   if (!res.ok) {
     throw await failureOf(res);
   }
-  // 202 and 204 are answers in themselves; so is anything that is not json, which is
-  // what a redirect to the sign-in page looks like by the time it arrives here.
-  if (res.status === 204 || res.status === 202) {
+  // 204 is an answer in itself; a 202 may carry an acceptance payload.
+  if (res.status === 204) {
     return {} as T;
   }
-  if (res.headers.get('content-type')?.includes('application/json')) {
+  if (res.headers.get("content-type")?.includes("application/json")) {
     return (await res.json()) as T;
   }
   return {} as T;
@@ -83,13 +82,18 @@ async function readBody<T>(res: Response): Promise<T> {
  * Returns the raw response: a rejected sign-in still answers with a redirect, so the
  * status does not say whether it worked and the caller has to ask separately.
  */
-export async function postForm(path: string, fields: Record<string, string>): Promise<Response> {
-  const headers = withCsrfToken(new Headers({ 'Content-Type': 'application/x-www-form-urlencoded' }));
+export async function postForm(
+  path: string,
+  fields: Record<string, string>,
+): Promise<Response> {
+  const headers = withCsrfToken(
+    new Headers({ "Content-Type": "application/x-www-form-urlencoded" }),
+  );
   return fetch(path, {
-    method: 'POST',
+    method: "POST",
     headers,
     body: new URLSearchParams(fields).toString(),
-    redirect: 'follow'
+    redirect: "follow",
   });
 }
 
@@ -99,18 +103,29 @@ export async function postForm(path: string, fields: Record<string, string>): Pr
  * The content type is deliberately left unset, because only the browser can add the
  * boundary that makes the body parseable.
  */
-export async function postMultipart<T>(path: string, formData: FormData): Promise<T> {
-  const headers = withCsrfToken(new Headers({ Accept: 'application/json' }));
-  const res = await fetch(path, { method: 'POST', headers, body: formData, redirect: 'follow' });
+export async function postMultipart<T>(
+  path: string,
+  formData: FormData,
+): Promise<T> {
+  const headers = withCsrfToken(new Headers({ Accept: "application/json" }));
+  const res = await fetch(path, {
+    method: "POST",
+    headers,
+    body: formData,
+    redirect: "follow",
+  });
   return readBody<T>(res);
 }
 
-export async function fetchApi<T>(path: string, options: RequestInit = {}): Promise<T> {
+export async function fetchApi<T>(
+  path: string,
+  options: RequestInit = {},
+): Promise<T> {
   const headers = new Headers(options.headers || {});
-  if (!headers.has('Accept')) {
-    headers.set('Accept', 'application/json');
+  if (!headers.has("Accept")) {
+    headers.set("Accept", "application/json");
   }
-  if (METHODS_NEEDING_CSRF.has(options.method?.toUpperCase() || 'GET')) {
+  if (METHODS_NEEDING_CSRF.has(options.method?.toUpperCase() || "GET")) {
     withCsrfToken(headers);
   }
 
@@ -126,9 +141,12 @@ export async function fetchApi<T>(path: string, options: RequestInit = {}): Prom
  * a server error surfaced as an unhandled blob instead of an `ApiProblem` the
  * caller can report. The path must already be encoded by the caller.
  */
-export async function fetchBlob(path: string, options: RequestInit = {}): Promise<Blob> {
+export async function fetchBlob(
+  path: string,
+  options: RequestInit = {},
+): Promise<Blob> {
   const headers = new Headers(options.headers || {});
-  if (METHODS_NEEDING_CSRF.has(options.method?.toUpperCase() || 'GET')) {
+  if (METHODS_NEEDING_CSRF.has(options.method?.toUpperCase() || "GET")) {
     withCsrfToken(headers);
   }
 
@@ -137,7 +155,7 @@ export async function fetchBlob(path: string, options: RequestInit = {}): Promis
     const failure = await failureOf(res);
     throw failure instanceof ApiProblem
       ? failure
-      : new ApiProblem('about:blank', failure.message, res.status);
+      : new ApiProblem("about:blank", failure.message, res.status);
   }
   return res.blob();
 }

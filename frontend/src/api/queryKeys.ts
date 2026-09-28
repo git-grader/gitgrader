@@ -15,58 +15,86 @@
  * slot, so no invalidation could name one without matching the others.
  */
 export const queryKeys = {
-  meta: ['meta'] as const,
-  me: ['me'] as const,
-  dashboard: ['dashboard'] as const,
-  availability: ['availability'] as const,
-  result: (token: string) => ['result', token] as const,
+  meta: ["meta"] as const,
+  me: ["me"] as const,
+  dashboard: ["dashboard"] as const,
+  dashboardCourses: ["dashboard", "course-summaries"] as const,
+  availability: ["availability"] as const,
+  result: (token: string) => ["result", token] as const,
 
   courses: {
-    all: ['courses'] as const,
-    list: (status: string, page: string, size: string) => ['courses', 'list', status, page, size] as const,
-    choices: ['courses', 'choices'] as const,
-    detail: (id: string) => ['courses', 'detail', id] as const,
-    classes: (id: string) => ['courses', 'detail', id, 'classes'] as const
+    all: ["courses"] as const,
+    list: (status: string, page: string, size: string, sort = "") =>
+      ["courses", "list", status, page, size, sort] as const,
+    choices: ["courses", "choices"] as const,
+    detail: (id: string) => ["courses", "detail", id] as const,
+    classes: (id: string) => ["courses", "detail", id, "classes"] as const,
   },
 
   assignments: {
-    all: ['assignments'] as const,
-    list: (courseId: string, page: string, size: string, status = '') => ['assignments', 'list', courseId, status, page, size] as const,
-    detail: (id: string) => ['assignments', 'detail', id] as const,
-    extensions: (id: string) => ['assignments', 'detail', id, 'extensions'] as const
+    all: ["assignments"] as const,
+    list: (
+      courseId: string,
+      page: string,
+      size: string,
+      status = "",
+      sort = "",
+    ) => ["assignments", "list", courseId, status, page, size, sort] as const,
+    detail: (id: string) => ["assignments", "detail", id] as const,
+    extensions: (id: string) =>
+      ["assignments", "detail", id, "extensions"] as const,
   },
 
   submissions: {
-    all: ['submissions'] as const,
-    list: (courseId: string, page: string, size: string, status = '') => ['submissions', 'list', courseId, status, page, size] as const,
-    detail: (id: string) => ['submissions', 'detail', id] as const
+    all: ["submissions"] as const,
+    list: (
+      courseId: string,
+      page: string,
+      size: string,
+      status = "",
+      sort = "",
+    ) => ["submissions", "list", courseId, status, page, size, sort] as const,
+    detail: (id: string) => ["submissions", "detail", id] as const,
   },
 
   students: {
-    list: (page: string, size: string, query = '', status = '') => ['students', 'list', query, status, page, size] as const,
-    detail: (id: string) => ['students', 'detail', id] as const,
-    keys: (id: string) => ['students', 'detail', id, 'keys'] as const
+    list: (page: string, size: string, query = "", status = "", sort = "") =>
+      ["students", "list", query, status, page, size, sort] as const,
+    detail: (id: string) => ["students", "detail", id] as const,
+    keys: (id: string) => ["students", "detail", id, "keys"] as const,
   },
 
   templates: {
-    all: ['templates'] as const,
-    list: ['templates', 'list'] as const,
-    versions: (templateId: string) => ['templates', 'detail', templateId, 'versions'] as const
+    all: ["templates"] as const,
+    list: ["templates", "list"] as const,
+    versions: (templateId: string) =>
+      ["templates", "detail", templateId, "versions"] as const,
   },
 
   testSuites: {
-    all: ['test-suites'] as const,
-    list: ['test-suites', 'list'] as const,
-    versions: (suiteId: string) => ['test-suites', 'detail', suiteId, 'versions'] as const
+    all: ["test-suites"] as const,
+    list: ["test-suites", "list"] as const,
+    versions: (suiteId: string) =>
+      ["test-suites", "detail", suiteId, "versions"] as const,
   },
 
   // The assignment form's choices, fetched as one set. Kept apart from the per-template
   // and per-suite version keys so publishing a version can invalidate both spellings.
-  publishedMaterials: ['materials', 'published'] as const,
+  publishedMaterials: ["materials", "published"] as const,
 
-  runtimes: ['runtimes'] as const,
+  runtimes: ["runtimes"] as const,
 
-  audit: (page: string, size: string, eventType = '', actorType = '') => ['audit', eventType, actorType, page, size] as const,
+  audit: (
+    page: string,
+    size: string,
+    eventType = "",
+    actorType = "",
+    sort = "",
+  ) => ["audit", eventType, actorType, page, size, sort] as const,
 
-  report: (courseId: string) => ['report', courseId] as const
+  report: (courseId: string) => ["report", courseId] as const,
+  classReport: (courseId: string, classId: string) =>
+    ["report", "class", courseId, classId] as const,
+  classStudentReport: (courseId: string, classId: string, studentId: string) =>
+    ["report", "class", courseId, classId, "student", studentId] as const,
 };

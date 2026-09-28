@@ -6,6 +6,7 @@ import { useNavigate } from 'react-router';
 import { api } from '../api';
 import { queryKeys } from '../api/queryKeys';
 import { QueryErrorNotice } from '../components/QueryErrorNotice';
+import { PageHeader } from '../components/PageHeader';
 import { Box, Typography, CircularProgress, Button, TextField, FormControl, InputLabel, Select, MenuItem } from '@mui/material';
 import { DataGrid } from '@mui/x-data-grid';
 import { StudentStatusChip } from '../components/StudentStatusChip';
@@ -20,7 +21,7 @@ const STUDENT_STATUSES = ['', 'SELF_REGISTERED', 'VERIFIED_BY_INSTRUCTOR', 'SUSP
 export function StudentsPage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const { paginationModel, setPaginationModel, params } = useServerPagination();
+  const { paginationModel, setPaginationModel, sortModel, setSortModel, params } = useServerPagination();
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('');
   const listParams = {
@@ -45,7 +46,7 @@ export function StudentsPage() {
     onSuccess: () => { void queryClient.invalidateQueries({ queryKey: ['students', 'list'] }); }
   });
   const { data, isLoading, isError, refetch } = useQuery({
-    queryKey: queryKeys.students.list(params.page, params.size, search.trim(), statusFilter),
+    queryKey: queryKeys.students.list(params.page, params.size, search.trim(), statusFilter, params.sort),
     queryFn: () => api.getStudents(listParams),
     // Keeps the current rows on screen while the next page loads; without it the row
     // count drops to zero and the grid bounces back to page one.
@@ -80,32 +81,38 @@ export function StudentsPage() {
         const row = params.row;
         if (row.status === 'ARCHIVED') {
           return (
-            <Button size="small" disabled={restoreMutation.isPending}
-              onClick={() => { if (window.confirm(`Restore ${row.firstName} ${row.lastName} so they can submit again?`)) restoreMutation.mutate(row.id); }}>
+            <Button size="small" variant="outlined" disabled={restoreMutation.isPending}
+              onClick={(event) => {
+                event.stopPropagation();
+                if (window.confirm(`Restore ${row.firstName} ${row.lastName} so they can submit again?`)) restoreMutation.mutate(row.id);
+              }}>
               Restore
             </Button>
           );
         }
         return (
-          <Box sx={{ display: 'flex', gap: 0.5 }}>
+          <Box
+            sx={{ display: 'flex', gap: 0.75, flexWrap: 'wrap', alignItems: 'center' }}
+            onClick={(event) => event.stopPropagation()}
+          >
             {(row.status === 'SELF_REGISTERED') && (
-              <Button size="small" disabled={verifyMutation.isPending}
+              <Button size="small" variant="outlined" disabled={verifyMutation.isPending}
                 onClick={() => verifyMutation.mutate(row.id)}>
                 Verify
               </Button>
             )}
             {row.status !== 'SUSPENDED' ? (
-              <Button size="small" color="warning" disabled={suspendMutation.isPending}
+              <Button size="small" variant="outlined" color="warning" disabled={suspendMutation.isPending}
                 onClick={() => { if (window.confirm(`Suspend ${row.firstName} ${row.lastName}? Pushes will be refused until restored.`)) suspendMutation.mutate(row.id); }}>
                 Suspend
               </Button>
             ) : (
-              <Button size="small" disabled={restoreMutation.isPending}
+              <Button size="small" variant="outlined" disabled={restoreMutation.isPending}
                 onClick={() => restoreMutation.mutate(row.id)}>
                 Restore
               </Button>
             )}
-            <Button size="small" color="error" disabled={archiveMutation.isPending}
+            <Button size="small" variant="outlined" color="error" disabled={archiveMutation.isPending}
               onClick={() => { if (window.confirm(`Archive ${row.firstName} ${row.lastName}?`)) archiveMutation.mutate(row.id); }}>
               Archive
             </Button>
@@ -143,18 +150,18 @@ export function StudentsPage() {
   };
 
   return (
-    <Box>
-      <Typography variant="h4" component="h1" gutterBottom>Students</Typography>
-      <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap', mt: 1, mb: 1 }}>
+    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+      <PageHeader title="Students" />
+      <Box sx={{ display: 'flex', gap: 1.5, flexWrap: 'wrap', alignItems: 'center' }}>
         <TextField
           size="small"
           label="Search"
           placeholder="Name, username or email"
           value={search}
           onChange={(e) => { setSearch(e.target.value); setPaginationModel({ ...paginationModel, page: 0 }); }}
-          sx={{ minWidth: 220 }}
+          sx={{ minWidth: { xs: '100%', sm: 260 }, flex: '0 1 320px' }}
         />
-        <FormControl size="small" sx={{ minWidth: 200 }}>
+        <FormControl size="small" sx={{ minWidth: { xs: '100%', sm: 200 } }}>
           <InputLabel id="student-status-filter-label">Status Filter</InputLabel>
           <Select
             labelId="student-status-filter-label"
@@ -168,7 +175,7 @@ export function StudentsPage() {
           </Select>
         </FormControl>
       </Box>
-      <Box sx={{ height: 600, width: '100%', mt: 2 }}>
+      <Box sx={{ height: { xs: 520, md: 600 }, width: '100%', minWidth: 0 }}>
         <DataGrid
           rows={data.content}
           columns={isNarrow ? [narrowColumn] : wideColumns}
@@ -178,9 +185,9 @@ export function StudentsPage() {
           paginationModel={paginationModel}
           onPaginationModelChange={setPaginationModel}
           pageSizeOptions={[20, 50, 100]}
-          // Only the requested page is in memory, so a client-side sort would silently
-          // reorder that page alone while appearing to sort the whole collection.
-          disableColumnSorting
+          sortingMode="server"
+          sortModel={sortModel}
+          onSortModelChange={setSortModel}
           disableRowSelectionOnClick
           onRowClick={(params) => { void navigate(`/students/${params.id}`); }}
         />

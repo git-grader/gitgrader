@@ -17,8 +17,13 @@
 package org.gitgrader.submissions.web;
 
 import java.util.UUID;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 import jakarta.persistence.EntityNotFoundException;
+import com.fasterxml.jackson.annotation.JsonUnwrapped;
+import org.gitgrader.identity.StudentDirectory;
+import org.gitgrader.identity.StudentView;
 import org.gitgrader.submissions.SubmissionSearch;
 import org.gitgrader.submissions.SubmissionService;
 import org.gitgrader.submissions.SubmissionStatus;
@@ -43,23 +48,38 @@ public class SubmissionController {
 
 	private final SubmissionService submissions;
 
-	public SubmissionController(SubmissionService submissions) {
+	private final StudentDirectory students;
+
+	public SubmissionController(SubmissionService submissions, StudentDirectory students) {
 		this.submissions = submissions;
+		this.students = students;
 	}
 
 	@GetMapping
-	public Page<SubmissionView> list(@RequestParam(required = false) @Nullable UUID courseId,
+	public Page<InstructorSubmission> list(@RequestParam(required = false) @Nullable UUID courseId,
 			@RequestParam(required = false) @Nullable UUID assignmentId,
 			@RequestParam(required = false) @Nullable UUID studentId,
 			@RequestParam(required = false) @Nullable SubmissionStatus status, Pageable pageable) {
 		Pageable ordered = pageable.getSort().isSorted() ? pageable : PageRequest.of(pageable.getPageNumber(),
 				pageable.getPageSize(), Sort.by(Sort.Order.desc("receivedAt"), Sort.Order.desc("id")));
-		return this.submissions.search(new SubmissionSearch(courseId, assignmentId, studentId, status), ordered);
+		Page<SubmissionView> page = this.submissions
+			.search(new SubmissionSearch(courseId, assignmentId, studentId, status), ordered);
+		Map<UUID, String> usernames = this.students
+			.findByIds(page.getContent().stream().map(SubmissionView::studentId).distinct().toList())
+			.stream()
+			.collect(Collectors.toMap(StudentView::id, StudentView::studentUsername));
+		return page.map(submission -> new InstructorSubmission(submission, usernames.get(submission.studentId())));
 	}
 
 	@GetMapping("/{id}")
-	public SubmissionView detail(@PathVariable UUID id) {
-		return this.submissions.findById(id).orElseThrow(() -> new EntityNotFoundException("Submission not found"));
+	public InstructorSubmission detail(@PathVariable UUID id) {
+		SubmissionView submission = this.submissions.findById(id)
+			.orElseThrow(() -> new EntityNotFoundException("Submission not found"));
+		String username = this.students.findById(submission.studentId()).map(StudentView::studentUsername).orElse(null);
+		return new InstructorSubmission(submission, username);
+	}
+
+	private record InstructorSubmission(@JsonUnwrapped SubmissionView submission, @Nullable String studentUsername) {
 	}
 
 }

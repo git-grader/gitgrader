@@ -19,6 +19,7 @@ package org.gitgrader.reports;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.List;
 
 import org.jspecify.annotations.Nullable;
@@ -44,6 +45,10 @@ public class XlsxReportExporter implements ReportExporter {
 			(row) -> row.pointsEarned().toPlainString(), (row) -> row.pointsRate().toPlainString(),
 			(row) -> row.totalPoints().toPlainString(), (row) -> Long.toString(row.submissionCount()),
 			(row) -> formatInstant(row.lastActivityAt()));
+
+	private static final List<String> CLASS_HEADERS = List.of("Student ID", "Student ID / Username", "Full name",
+			"Student status", "Enrollment status", "Fully completed", "Partially completed", "Not started",
+			"Completion rate", "Points earned", "Points rate", "Total points", "Submission count", "Last activity");
 
 	/**
 	 * Renders a nullable instant for a spreadsheet cell.
@@ -77,6 +82,64 @@ public class XlsxReportExporter implements ReportExporter {
 			workbook.write(output);
 			return output.toByteArray();
 		}
+	}
+
+	@Override
+	public byte[] export(ClassProgressReport report) throws IOException {
+		List<String> headers = new ArrayList<>(CLASS_HEADERS);
+		for (ClassProgressReport.AssignmentSummary assignment : report.assignments()) {
+			headers.addAll(assignmentHeaders(assignment.assignmentKey()));
+		}
+		try (XSSFWorkbook workbook = new XSSFWorkbook(); ByteArrayOutputStream output = new ByteArrayOutputStream()) {
+			Sheet sheet = workbook.createSheet("Class report");
+			Row header = sheet.createRow(0);
+			for (int column = 0; column < headers.size(); column++) {
+				header.createCell(column).setCellValue(headers.get(column));
+			}
+			for (int index = 0; index < report.students().size(); index++) {
+				ClassProgressReport.StudentRow student = report.students().get(index);
+				Row row = sheet.createRow(index + 1);
+				List<String> values = new ArrayList<>(List.of(student.studentId().toString(), student.studentUsername(),
+						student.fullName(), student.status().name(), student.enrollmentStatus().name(),
+						Integer.toString(student.fullyCompleted()), Integer.toString(student.partiallyCompleted()),
+						Integer.toString(student.notStarted()), student.completionRate().toPlainString(),
+						student.pointsEarned().toPlainString(), student.pointsRate().toPlainString(),
+						student.totalPoints().toPlainString(), Long.toString(student.submissionCount()),
+						formatInstant(student.lastActivityAt())));
+				for (ClassProgressReport.AssignmentSummary assignment : report.assignments()) {
+					values.addAll(assignmentValues(student.assignments().get(assignment.assignmentKey())));
+				}
+				for (int column = 0; column < values.size(); column++) {
+					row.createCell(column).setCellValue(values.get(column));
+				}
+			}
+			workbook.write(output);
+			return output.toByteArray();
+		}
+	}
+
+	private static List<String> assignmentHeaders(String assignmentKey) {
+		return List.of(assignmentKey + " Best percent", assignmentKey + " Best points",
+				assignmentKey + " Latest submission", assignmentKey + " Latest submission status",
+				assignmentKey + " Latest score percent", assignmentKey + " Latest points awarded",
+				assignmentKey + " Tests passed", assignmentKey + " Tests total",
+				assignmentKey + " Latest grading status");
+	}
+
+	private static List<String> assignmentValues(ClassProgressReport.AssignmentProgress progress) {
+		if (progress == null) {
+			return List.of("", "", "", "", "", "", "", "", "");
+		}
+		ClassProgressReport.LatestSubmission submission = progress.latestSubmission();
+		var grading = progress.latestGrading();
+		return List.of(progress.bestPercent().toPlainString(), progress.bestPoints().toPlainString(),
+				submission == null ? "" : formatInstant(submission.receivedAt()),
+				submission == null ? "" : submission.status().name(),
+				grading == null || grading.scorePercent() == null ? "" : grading.scorePercent().toPlainString(),
+				grading == null || grading.pointsAwarded() == null ? "" : grading.pointsAwarded().toPlainString(),
+				grading == null ? "" : Integer.toString(grading.testsPassed()),
+				grading == null ? "" : Integer.toString(grading.testsTotal()),
+				grading == null ? "" : grading.status().name());
 	}
 
 }

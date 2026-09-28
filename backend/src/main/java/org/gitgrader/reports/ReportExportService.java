@@ -50,4 +50,18 @@ public class ReportExportService {
 		return exporter.export(report);
 	}
 
+	/**
+	 * Exports a complete class report as XLSX.
+	 * @param report report to export
+	 * @return serialized workbook
+	 * @throws IOException when serialization fails
+	 */
+	public byte[] exportClassReport(ClassProgressReport report) throws IOException {
+		ReportExporter exporter = this.exporters.get(ReportFormat.XLSX);
+		if (exporter == null) {
+			throw new IllegalArgumentException("XLSX report export is not available");
+		}
+		return exporter.export(report);
+	}
+
 }

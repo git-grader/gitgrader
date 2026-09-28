@@ -29,7 +29,7 @@ const meta = {
   buildCommit: 'test-commit'
 };
 
-const cloneCommand = 'git clone ssh://git@localhost:2222/cs101/<assignment-key>/12345.git';
+const cloneCommand = 'git -c core.sshCommand="ssh -p 2222" clone git@localhost:cs101/<assignment-key>/12345.git';
 
 function renderPage() {
   return render(
@@ -70,7 +70,16 @@ test('says so when the browser will not let it copy', async () => {
   screen.getByRole('button', { name: 'Copy' }).click();
 
   expect(await screen.findByRole('button', { name: 'Copy it by hand' })).toBeInTheDocument();
-  expect(screen.getByText(/ssh:\/\/git@localhost:2222\/cs101/)).toBeInTheDocument();
+  expect(screen.getByText(cloneCommand)).toBeInTheDocument();
+});
+
+test('keeps the visually hidden status region at one pixel', () => {
+  renderPage();
+
+  const status = getComputedStyle(screen.getByRole('status'));
+  expect(status.position).toBe('absolute');
+  expect(status.width).toBe('1px');
+  expect(status.height).toBe('1px');
 });
 
 // Port 22 is SSH's default. It is usually the port in use, so the clone command omits it
@@ -86,7 +95,7 @@ test('omits the default port 22 from the clone command', () => {
     </MetaContext.Provider>
   );
 
-  expect(screen.getByText(/git clone ssh:\/\/git@localhost\/cs101/)).toBeInTheDocument();
+  expect(screen.getByText('git clone git@localhost:cs101/<assignment-key>/12345.git')).toBeInTheDocument();
   expect(screen.queryByText(/localhost:22\//)).not.toBeInTheDocument();
 });
 

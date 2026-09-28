@@ -21,7 +21,7 @@ listed in the second table.
 | `app.result-tokens.time-to-live` | `APP_RESULT_TOKEN_TTL` | `P180D` | Token lifetime. |
 | `app.result-tokens.prefix-length` | — | `8` | Stored support-prefix length. |
 | `git.enabled` | `GIT_ENABLED` | `true` | Start SSH endpoint. |
-| `git.ssh-host` / `git.ssh-port` | `GIT_SSH_HOST` / `GIT_SSH_PORT` | `localhost` / `2222` | Advertised clone endpoint. |
+| `git.ssh-host` / `git.ssh-port` | `GIT_SSH_HOST` / `GIT_SSH_PORT` | `localhost` / `2222` | Advertised clone endpoint. Generated scp-style clone commands apply non-default ports with Git's `core.sshCommand`, since the URL syntax has no port field. |
 | `git.listen-address` / `git.listen-port` | `GIT_LISTEN_ADDRESS` / `GIT_LISTEN_PORT` | `0.0.0.0` / `2222` | SSH bind endpoint. |
 | `git.ssh-user` | `GIT_SSH_USER` | `git` | Fixed clone user. |
 | `git.host-key-path` | `GIT_HOST_KEY_PATH` | `/data/git/ssh/hostkey.ser` | Persistent SSH host key. |

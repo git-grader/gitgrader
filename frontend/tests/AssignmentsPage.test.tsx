@@ -165,6 +165,27 @@ test('keeps a deliberate zero distinguishable from an empty field', async () => 
   expect(body).toMatchObject({ maxPoints: 0 });
 });
 
+test('requests server sorting when an assignment column is selected', async () => {
+  const requestedSorts: string[] = [];
+  server.use(
+    http.get('/api/v1/courses', () => HttpResponse.json(page([COURSE]))),
+    http.get('/api/v1/assignments', ({ request }) => {
+      requestedSorts.push(new URL(request.url).searchParams.get('sort') ?? '');
+      return HttpResponse.json(page([created()]));
+    }),
+    http.get('/api/v1/templates', () => HttpResponse.json(page([]))),
+    http.get('/api/v1/test-suites', () => HttpResponse.json(page([]))),
+    http.get('/api/v1/materials/published', () => HttpResponse.json({ templateVersions: [], suiteVersions: [] })),
+    http.get('/api/v1/runtimes', () => HttpResponse.json([]))
+  );
+
+  renderWithProviders(<AssignmentsPage />);
+  const user = userEvent.setup();
+  await user.click(await screen.findByRole('columnheader', { name: 'Title' }));
+
+  await waitFor(() => { expect(requestedSorts).toContain('title,asc'); });
+});
+
 /**
  * The dialog is mounted for the life of the page, so anything left in it after a failed
  * attempt was still there the next time it opened - including the error banner from a

@@ -19,13 +19,16 @@ package org.gitgrader.courses.internal;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;
+import java.util.List;
 import java.util.UUID;
 
 import org.gitgrader.identity.StudentDirectory;
 import org.junit.jupiter.api.Test;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 class DefaultCourseServiceTest {
@@ -44,6 +47,25 @@ class DefaultCourseServiceTest {
 
 		assertThatThrownBy(() -> service.enroll(studentId, courseId, null)).isInstanceOf(IllegalStateException.class)
 			.hasMessageContaining("already enrolled");
+	}
+
+	@Test
+	void enrolledStudentIdsAreScopedToTheCourseAndClassIds() {
+		CourseRepository courses = mock(CourseRepository.class);
+		CourseClassRepository classes = mock(CourseClassRepository.class);
+		EnrollmentRepository enrollments = mock(EnrollmentRepository.class);
+		StudentDirectory students = mock(StudentDirectory.class);
+		Clock clock = Clock.fixed(Instant.parse("2026-03-01T10:15:30Z"), ZoneOffset.UTC);
+		DefaultCourseService service = new DefaultCourseService(courses, classes, enrollments, students, clock);
+		UUID requestedCourseId = UUID.randomUUID();
+		UUID requestedClassId = UUID.randomUUID();
+		List<UUID> requestedStudents = List.of(UUID.randomUUID(), UUID.randomUUID());
+		when(enrollments.findStudentIdsByCourseIdAndClassId(requestedCourseId, requestedClassId))
+			.thenReturn(requestedStudents);
+
+		assertThat(service.findEnrolledStudentIds(requestedCourseId, requestedClassId))
+			.containsExactlyElementsOf(requestedStudents);
+		verify(enrollments).findStudentIdsByCourseIdAndClassId(requestedCourseId, requestedClassId);
 	}
 
 }

@@ -6,6 +6,7 @@ import { useQuery } from '@tanstack/react-query';
 import { api } from '../api';
 import { queryKeys } from '../api/queryKeys';
 import { QueryErrorNotice } from '../components/QueryErrorNotice';
+import { PageHeader } from '../components/PageHeader';
 import { Box, Chip, Typography, CircularProgress, Select, MenuItem, InputLabel, FormControl } from '@mui/material';
 import { DataGrid } from '@mui/x-data-grid';
 import type { GridColDef, GridRenderCellParams } from '@mui/x-data-grid';
@@ -26,14 +27,14 @@ export function SubmissionsPage() {
     queryFn: () => api.getCourses({ size: CHOICE_PAGE_SIZE })
   });
 
-  const { paginationModel, setPaginationModel, params } = useServerPagination();
+  const { paginationModel, setPaginationModel, sortModel, setSortModel, params } = useServerPagination();
   const submissionParams = {
     ...params,
     ...(selectedCourseId ? { courseId: selectedCourseId } : {}),
     ...(selectedStatus ? { status: selectedStatus } : {})
   };
   const { data, isLoading, isError, refetch } = useQuery({
-    queryKey: queryKeys.submissions.list(selectedCourseId, params.page, params.size, selectedStatus),
+    queryKey: queryKeys.submissions.list(selectedCourseId, params.page, params.size, selectedStatus, params.sort),
     queryFn: () => api.getSubmissions(submissionParams),
     placeholderData: (previous) => previous
   });
@@ -41,7 +42,8 @@ export function SubmissionsPage() {
   const isNarrow = useIsNarrow();
 
   const wideColumns: GridColDef[] = [
-    { field: 'shortCommitSha', headerName: 'Commit', width: 110 },
+    { field: 'studentUsername', headerName: 'Student', width: 150, valueGetter: (_value, row: Submission) => row.studentUsername ?? 'Unknown student' },
+    { field: 'shortCommitSha', headerName: 'Commit', width: 110, sortable: false },
     {
       field: 'status',
       headerName: 'Status',
@@ -87,8 +89,8 @@ export function SubmissionsPage() {
    * anywhere.
    */
   const narrowColumn: GridColDef = {
-    field: 'shortCommitSha',
-    headerName: 'Submission',
+    field: 'receivedAt',
+    headerName: 'Received At',
     flex: 1,
     minWidth: 240,
     renderCell: (params: GridRenderCellParams<Submission>) => {
@@ -96,6 +98,7 @@ export function SubmissionsPage() {
       return (
         <Box sx={{ py: 1, display: 'flex', flexDirection: 'column', gap: 0.5, minWidth: 0 }}>
           <Box sx={{ display: 'flex', gap: 1, alignItems: 'center', flexWrap: 'wrap' }}>
+            <Typography variant="body2" sx={{ fontWeight: 600, overflowWrap: 'anywhere' }}>{row.studentUsername ?? 'Unknown student'}</Typography>
             <Typography variant="body2" sx={{ fontFamily: 'monospace' }}>{row.shortCommitSha}</Typography>
             <SubmissionStatusChip status={row.status} />
             {row.late && <Chip size="small" color="warning" label="Late" />}
@@ -112,10 +115,9 @@ export function SubmissionsPage() {
   };
 
   return (
-    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 1.5 }}>
-        <Typography variant="h4" component="h1">Submissions</Typography>
-        <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
+    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+      <PageHeader title="Submissions" actions={
+        <Box sx={{ display: 'flex', gap: 1.5, flexWrap: 'wrap', width: { xs: '100%', sm: 'auto' } }}>
         <FormControl size="small" sx={{ minWidth: { xs: '100%', sm: 200 } }}>
           <InputLabel id="submission-course-filter-label">Course Filter</InputLabel>
           <Select
@@ -167,7 +169,7 @@ export function SubmissionsPage() {
           </Select>
         </FormControl>
         </Box>
-      </Box>
+      } />
 
       {coursesFailed && (
         <QueryErrorNotice
@@ -183,7 +185,7 @@ export function SubmissionsPage() {
       ) : isError ? (
         <QueryErrorNotice message="The submissions could not be loaded." onRetry={() => void refetch()} />
       ) : (
-        <Box sx={{ height: 600, width: '100%' }}>
+        <Box sx={{ height: { xs: 520, md: 600 }, width: '100%', minWidth: 0 }}>
           <DataGrid
             rows={data?.content ?? []}
             columns={isNarrow ? [narrowColumn] : wideColumns}
@@ -192,9 +194,9 @@ export function SubmissionsPage() {
             rowCount={data?.totalElements ?? 0}
             paginationModel={paginationModel}
             onPaginationModelChange={setPaginationModel}
-            // Only the requested page is in memory, so a client-side sort would silently
-            // reorder that page alone while appearing to sort the whole collection.
-            disableColumnSorting
+            sortingMode="server"
+            sortModel={sortModel}
+            onSortModelChange={setSortModel}
             pageSizeOptions={[20, 50, 100]}
             disableRowSelectionOnClick
             onRowClick={(params) => { void navigate(`/submissions/${encodeURIComponent(String(params.id))}`); }}

@@ -9,9 +9,10 @@ import { queryKeys } from '../api/queryKeys';
 import { QueryErrorNotice } from '../components/QueryErrorNotice';
 import { AssignmentStatusChip } from '../components/AssignmentStatusChip';
 import { MutationErrorAlert } from '../components/MutationErrorAlert';
+import { PageHeader } from '../components/PageHeader';
 import { fromZonedInputValue, toZonedInputValue } from '../components/localDateTime';
 import type { AssignmentDefinition, AssignmentDetail } from '../api';
-import { Typography, CircularProgress, Button, Paper, Alert, Tooltip, Box, FormControl, InputLabel, Select, MenuItem, TextField, Table, TableHead, TableRow, TableCell, TableBody } from '@mui/material';
+import { Typography, CircularProgress, Button, Paper, Alert, Tooltip, Box, FormControl, InputLabel, Select, MenuItem, TextField, Table, TableHead, TableRow, TableCell, TableBody, TableContainer } from '@mui/material';
 import { useAssignmentMaterials } from '../hooks/useAssignmentMaterials';
 
 type Materials = ReturnType<typeof useAssignmentMaterials>;
@@ -116,7 +117,7 @@ function ConfigurationForm({ assignment, materials, isDraft, pending, onSave }: 
         </Select>
       </FormControl>
 
-      <Box sx={{ display: 'flex', gap: 2 }}>
+      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: 2 }}>
         <TextField
           label="Opens At"
           type="datetime-local"
@@ -236,16 +237,9 @@ export function AssignmentDetailPage() {
 
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <Box>
-          <Typography variant="h4" component="h1">{assignment.title}</Typography>
-          <Box sx={{ display: 'flex', gap: 1, alignItems: 'center', flexWrap: 'wrap' }}>
-            <Typography color="text.secondary" sx={{ overflowWrap: 'anywhere' }}>
-              Key: {assignment.assignmentKey}
-            </Typography>
-            <AssignmentStatusChip status={assignment.status} />
-          </Box>
-        </Box>
+      <PageHeader title={assignment.title} description={`Key: ${assignment.assignmentKey}`} actions={
+        <>
+          <AssignmentStatusChip status={assignment.status} />
         <Tooltip title={publishTooltip}>
           <span>
             <Button
@@ -258,7 +252,8 @@ export function AssignmentDetailPage() {
             </Button>
           </span>
         </Tooltip>
-      </Box>
+        </>
+      } />
 
       <MutationErrorAlert error={error} />
       {!isDraft && <Alert severity="info">Published assignments are immutable. Configuration cannot be changed.</Alert>}
@@ -286,7 +281,8 @@ export function AssignmentDetailPage() {
         ) : (extensionsQuery.data ?? []).length === 0 ? (
           <Typography variant="body2" color="text.secondary">No extensions granted.</Typography>
         ) : (
-          <Table size="small">
+          <TableContainer sx={{ width: '100%', overflowX: 'auto' }}>
+          <Table size="small" sx={{ minWidth: 650 }}>
             <TableHead>
               <TableRow>
                 <TableCell>Student</TableCell>
@@ -319,16 +315,17 @@ export function AssignmentDetailPage() {
               ))}
             </TableBody>
           </Table>
+          </TableContainer>
         )}
         <MutationErrorAlert error={grantExtensionMutation.error ?? revokeExtensionMutation.error} />
-        <Box component="form" sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }} onSubmit={(e) => { e.preventDefault(); grantExtensionMutation.mutate(); }}>
+        <Box component="form" sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, minmax(0, 1fr))' }, gap: 2 }} onSubmit={(e) => { e.preventDefault(); grantExtensionMutation.mutate(); }}>
           <TextField
             label="Student ID"
             required
             value={extensionForm.studentId}
             onChange={(e) => setExtensionForm({ ...extensionForm, studentId: e.target.value })}
             disabled={grantExtensionMutation.isPending}
-            sx={{ minWidth: 240, flex: '1 1 auto' }}
+            sx={{ minWidth: 0 }}
           />
           <TextField
             label="Extended Due At"
@@ -338,7 +335,7 @@ export function AssignmentDetailPage() {
             value={extensionForm.extendedDueAt}
             onChange={(e) => setExtensionForm({ ...extensionForm, extendedDueAt: e.target.value })}
             disabled={grantExtensionMutation.isPending}
-            sx={{ minWidth: 220 }}
+            sx={{ minWidth: 0 }}
           />
           <TextField
             label="Reason"
@@ -346,7 +343,7 @@ export function AssignmentDetailPage() {
             value={extensionForm.reason}
             onChange={(e) => setExtensionForm({ ...extensionForm, reason: e.target.value })}
             disabled={grantExtensionMutation.isPending}
-            sx={{ minWidth: 200, flex: '1 1 auto' }}
+            sx={{ minWidth: 0 }}
           />
           <Button type="submit" variant="outlined" disabled={grantExtensionMutation.isPending}>
             {grantExtensionMutation.isPending ? 'Granting…' : 'Grant extension'}

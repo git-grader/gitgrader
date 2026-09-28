@@ -17,6 +17,7 @@
 package org.gitgrader.assignments.web;
 
 import java.time.Instant;
+import java.util.Comparator;
 import java.util.List;
 import java.util.UUID;
 
@@ -37,6 +38,7 @@ import org.jspecify.annotations.Nullable;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -77,9 +79,34 @@ public class AssignmentController {
 			.stream()
 			.filter((item) -> status == null || item.status() == status)
 			.toList();
+		Comparator<AssignmentView> order = assignmentOrder(pageable.getSort());
+		if (order != null) {
+			assignments = assignments.stream().sorted(order).toList();
+		}
 		int start = Math.min((int) pageable.getOffset(), assignments.size());
 		int end = Math.min(start + pageable.getPageSize(), assignments.size());
 		return new PageImpl<>(assignments.subList(start, end), pageable, assignments.size());
+	}
+
+	private static Comparator<AssignmentView> assignmentOrder(Sort sort) {
+		Comparator<AssignmentView> comparator = null;
+		for (Sort.Order order : sort) {
+			Comparator<AssignmentView> next = switch (order.getProperty()) {
+				case "assignmentKey" -> Comparator.comparing(AssignmentView::assignmentKey);
+				case "title" -> Comparator.comparing(AssignmentView::title);
+				case "status" -> Comparator.comparing(AssignmentView::status);
+				case "dueAt" ->
+					Comparator.comparing(AssignmentView::dueAt, Comparator.nullsLast(Comparator.naturalOrder()));
+				default -> null;
+			};
+			if (next != null) {
+				if (order.isDescending()) {
+					next = next.reversed();
+				}
+				comparator = comparator == null ? next : comparator.thenComparing(next);
+			}
+		}
+		return comparator == null ? null : comparator.thenComparing(AssignmentView::id);
 	}
 
 	@PostMapping

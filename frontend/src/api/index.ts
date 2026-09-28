@@ -1,8 +1,8 @@
 // Copyright the GitGrader contributors.
 // SPDX-License-Identifier: Apache-2.0
 
-import { z } from 'zod';
-import { fetchApi, postMultipart } from './client';
+import { z } from "zod";
+import { fetchApi, postMultipart } from "./client";
 
 /**
  * Reads a response and checks it against the schema that describes it.
@@ -13,32 +13,39 @@ import { fetchApi, postMultipart } from './client';
  * anything. Parsing means a contract break surfaces as a failed query on the page that
  * asked, which the error notices already know how to show.
  */
-async function readJson<S extends z.ZodType>(path: string, schema: S): Promise<z.output<S>> {
+async function readJson<S extends z.ZodType>(
+  path: string,
+  schema: S,
+): Promise<z.output<S>> {
   return schema.parse(await fetchApi<unknown>(path));
 }
 
 async function sendJson<S extends z.ZodType>(
-  method: 'POST' | 'PUT' | 'PATCH',
+  method: "POST" | "PUT" | "PATCH",
   path: string,
   body: unknown,
-  schema: S
+  schema: S,
 ): Promise<z.output<S>> {
   const received = await fetchApi<unknown>(path, {
     method,
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body)
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
   });
   return schema.parse(received);
 }
 
-async function uploadJson<S extends z.ZodType>(path: string, formData: FormData, schema: S): Promise<z.output<S>> {
+async function uploadJson<S extends z.ZodType>(
+  path: string,
+  formData: FormData,
+  schema: S,
+): Promise<z.output<S>> {
   return schema.parse(await postMultipart<unknown>(path, formData));
 }
 
 function queryString(params?: Record<string, string>): string {
-  if (!params) return '';
+  if (!params) return "";
   const qs = new URLSearchParams(params).toString();
-  return qs ? `?${qs}` : '';
+  return qs ? `?${qs}` : "";
 }
 
 /**
@@ -61,7 +68,7 @@ export const MetaSchema = z.object({
   registrationEnabled: z.boolean(),
   requireInstructorVerification: z.boolean(),
   version: z.string(),
-  buildCommit: z.string()
+  buildCommit: z.string(),
 });
 export type Meta = z.infer<typeof MetaSchema>;
 
@@ -69,13 +76,13 @@ export type Meta = z.infer<typeof MetaSchema>;
 // requiring one here made such a course impossible to register for through a form whose
 // class dropdown was empty and required at the same time.
 export const RegistrationRequestSchema = z.object({
-  firstName: z.string().min(1, 'First name is required'),
-  lastName: z.string().min(1, 'Last name is required'),
-  studentUsername: z.string().min(1, 'Student username is required'),
-  email: z.email('Invalid email'),
-  courseKey: z.string().min(1, 'Course is required'),
+  firstName: z.string().min(1, "First name is required"),
+  lastName: z.string().min(1, "Last name is required"),
+  studentUsername: z.string().min(1, "Student username is required"),
+  email: z.email("Invalid email"),
+  courseKey: z.string().min(1, "Course is required"),
   classKey: z.string().nullish(),
-  publicKey: z.string().min(1, 'Public key is required')
+  publicKey: z.string().min(1, "Public key is required"),
 });
 export type RegistrationRequest = z.infer<typeof RegistrationRequestSchema>;
 
@@ -84,7 +91,7 @@ export const RegistrationResponseSchema = z.object({
   studentUsername: z.string(),
   fullName: z.string(),
   status,
-  keyFingerprint: z.string()
+  keyFingerprint: z.string(),
 });
 export type RegistrationResponse = z.infer<typeof RegistrationResponseSchema>;
 
@@ -92,14 +99,18 @@ export const AvailabilitySchema = z.object({
   open: z.boolean(),
   opensAt: z.string().nullish(),
   closesAt: z.string().nullish(),
-  courses: z.array(z.object({
-    courseKey: z.string(),
-    name: z.string(),
-    classes: z.array(z.object({
-      classKey: z.string(),
-      name: z.string()
-    }))
-  }))
+  courses: z.array(
+    z.object({
+      courseKey: z.string(),
+      name: z.string(),
+      classes: z.array(
+        z.object({
+          classKey: z.string(),
+          name: z.string(),
+        }),
+      ),
+    }),
+  ),
 });
 export type Availability = z.infer<typeof AvailabilitySchema>;
 
@@ -118,14 +129,16 @@ export const PublicResultSchema = z.object({
   passed: z.number().nullish(),
   total: z.number().nullish(),
   score: z.number().nullish(),
-  tests: z.array(z.object({
-    public: z.boolean(),
-    name: z.string().nullish(),
-    category: z.string().nullish(),
-    outcome: z.string(),
-    message: z.string().nullish(),
-    hint: z.string().nullish()
-  }))
+  tests: z.array(
+    z.object({
+      public: z.boolean(),
+      name: z.string().nullish(),
+      category: z.string().nullish(),
+      outcome: z.string(),
+      message: z.string().nullish(),
+      hint: z.string().nullish(),
+    }),
+  ),
 });
 export type PublicResult = z.infer<typeof PublicResultSchema>;
 
@@ -133,7 +146,7 @@ export const MeSchema = z.object({
   username: z.string(),
   displayName: z.string(),
   actorType: z.string(),
-  roles: z.array(z.string())
+  roles: z.array(z.string()),
 });
 export type Me = z.infer<typeof MeSchema>;
 
@@ -142,19 +155,26 @@ export const DashboardSchema = z.object({
   studentCount: z.number(),
   openAssignmentCount: z.number(),
   runningGradingCount: z.number(),
-  failedInfrastructureCount: z.number()
+  failedInfrastructureCount: z.number(),
 });
 export type Dashboard = z.infer<typeof DashboardSchema>;
 
-export const PageSchema = <T extends z.ZodType>(itemSchema: T) => z.object({
-  content: z.array(itemSchema),
-  totalElements: z.number(),
-  totalPages: z.number(),
-  size: z.number(),
-  number: z.number()
-});
+export const PageSchema = <T extends z.ZodType>(itemSchema: T) =>
+  z.object({
+    content: z.array(itemSchema),
+    totalElements: z.number(),
+    totalPages: z.number(),
+    size: z.number(),
+    number: z.number(),
+  });
 
-export type Page<T> = { content: T[]; totalElements: number; totalPages: number; size: number; number: number };
+export type Page<T> = {
+  content: T[];
+  totalElements: number;
+  totalPages: number;
+  size: number;
+  number: number;
+};
 
 export const StudentSummarySchema = z.object({
   id: z.string(),
@@ -162,7 +182,7 @@ export const StudentSummarySchema = z.object({
   firstName: z.string(),
   lastName: z.string(),
   email: z.string(),
-  status
+  status,
 });
 export type StudentSummary = z.infer<typeof StudentSummarySchema>;
 export const StudentStatusResponseSchema = z.object({
@@ -172,34 +192,39 @@ export const StudentStatusResponseSchema = z.object({
   email: z.string(),
   status,
   classLabel: z.string().nullish(),
-  registeredAt: z.string()
+  registeredAt: z.string(),
 });
 export type StudentStatusResponse = z.infer<typeof StudentStatusResponseSchema>;
 export const StudentDetailSchema = z.object({
   student: StudentSummarySchema,
-  sshKeys: z.array(z.object({
-    id: z.string(),
-    studentId: z.string(),
-    label: z.string(),
-    keyType: z.string(),
-    publicKey: z.string(),
-    fingerprint: z.string(),
-    keyBits: z.number().nullish(),
-    comment: z.string().nullish(),
-    status: z.string(),
-    origin: z.string(),
-    addedBy: z.string().nullish(),
-    revokedAt: z.string().nullish(),
-    revocationReason: z.string().nullish(),
-    replacedById: z.string().nullish(),
-    lastUsedAt: z.string().nullish(),
-    createdAt: z.string()
-  }))
+  sshKeys: z.array(
+    z.object({
+      id: z.string(),
+      studentId: z.string(),
+      label: z.string(),
+      keyType: z.string(),
+      publicKey: z.string(),
+      fingerprint: z.string(),
+      keyBits: z.number().nullish(),
+      comment: z.string().nullish(),
+      status: z.string(),
+      origin: z.string(),
+      addedBy: z.string().nullish(),
+      revokedAt: z.string().nullish(),
+      revocationReason: z.string().nullish(),
+      replacedById: z.string().nullish(),
+      lastUsedAt: z.string().nullish(),
+      createdAt: z.string(),
+    }),
+  ),
 });
 export type StudentDetail = z.infer<typeof StudentDetailSchema>;
-export type SshKey = StudentDetail['sshKeys'][number];
+export type SshKey = StudentDetail["sshKeys"][number];
 export const StudentUpdateSchema = z.object({
-  studentUsername: z.string().min(1), firstName: z.string().min(1), lastName: z.string().min(1), email: z.email()
+  studentUsername: z.string().min(1),
+  firstName: z.string().min(1),
+  lastName: z.string().min(1),
+  email: z.email(),
 });
 export type StudentUpdate = z.infer<typeof StudentUpdateSchema>;
 
@@ -215,22 +240,22 @@ export const CourseViewSchema = z.object({
   status,
   registrationOpensAt: z.string().nullish(),
   registrationClosesAt: z.string().nullish(),
-  registrationEnabled: z.boolean()
+  registrationEnabled: z.boolean(),
 });
 export type CourseView = z.infer<typeof CourseViewSchema>;
 
 export const CourseDefinitionSchema = z.object({
-  courseKey: z.string().min(1, 'Course key is required'),
-  name: z.string().min(1, 'Name is required'),
+  courseKey: z.string().min(1, "Course key is required"),
+  name: z.string().min(1, "Name is required"),
   description: z.string().nullish(),
   semester: z.string().nullish(),
   startsOn: z.string().nullish(),
   endsOn: z.string().nullish(),
-  timezone: z.string().min(1, 'Timezone is required'),
-  status: z.string().min(1, 'Status is required'),
+  timezone: z.string().min(1, "Timezone is required"),
+  status: z.string().min(1, "Status is required"),
   registrationOpensAt: z.string().nullish(),
   registrationClosesAt: z.string().nullish(),
-  registrationEnabled: z.boolean()
+  registrationEnabled: z.boolean(),
 });
 export type CourseDefinition = z.infer<typeof CourseDefinitionSchema>;
 
@@ -238,23 +263,23 @@ export const ClassSchema = z.object({
   id: z.string(),
   courseId: z.string(),
   classKey: z.string(),
-  name: z.string()
+  name: z.string(),
 });
 export type Class = z.infer<typeof ClassSchema>;
 
 export const ClassDefinitionSchema = z.object({
-  classKey: z.string().min(1, 'Class key is required'),
-  name: z.string().min(1, 'Name is required')
+  classKey: z.string().min(1, "Class key is required"),
+  name: z.string().min(1, "Name is required"),
 });
 export type ClassDefinition = z.infer<typeof ClassDefinitionSchema>;
 
 export const AssignmentDefinitionSchema = z.object({
-  courseId: z.string().min(1, 'Course ID is required'),
-  assignmentKey: z.string().min(1, 'Assignment key is required'),
-  title: z.string().min(1, 'Title is required'),
+  courseId: z.string().min(1, "Course ID is required"),
+  assignmentKey: z.string().min(1, "Assignment key is required"),
+  title: z.string().min(1, "Title is required"),
   description: z.string().nullish(),
   displayOrder: z.number().int(),
-  status: z.string().min(1, 'Status is required'),
+  status: z.string().min(1, "Status is required"),
   mandatory: z.boolean(),
   opensAt: z.string().nullish(),
   dueAt: z.string().nullish(),
@@ -270,7 +295,7 @@ export const AssignmentDefinitionSchema = z.object({
   memoryLimitBytes: z.number().int().min(1).nullish(),
   cpuLimit: z.number().min(0).nullish(),
   pidLimit: z.number().int().min(1).nullish(),
-  networkEnabled: z.boolean()
+  networkEnabled: z.boolean(),
 });
 export type AssignmentDefinition = z.infer<typeof AssignmentDefinitionSchema>;
 
@@ -300,7 +325,7 @@ export const AssignmentSchema = z.object({
   memoryLimitBytes: z.number().nullish(),
   cpuLimit: z.number().nullish(),
   pidLimit: z.number().nullish(),
-  networkEnabled: z.boolean()
+  networkEnabled: z.boolean(),
 });
 export type AssignmentDetail = z.infer<typeof AssignmentSchema>;
 
@@ -308,14 +333,14 @@ export const TemplateSchema = z.object({
   id: z.string(),
   templateKey: z.string(),
   name: z.string(),
-  description: z.string().nullish()
+  description: z.string().nullish(),
 });
 export type Template = z.infer<typeof TemplateSchema>;
 
 export const TemplateDefinitionSchema = z.object({
-  templateKey: z.string().min(1, 'Template key is required'),
-  name: z.string().min(1, 'Name is required'),
-  description: z.string().optional()
+  templateKey: z.string().min(1, "Template key is required"),
+  name: z.string().min(1, "Name is required"),
+  description: z.string().optional(),
 });
 export type TemplateDefinition = z.infer<typeof TemplateDefinitionSchema>;
 
@@ -329,7 +354,7 @@ export const TemplateVersionSchema = z.object({
   totalBytes: z.number(),
   publishedAt: z.string().nullish(),
   publishedBy: z.string().nullish(),
-  createdAt: z.string()
+  createdAt: z.string(),
 });
 export type TemplateVersion = z.infer<typeof TemplateVersionSchema>;
 
@@ -337,14 +362,14 @@ export const TestSuiteSchema = z.object({
   id: z.string(),
   suiteKey: z.string(),
   name: z.string(),
-  description: z.string().nullish()
+  description: z.string().nullish(),
 });
 export type TestSuite = z.infer<typeof TestSuiteSchema>;
 
 export const TestSuiteDefinitionSchema = z.object({
-  suiteKey: z.string().min(1, 'Suite key is required'),
-  name: z.string().min(1, 'Name is required'),
-  description: z.string().optional()
+  suiteKey: z.string().min(1, "Suite key is required"),
+  name: z.string().min(1, "Name is required"),
+  description: z.string().optional(),
 });
 export type TestSuiteDefinition = z.infer<typeof TestSuiteDefinitionSchema>;
 
@@ -358,7 +383,7 @@ export const TestSuiteVersionSchema = z.object({
   publicTestCount: z.number(),
   publishedAt: z.string().nullish(),
   publishedBy: z.string().nullish(),
-  createdAt: z.string()
+  createdAt: z.string(),
 });
 export type TestSuiteVersion = z.infer<typeof TestSuiteVersionSchema>;
 
@@ -368,7 +393,11 @@ export type TestSuiteVersion = z.infer<typeof TestSuiteVersionSchema>;
 // separately is what made opening the page cost one request per template and per suite.
 export const PublishedMaterialsSchema = z.object({
   templateVersions: z.array(
-    z.object({ id: z.string(), templateName: z.string(), versionLabel: z.string() })
+    z.object({
+      id: z.string(),
+      templateName: z.string(),
+      versionLabel: z.string(),
+    }),
   ),
   suiteVersions: z.array(
     z.object({
@@ -376,9 +405,9 @@ export const PublishedMaterialsSchema = z.object({
       suiteName: z.string(),
       versionLabel: z.string(),
       hiddenTestCount: z.number(),
-      publicTestCount: z.number()
-    })
-  )
+      publicTestCount: z.number(),
+    }),
+  ),
 });
 export type PublishedMaterials = z.infer<typeof PublishedMaterialsSchema>;
 
@@ -390,6 +419,7 @@ export const SubmissionSchema = z.object({
   repositoryId: z.string(),
   repositoryPath: z.string().nullish(),
   studentId: z.string(),
+  studentUsername: z.string().nullish(),
   courseId: z.string(),
   assignmentId: z.string(),
   commitSha: z.string(),
@@ -403,7 +433,7 @@ export const SubmissionSchema = z.object({
   late: z.boolean(),
   effectiveDueAt: z.string().nullish(),
   rejectionReason: z.string().nullish(),
-  runtimeImageDigest: z.string().nullish()
+  runtimeImageDigest: z.string().nullish(),
 });
 export type Submission = z.infer<typeof SubmissionSchema>;
 
@@ -419,42 +449,169 @@ export const DeadlineExtensionSchema = z.object({
   grantedAt: z.string(),
   revokedAt: z.string().nullish(),
   revokedBy: z.string().nullish(),
-  createdAt: z.string()
+  createdAt: z.string(),
 });
 export type DeadlineExtension = z.infer<typeof DeadlineExtensionSchema>;
 export const DeadlineExtensionRequestSchema = z.object({
-  studentId: z.string().min(1, 'Student is required'),
-  extendedDueAt: z.string().min(1, 'Extended due date is required'),
-  reason: z.string().min(1, 'Reason is required')
+  studentId: z.string().min(1, "Student is required"),
+  extendedDueAt: z.string().min(1, "Extended due date is required"),
+  reason: z.string().min(1, "Reason is required"),
 });
-export type DeadlineExtensionRequest = z.infer<typeof DeadlineExtensionRequestSchema>;
+export type DeadlineExtensionRequest = z.infer<
+  typeof DeadlineExtensionRequestSchema
+>;
 
 export const CourseReportSchema = z.object({
   courseId: z.string(),
   totalMandatoryAssignments: z.number(),
   totalPointsAvailable: z.number(),
-  students: z.array(z.object({
-    studentId: z.string(),
-    studentUsername: z.string(),
-    fullName: z.string(),
-    fullyCompleted: z.number(),
-    partiallyCompleted: z.number(),
-    notStarted: z.number(),
-    completionRate: z.number(),
-    pointsEarned: z.number(),
-    pointsRate: z.number(),
-    totalPoints: z.number(),
-    submissionCount: z.number(),
-    lastActivityAt: z.string().nullish(),
-    // Note the scale: these are 0-100 percentages, unlike completionRate and pointsRate
-    // above, which are 0-1 fractions.
-    assignments: z.record(z.string(), z.object({
-      percent: z.number(),
-      points: z.number()
-    }))
-  }))
+  students: z.array(
+    z.object({
+      studentId: z.string(),
+      studentUsername: z.string(),
+      fullName: z.string(),
+      fullyCompleted: z.number(),
+      partiallyCompleted: z.number(),
+      notStarted: z.number(),
+      completionRate: z.number(),
+      pointsEarned: z.number(),
+      pointsRate: z.number(),
+      totalPoints: z.number(),
+      submissionCount: z.number(),
+      lastActivityAt: z.string().nullish(),
+      // Note the scale: these are 0-100 percentages, unlike completionRate and pointsRate
+      // above, which are 0-1 fractions.
+      assignments: z.record(
+        z.string(),
+        z.object({
+          percent: z.number(),
+          points: z.number(),
+        }),
+      ),
+    }),
+  ),
 });
 export type CourseReport = z.infer<typeof CourseReportSchema>;
+
+const ClassLatestSubmissionSchema = z.object({
+  id: z.string(),
+  commitSha: z.string(),
+  gitRef: z.string(),
+  commitMessage: z.string().nullish(),
+  receivedAt: z.string(),
+  status,
+  late: z.boolean(),
+});
+
+const SubmissionScoreSchema = z.object({
+  submissionId: z.string(),
+  attempt: z.number(),
+  status,
+  testsPassed: z.number(),
+  testsTotal: z.number(),
+  scorePercent: z.number().nullish(),
+  pointsAwarded: z.number().nullish(),
+  passed: z.boolean().nullish(),
+  finishedAt: z.string().nullish(),
+});
+
+const ClassAssignmentProgressSchema = z.object({
+  bestPercent: z.number(),
+  bestPoints: z.number(),
+  latestSubmission: ClassLatestSubmissionSchema.nullish(),
+  latestGrading: SubmissionScoreSchema.nullish(),
+});
+
+export const ClassProgressReportSchema = z.object({
+  courseId: z.string(),
+  classId: z.string(),
+  classKey: z.string(),
+  className: z.string(),
+  totalMandatoryAssignments: z.number(),
+  totalPointsAvailable: z.number(),
+  assignments: z.array(
+    z.object({
+      assignmentId: z.string(),
+      assignmentKey: z.string(),
+      title: z.string(),
+      mandatory: z.boolean(),
+      maxPoints: z.number(),
+      testCount: z.number(),
+      submissionCount: z.number(),
+      passedCount: z.number(),
+      failedCount: z.number(),
+      infrastructureErrorCount: z.number(),
+      notStartedCount: z.number(),
+      averagePercent: z.number(),
+    }),
+  ),
+  students: z.array(
+    z.object({
+      studentId: z.string(),
+      studentUsername: z.string(),
+      fullName: z.string(),
+      status,
+      enrollmentStatus: status,
+      fullyCompleted: z.number(),
+      partiallyCompleted: z.number(),
+      notStarted: z.number(),
+      completionRate: z.number(),
+      pointsEarned: z.number(),
+      pointsRate: z.number(),
+      totalPoints: z.number(),
+      submissionCount: z.number(),
+      lastActivityAt: z.string().nullish(),
+      assignments: z.record(z.string(), ClassAssignmentProgressSchema),
+    }),
+  ),
+});
+export type ClassProgressReport = z.infer<typeof ClassProgressReportSchema>;
+
+const InstructorTestResultSchema = z
+  .object({
+    visibility: z.string(),
+    category: z.string().nullish(),
+    publicName: z.string().nullish(),
+    outcome: z.string(),
+    durationMs: z.number().nullish(),
+    studentMessage: z.string().nullish(),
+  })
+  .strict();
+
+const InstructorGradingResultSchema = z
+  .object({
+    attempt: z.number(),
+    status,
+    testsPassed: z.number(),
+    testsTotal: z.number(),
+    scorePercent: z.number().nullish(),
+    pointsAwarded: z.number().nullish(),
+    passed: z.boolean().nullish(),
+    finishedAt: z.string().nullish(),
+    tests: z.array(InstructorTestResultSchema),
+  })
+  .strict();
+
+export const ClassStudentReportSchema = z.object({
+  courseId: z.string(),
+  classId: z.string(),
+  studentId: z.string(),
+  studentUsername: z.string(),
+  fullName: z.string(),
+  status,
+  assignments: z.array(
+    z.object({
+      assignmentId: z.string(),
+      assignmentKey: z.string(),
+      title: z.string(),
+      bestPercent: z.number(),
+      bestPoints: z.number(),
+      latestSubmission: ClassLatestSubmissionSchema.nullish(),
+      latestGrading: InstructorGradingResultSchema.nullish(),
+    }),
+  ),
+});
+export type ClassStudentReport = z.infer<typeof ClassStudentReportSchema>;
 
 export const AuditEventSchema = z.object({
   id: z.string(),
@@ -470,7 +627,7 @@ export const AuditEventSchema = z.object({
   outcome: z.string(),
   sourceIpHash: z.string().nullish(),
   correlationId: z.string().nullish(),
-  detail: z.record(z.string(), z.unknown()).nullish()
+  detail: z.record(z.string(), z.unknown()).nullish(),
 });
 export type AuditEvent = z.infer<typeof AuditEventSchema>;
 
@@ -481,7 +638,7 @@ export type AuditEvent = z.infer<typeof AuditEventSchema>;
  * accepts: the prefilled form was rejected on submit, and since a runtime is required
  * before any assignment can be published, that blocked setting an instance up at all.
  */
-export const ReportFormatSchema = z.enum(['JUNIT_XML', 'TAP', 'JSON_SUMMARY']);
+export const ReportFormatSchema = z.enum(["JUNIT_XML", "TAP", "JSON_SUMMARY"]);
 export type ReportFormat = z.infer<typeof ReportFormatSchema>;
 export const REPORT_FORMATS = ReportFormatSchema.options;
 
@@ -497,20 +654,27 @@ export const RuntimeSchema = z.object({
   reportFormat: z.string(),
   enabled: z.boolean(),
   createdAt: z.string(),
-  updatedAt: z.string()
+  updatedAt: z.string(),
 });
 export type Runtime = z.infer<typeof RuntimeSchema>;
 
 export const RuntimeDefinitionSchema = z.object({
-  runtimeKey: z.string().min(1, 'Required'),
-  displayName: z.string().min(1, 'Required'),
-  image: z.string().min(1, 'Required'),
-  tag: z.string().min(1, 'Required').refine(val => val !== 'latest', { message: "tag 'latest' is not reproducible" }),
-  imageDigest: z.string().regex(/^sha256:[a-f0-9]{64}$/, 'Must be a valid sha256 digest'),
+  runtimeKey: z.string().min(1, "Required"),
+  displayName: z.string().min(1, "Required"),
+  image: z.string().min(1, "Required"),
+  tag: z
+    .string()
+    .min(1, "Required")
+    .refine((val) => val !== "latest", {
+      message: "tag 'latest' is not reproducible",
+    }),
+  imageDigest: z
+    .string()
+    .regex(/^sha256:[a-f0-9]{64}$/, "Must be a valid sha256 digest"),
   installCommand: z.string().nullish(),
-  testCommand: z.string().min(1, 'Required'),
+  testCommand: z.string().min(1, "Required"),
   reportFormat: ReportFormatSchema,
-  enabled: z.boolean()
+  enabled: z.boolean(),
 });
 export type RuntimeDefinition = z.infer<typeof RuntimeDefinitionSchema>;
 
@@ -523,118 +687,281 @@ const TestSuitePageSchema = PageSchema(TestSuiteSchema);
 const AuditPageSchema = PageSchema(AuditEventSchema);
 
 export const api = {
-  getMeta: () => readJson('/api/v1/meta', MetaSchema),
-  getAvailability: () => readJson('/api/v1/registration/availability', AvailabilitySchema),
-  register: (req: RegistrationRequest) => sendJson('POST', '/api/v1/registration', req, RegistrationResponseSchema),
-  getResult: (token: string) => readJson(`/api/v1/results/${encodeURIComponent(token)}`, PublicResultSchema),
-  getMe: () => readJson('/api/v1/me', MeSchema),
+  getMeta: () => readJson("/api/v1/meta", MetaSchema),
+  getAvailability: () =>
+    readJson("/api/v1/registration/availability", AvailabilitySchema),
+  register: (req: RegistrationRequest) =>
+    sendJson("POST", "/api/v1/registration", req, RegistrationResponseSchema),
+  getResult: (token: string) =>
+    readJson(
+      `/api/v1/results/${encodeURIComponent(token)}`,
+      PublicResultSchema,
+    ),
+  getMe: () => readJson("/api/v1/me", MeSchema),
   // Spring Security's logout filter, configured in WebSecurityConfig, listens at
   // /logout rather than under /api. This previously pointed at /api/v1/auth/logout,
   // which no controller serves: the call failed and the session stayed alive while the
   // UI behaved as though the user had signed out.
   logout: async (): Promise<void> => {
-    await fetchApi<unknown>('/logout', { method: 'POST' });
+    await fetchApi<unknown>("/logout", { method: "POST" });
   },
-  getDashboard: () => readJson('/api/v1/dashboard', DashboardSchema),
+  getDashboard: () => readJson("/api/v1/dashboard", DashboardSchema),
 
   getStudents: (params?: Record<string, string>) =>
     readJson(`/api/v1/students${queryString(params)}`, StudentPageSchema),
-  getStudent: (id: string) => readJson(`/api/v1/students/${id}`, StudentDetailSchema),
-  updateStudent: (id: string, req: StudentUpdate) => sendJson('PUT', `/api/v1/students/${id}`, req, StudentSummarySchema),
+  getStudent: (id: string) =>
+    readJson(`/api/v1/students/${id}`, StudentDetailSchema),
+  updateStudent: (id: string, req: StudentUpdate) =>
+    sendJson("PUT", `/api/v1/students/${id}`, req, StudentSummarySchema),
   changeStudentStatus: (id: string, status: string, reason: string) =>
-    sendJson('PATCH', `/api/v1/students/${id}/status`, { status, reason }, StudentStatusResponseSchema),
-  archiveStudent: (id: string) => sendJson('PATCH', `/api/v1/students/${id}/status`, { status: 'ARCHIVED', reason: 'Archived by instructor' }, StudentStatusResponseSchema),
-  restoreStudent: (id: string) => sendJson('PATCH', `/api/v1/students/${id}/status`, { status: 'RESTORE', reason: 'Restored by instructor' }, StudentStatusResponseSchema),
-  verifyStudent: (id: string) => sendJson('PATCH', `/api/v1/students/${id}/status`, { status: 'VERIFIED_BY_INSTRUCTOR', reason: 'Verified by instructor' }, StudentStatusResponseSchema),
-  suspendStudent: (id: string, reason = 'Suspended by instructor') =>
-    sendJson('PATCH', `/api/v1/students/${id}/status`, { status: 'SUSPENDED', reason }, StudentStatusResponseSchema),
-  getStudentKeys: (id: string) => readJson(`/api/v1/students/${id}/keys`, z.array(z.object({
-    id: z.string(),
-    studentId: z.string(),
-    label: z.string(),
-    keyType: z.string(),
-    publicKey: z.string(),
-    fingerprint: z.string(),
-    keyBits: z.number().nullish(),
-    comment: z.string().nullish(),
-    status: z.string(),
-    origin: z.string(),
-    addedBy: z.string().nullish(),
-    revokedAt: z.string().nullish(),
-    revocationReason: z.string().nullish(),
-    replacedById: z.string().nullish(),
-    lastUsedAt: z.string().nullish(),
-    createdAt: z.string()
-  }))),
-  registerStudentKey: (id: string, req: { label: string; publicKey: string; reason: string }) =>
-    sendJson('POST', `/api/v1/students/${id}/keys`, req, z.looseObject({
-      id: z.string(), studentId: z.string(), label: z.string(), keyType: z.string(),
-      publicKey: z.string(), fingerprint: z.string(), status: z.string(), origin: z.string(),
-      createdAt: z.string()
-    })),
+    sendJson(
+      "PATCH",
+      `/api/v1/students/${id}/status`,
+      { status, reason },
+      StudentStatusResponseSchema,
+    ),
+  archiveStudent: (id: string) =>
+    sendJson(
+      "PATCH",
+      `/api/v1/students/${id}/status`,
+      { status: "ARCHIVED", reason: "Archived by instructor" },
+      StudentStatusResponseSchema,
+    ),
+  restoreStudent: (id: string) =>
+    sendJson(
+      "PATCH",
+      `/api/v1/students/${id}/status`,
+      { status: "RESTORE", reason: "Restored by instructor" },
+      StudentStatusResponseSchema,
+    ),
+  verifyStudent: (id: string) =>
+    sendJson(
+      "PATCH",
+      `/api/v1/students/${id}/status`,
+      { status: "VERIFIED_BY_INSTRUCTOR", reason: "Verified by instructor" },
+      StudentStatusResponseSchema,
+    ),
+  suspendStudent: (id: string, reason = "Suspended by instructor") =>
+    sendJson(
+      "PATCH",
+      `/api/v1/students/${id}/status`,
+      { status: "SUSPENDED", reason },
+      StudentStatusResponseSchema,
+    ),
+  getStudentKeys: (id: string) =>
+    readJson(
+      `/api/v1/students/${id}/keys`,
+      z.array(
+        z.object({
+          id: z.string(),
+          studentId: z.string(),
+          label: z.string(),
+          keyType: z.string(),
+          publicKey: z.string(),
+          fingerprint: z.string(),
+          keyBits: z.number().nullish(),
+          comment: z.string().nullish(),
+          status: z.string(),
+          origin: z.string(),
+          addedBy: z.string().nullish(),
+          revokedAt: z.string().nullish(),
+          revocationReason: z.string().nullish(),
+          replacedById: z.string().nullish(),
+          lastUsedAt: z.string().nullish(),
+          createdAt: z.string(),
+        }),
+      ),
+    ),
+  registerStudentKey: (
+    id: string,
+    req: { label: string; publicKey: string; reason: string },
+  ) =>
+    sendJson(
+      "POST",
+      `/api/v1/students/${id}/keys`,
+      req,
+      z.looseObject({
+        id: z.string(),
+        studentId: z.string(),
+        label: z.string(),
+        keyType: z.string(),
+        publicKey: z.string(),
+        fingerprint: z.string(),
+        status: z.string(),
+        origin: z.string(),
+        createdAt: z.string(),
+      }),
+    ),
   revokeStudentKey: (id: string, keyId: string, reason: string) =>
-    sendJson('POST', `/api/v1/students/${id}/keys/${keyId}/revoke`, { reason }, z.unknown()),
-  replaceStudentKey: (id: string, keyId: string, req: { label: string; publicKey: string; reason: string }) =>
-    sendJson('POST', `/api/v1/students/${id}/keys/${keyId}/replace`, req, z.unknown()),
+    sendJson(
+      "POST",
+      `/api/v1/students/${id}/keys/${keyId}/revoke`,
+      { reason },
+      z.unknown(),
+    ),
+  replaceStudentKey: (
+    id: string,
+    keyId: string,
+    req: { label: string; publicKey: string; reason: string },
+  ) =>
+    sendJson(
+      "POST",
+      `/api/v1/students/${id}/keys/${keyId}/replace`,
+      req,
+      z.unknown(),
+    ),
 
   getAssignments: (params?: Record<string, string>) =>
     readJson(`/api/v1/assignments${queryString(params)}`, AssignmentPageSchema),
-  getAssignment: (id: string) => readJson(`/api/v1/assignments/${id}`, AssignmentSchema),
-  createAssignment: (req: AssignmentDefinition) => sendJson('POST', '/api/v1/assignments', req, AssignmentSchema),
+  getAssignment: (id: string) =>
+    readJson(`/api/v1/assignments/${id}`, AssignmentSchema),
+  createAssignment: (req: AssignmentDefinition) =>
+    sendJson("POST", "/api/v1/assignments", req, AssignmentSchema),
   updateAssignment: (id: string, req: AssignmentDefinition) =>
-    sendJson('PUT', `/api/v1/assignments/${id}`, req, AssignmentSchema),
-  publishAssignment: (id: string) => sendJson('POST', `/api/v1/assignments/${id}/publish`, undefined, AssignmentSchema),
+    sendJson("PUT", `/api/v1/assignments/${id}`, req, AssignmentSchema),
+  publishAssignment: (id: string) =>
+    sendJson(
+      "POST",
+      `/api/v1/assignments/${id}/publish`,
+      undefined,
+      AssignmentSchema,
+    ),
   getAssignmentExtensions: (id: string) =>
-    readJson(`/api/v1/assignments/${id}/extensions`, z.array(DeadlineExtensionSchema)),
+    readJson(
+      `/api/v1/assignments/${id}/extensions`,
+      z.array(DeadlineExtensionSchema),
+    ),
   grantAssignmentExtension: (id: string, req: DeadlineExtensionRequest) =>
-    sendJson('POST', `/api/v1/assignments/${id}/extensions`, req, DeadlineExtensionSchema),
+    sendJson(
+      "POST",
+      `/api/v1/assignments/${id}/extensions`,
+      req,
+      DeadlineExtensionSchema,
+    ),
   revokeAssignmentExtension: (id: string, extensionId: string) =>
-    fetchApi(`/api/v1/assignments/${id}/extensions/${extensionId}`, { method: 'DELETE' }).then(() => undefined),
+    fetchApi(`/api/v1/assignments/${id}/extensions/${extensionId}`, {
+      method: "DELETE",
+    }).then(() => undefined),
 
   getSubmissions: (params?: Record<string, string>) =>
     readJson(`/api/v1/submissions${queryString(params)}`, SubmissionPageSchema),
-  getSubmission: (id: string) => readJson(`/api/v1/submissions/${encodeURIComponent(id)}`, SubmissionSchema),
+  getSubmission: (id: string) =>
+    readJson(`/api/v1/submissions/${encodeURIComponent(id)}`, SubmissionSchema),
   regradeSubmission: (id: string) =>
-    sendJson('POST', `/api/v1/submissions/${encodeURIComponent(id)}/regrade`, undefined, RegradeAcceptedSchema),
+    sendJson(
+      "POST",
+      `/api/v1/submissions/${encodeURIComponent(id)}/regrade`,
+      undefined,
+      RegradeAcceptedSchema,
+    ),
 
   getCourseReport: (courseId: string) =>
-    readJson(`/api/v1/reports/courses/${encodeURIComponent(courseId)}`, CourseReportSchema),
+    readJson(
+      `/api/v1/reports/courses/${encodeURIComponent(courseId)}`,
+      CourseReportSchema,
+    ),
+  getClassReport: (courseId: string, classId: string) =>
+    readJson(
+      `/api/v1/reports/courses/${encodeURIComponent(courseId)}/classes/${encodeURIComponent(classId)}`,
+      ClassProgressReportSchema,
+    ),
+  getClassStudentReport: (
+    courseId: string,
+    classId: string,
+    studentId: string,
+  ) =>
+    readJson(
+      `/api/v1/reports/courses/${encodeURIComponent(courseId)}/classes/${encodeURIComponent(classId)}/students/${encodeURIComponent(studentId)}`,
+      ClassStudentReportSchema,
+    ),
 
-  getCourses: (params?: Record<string, string>) => readJson(`/api/v1/courses${queryString(params)}`, CoursePageSchema),
-  getCourse: (id: string) => readJson(`/api/v1/courses/${id}`, CourseViewSchema),
-  createCourse: (req: CourseDefinition) => sendJson('POST', '/api/v1/courses', req, CourseViewSchema),
-  updateCourse: (id: string, req: CourseDefinition) => sendJson('PUT', `/api/v1/courses/${id}`, req, CourseViewSchema),
-  deleteCourse: (id: string) => fetchApi(`/api/v1/courses/${id}`, { method: 'DELETE' }).then(() => undefined),
-  getCourseClasses: (id: string) => readJson(`/api/v1/courses/${id}/classes`, z.array(ClassSchema)),
-  createClass: (id: string, req: ClassDefinition) => sendJson('POST', `/api/v1/courses/${id}/classes`, req, ClassSchema),
+  getCourses: (params?: Record<string, string>) =>
+    readJson(`/api/v1/courses${queryString(params)}`, CoursePageSchema),
+  getCourse: (id: string) =>
+    readJson(`/api/v1/courses/${id}`, CourseViewSchema),
+  createCourse: (req: CourseDefinition) =>
+    sendJson("POST", "/api/v1/courses", req, CourseViewSchema),
+  updateCourse: (id: string, req: CourseDefinition) =>
+    sendJson("PUT", `/api/v1/courses/${id}`, req, CourseViewSchema),
+  deleteCourse: (id: string) =>
+    fetchApi(`/api/v1/courses/${id}`, { method: "DELETE" }).then(
+      () => undefined,
+    ),
+  getCourseClasses: (id: string) =>
+    readJson(`/api/v1/courses/${id}/classes`, z.array(ClassSchema)),
+  createClass: (id: string, req: ClassDefinition) =>
+    sendJson("POST", `/api/v1/courses/${id}/classes`, req, ClassSchema),
   updateClass: (id: string, classId: string, req: ClassDefinition) =>
-    sendJson('PUT', `/api/v1/courses/${id}/classes/${classId}`, req, ClassSchema),
+    sendJson(
+      "PUT",
+      `/api/v1/courses/${id}/classes/${classId}`,
+      req,
+      ClassSchema,
+    ),
   deleteClass: (id: string, classId: string) =>
-    fetchApi(`/api/v1/courses/${id}/classes/${classId}`, { method: 'DELETE' }).then(() => undefined),
+    fetchApi(`/api/v1/courses/${id}/classes/${classId}`, {
+      method: "DELETE",
+    }).then(() => undefined),
 
   getTemplates: (params?: Record<string, string>) =>
     readJson(`/api/v1/templates${queryString(params)}`, TemplatePageSchema),
-  createTemplate: (req: TemplateDefinition) => sendJson('POST', '/api/v1/templates', req, TemplateSchema),
-  getTemplateVersions: (id: string) => readJson(`/api/v1/templates/${id}/versions`, z.array(TemplateVersionSchema)),
+  createTemplate: (req: TemplateDefinition) =>
+    sendJson("POST", "/api/v1/templates", req, TemplateSchema),
+  getTemplateVersions: (id: string) =>
+    readJson(
+      `/api/v1/templates/${id}/versions`,
+      z.array(TemplateVersionSchema),
+    ),
   createTemplateVersion: (id: string, formData: FormData) =>
-    uploadJson(`/api/v1/templates/${id}/versions`, formData, TemplateVersionSchema),
+    uploadJson(
+      `/api/v1/templates/${id}/versions`,
+      formData,
+      TemplateVersionSchema,
+    ),
   publishTemplateVersion: (versionId: string) =>
-    sendJson('POST', `/api/v1/templates/versions/${versionId}/publish`, undefined, TemplateVersionSchema),
+    sendJson(
+      "POST",
+      `/api/v1/templates/versions/${versionId}/publish`,
+      undefined,
+      TemplateVersionSchema,
+    ),
 
   getTestSuites: (params?: Record<string, string>) =>
     readJson(`/api/v1/test-suites${queryString(params)}`, TestSuitePageSchema),
-  createTestSuite: (req: TestSuiteDefinition) => sendJson('POST', '/api/v1/test-suites', req, TestSuiteSchema),
-  getTestSuiteVersions: (id: string) => readJson(`/api/v1/test-suites/${id}/versions`, z.array(TestSuiteVersionSchema)),
+  createTestSuite: (req: TestSuiteDefinition) =>
+    sendJson("POST", "/api/v1/test-suites", req, TestSuiteSchema),
+  getTestSuiteVersions: (id: string) =>
+    readJson(
+      `/api/v1/test-suites/${id}/versions`,
+      z.array(TestSuiteVersionSchema),
+    ),
   createTestSuiteVersion: (id: string, formData: FormData) =>
-    uploadJson(`/api/v1/test-suites/${id}/versions`, formData, TestSuiteVersionSchema),
-  publishTestSuiteVersion: (versionId: string, req: { hiddenTestCount: number; publicTestCount: number }) =>
-    sendJson('POST', `/api/v1/test-suites/versions/${versionId}/publish`, req, TestSuiteVersionSchema),
+    uploadJson(
+      `/api/v1/test-suites/${id}/versions`,
+      formData,
+      TestSuiteVersionSchema,
+    ),
+  publishTestSuiteVersion: (
+    versionId: string,
+    req: { hiddenTestCount: number; publicTestCount: number },
+  ) =>
+    sendJson(
+      "POST",
+      `/api/v1/test-suites/versions/${versionId}/publish`,
+      req,
+      TestSuiteVersionSchema,
+    ),
 
   getAuditLog: (params?: Record<string, string>) =>
-    readJson(`/api/v1/audit${queryString({ sort: 'occurredAt,desc', ...params })}`, AuditPageSchema),
+    readJson(
+      `/api/v1/audit${queryString({ sort: "occurredAt,desc", ...params })}`,
+      AuditPageSchema,
+    ),
 
-  getPublishedMaterials: () => readJson('/api/v1/materials/published', PublishedMaterialsSchema),
+  getPublishedMaterials: () =>
+    readJson("/api/v1/materials/published", PublishedMaterialsSchema),
 
-  getRuntimes: () => readJson('/api/v1/runtimes', z.array(RuntimeSchema)),
-  createRuntime: (req: RuntimeDefinition) => sendJson('POST', '/api/v1/runtimes', req, RuntimeSchema)
+  getRuntimes: () => readJson("/api/v1/runtimes", z.array(RuntimeSchema)),
+  createRuntime: (req: RuntimeDefinition) =>
+    sendJson("POST", "/api/v1/runtimes", req, RuntimeSchema),
 };

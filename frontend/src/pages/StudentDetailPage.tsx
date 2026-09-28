@@ -2,20 +2,112 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { useState } from 'react';
-import { useNavigate, useParams } from 'react-router';
+import { Link, useLocation, useNavigate, useParams } from 'react-router';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Box, Button, Chip, CircularProgress, Paper, TextField, Typography } from '@mui/material';
+import { Alert, Box, Button, Chip, CircularProgress, Divider, Paper, Stack, TextField, Typography } from '@mui/material';
 import { api } from '../api';
 import { queryKeys } from '../api/queryKeys';
 import { QueryErrorNotice } from '../components/QueryErrorNotice';
 import { MutationErrorAlert, problemFieldErrors } from '../components/MutationErrorAlert';
-import type { StudentUpdate } from '../api';
+import { PageHeader } from '../components/PageHeader';
+import type { ClassStudentReport, StudentUpdate } from '../api';
+
+function Coursework({ report, courseId, classId }: {
+  report: ClassStudentReport;
+  courseId: string;
+  classId: string;
+}) {
+  return (
+    <Paper variant="outlined" sx={{ p: 3, display: 'flex', flexDirection: 'column', gap: 2 }}>
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 2, flexWrap: 'wrap' }}>
+        <Typography variant="h6" component="h2">Coursework</Typography>
+        <Button component={Link} to={`/courses/${encodeURIComponent(courseId)}/classes/${encodeURIComponent(classId)}`}>
+          Back to class
+        </Button>
+      </Box>
+      {report.assignments.length === 0 ? (
+        <Typography color="text.secondary">No coursework is available in this class.</Typography>
+      ) : report.assignments.map((assignment) => {
+        const submission = assignment.latestSubmission;
+        const grading = assignment.latestGrading;
+        return (
+          <Box key={assignment.assignmentId} component="section" aria-labelledby={`coursework-${assignment.assignmentId}`}>
+            <Typography id={`coursework-${assignment.assignmentId}`} variant="subtitle1">{assignment.title}</Typography>
+            <Typography variant="body2" color="text.secondary">
+              Best result: {assignment.bestPercent}% ({assignment.bestPoints} points)
+            </Typography>
+            {!submission ? (
+              <Typography variant="body2" sx={{ mt: 1 }}>No submission yet.</Typography>
+            ) : (
+              <Stack spacing={1} sx={{ mt: 1 }}>
+                <Stack direction="row" spacing={1} useFlexGap sx={{ flexWrap: 'wrap', alignItems: 'center' }}>
+                  <Chip size="small" variant="outlined" label={submission.status} />
+                  {submission.late && <Chip size="small" color="warning" label="Late" />}
+                  <Typography variant="body2">Submitted {new Date(submission.receivedAt).toLocaleString()}</Typography>
+                </Stack>
+                <Typography variant="body2">Commit {submission.commitSha.slice(0, 12)} · {submission.gitRef}</Typography>
+                {submission.commitMessage && <Typography variant="body2">{submission.commitMessage}</Typography>}
+                {!grading && submission.status === 'INFRASTRUCTURE_ERROR' && (
+                  <Alert severity="warning">Infrastructure error; no student test results are available.</Alert>
+                )}
+                {!grading && submission.status !== 'INFRASTRUCTURE_ERROR' && (
+                  <Typography variant="body2">Not graded yet</Typography>
+                )}
+                {grading && (
+                  <>
+                    <Typography variant="body2">
+                      Latest attempt: {grading.scorePercent == null ? 'Not graded' : `${grading.scorePercent}%`}
+                      {grading.pointsAwarded == null ? '' : ` · ${grading.pointsAwarded} points`}
+                      {' · '}{grading.attempt === 1 ? 'Attempt 1' : `Attempt ${grading.attempt}`}
+                    </Typography>
+                    <Typography variant="body2">
+                      {grading.testsPassed} of {grading.testsTotal} tests passed
+                      {grading.passed === null || grading.passed === undefined ? '' : grading.passed ? ' · Passed' : ' · Not passed'}
+                    </Typography>
+                    {grading.finishedAt && <Typography variant="body2">Graded {new Date(grading.finishedAt).toLocaleString()}</Typography>}
+                    {grading.tests.length > 0 && (
+                      <Stack spacing={0.5} component="ul" sx={{ my: 0, pl: 3 }}>
+                        {grading.tests.map((test, index) => (
+                          <Box component="li" key={`${assignment.assignmentId}-${index}`}>
+                            <Typography variant="body2">
+                              {test.visibility === 'HIDDEN' ? 'Hidden test' : test.publicName ?? 'Public test'}
+                              {test.category ? ` · ${test.category}` : ''}
+                              {` · ${test.outcome}`}
+                              {test.durationMs == null ? '' : ` · ${test.durationMs} ms`}
+                            </Typography>
+                            {test.visibility === 'PUBLIC' && test.studentMessage && (
+                              <Typography variant="caption" color="text.secondary">{test.studentMessage}</Typography>
+                            )}
+                          </Box>
+                        ))}
+                      </Stack>
+                    )}
+                  </>
+                )}
+              </Stack>
+            )}
+            <Divider sx={{ mt: 2 }} />
+          </Box>
+        );
+      })}
+    </Paper>
+  );
+}
 
 export function StudentDetailPage() {
   const { id = '' } = useParams<{ id: string }>();
+  const location = useLocation();
+  const search = new URLSearchParams(location.search);
+  const courseId = search.get('courseId') ?? '';
+  const classId = search.get('classId') ?? '';
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const query = useQuery({ queryKey: queryKeys.students.detail(id), queryFn: () => api.getStudent(id), enabled: !!id });
+  const courseworkQuery = useQuery({
+    queryKey: queryKeys.classStudentReport(courseId, classId, id),
+    queryFn: () => api.getClassStudentReport(courseId, classId, id),
+    enabled: !!courseId && !!classId && !!id
+  });
   const student = query.data?.student;
   const sshKeys = query.data?.sshKeys ?? [];
   const [form, setForm] = useState<StudentUpdate | null>(null);
@@ -66,8 +158,8 @@ export function StudentDetailPage() {
   const errors = problemFieldErrors(mutation.error);
 
   return (
-    <Box sx={{ maxWidth: 720, display: 'flex', flexDirection: 'column', gap: 3 }}>
-      <Typography variant="h4" component="h1" gutterBottom>Edit Student</Typography>
+    <Box sx={{ maxWidth: 720, width: '100%', minWidth: 0, display: 'flex', flexDirection: 'column', gap: 3 }}>
+      <PageHeader title="Edit Student" description={`${student.firstName} ${student.lastName} · ${student.studentUsername}`} />
       <MutationErrorAlert error={statusMutation.error ?? revokeKeyMutation.error} />
       <Paper variant="outlined" sx={{ p: 2, display: 'flex', gap: 1, alignItems: 'center', flexWrap: 'wrap' }}>
         <Typography variant="body2" color="text.secondary">Status: {student.status}</Typography>
@@ -86,7 +178,16 @@ export function StudentDetailPage() {
             </Button>
           </Box>
       </Paper>
-      <Paper component="form" sx={{ p: 3, display: 'flex', flexDirection: 'column', gap: 2 }} onSubmit={(event) => {
+      {courseId && classId && (
+        courseworkQuery.isLoading ? (
+          <Box sx={{ p: 2 }}><CircularProgress aria-label="Loading coursework" /></Box>
+        ) : courseworkQuery.isError || !courseworkQuery.data ? (
+          <QueryErrorNotice message="Coursework could not be loaded." onRetry={() => void courseworkQuery.refetch()} />
+        ) : (
+          <Coursework report={courseworkQuery.data} courseId={courseId} classId={classId} />
+        )
+      )}
+      <Paper variant="outlined" component="form" sx={{ p: { xs: 2, sm: 3 }, display: 'flex', flexDirection: 'column', gap: 2 }} onSubmit={(event) => {
         event.preventDefault();
         mutation.mutate(values);
       }}>
@@ -95,7 +196,7 @@ export function StudentDetailPage() {
         <TextField label="First Name" required value={values.firstName} onChange={(e) => setForm({ ...values, firstName: e.target.value })} error={!!errors.firstName} helperText={errors.firstName} disabled={mutation.isPending} />
         <TextField label="Last Name" required value={values.lastName} onChange={(e) => setForm({ ...values, lastName: e.target.value })} error={!!errors.lastName} helperText={errors.lastName} disabled={mutation.isPending} />
         <TextField label="Email" type="email" required value={values.email} onChange={(e) => setForm({ ...values, email: e.target.value })} error={!!errors.email} helperText={errors.email} disabled={mutation.isPending} />
-        <Box sx={{ display: 'flex', gap: 2, justifyContent: 'flex-end' }}>
+        <Box sx={{ display: 'flex', gap: 1.5, justifyContent: 'flex-end', flexWrap: 'wrap' }}>
           <Button onClick={() => { void navigate('/students'); }} disabled={mutation.isPending}>Cancel</Button>
           <Button type="submit" variant="contained" disabled={mutation.isPending}>{mutation.isPending ? 'Saving...' : 'Save'}</Button>
         </Box>

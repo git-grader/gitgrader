@@ -9,10 +9,20 @@ import { Route, Routes } from 'react-router';
 import { InstructorLayout } from '../src/components/InstructorLayout';
 import { RequireAdmin } from '../src/components/RequireAdmin';
 import { MetaProvider } from '../src/components/MetaProvider';
+import { createAppTheme } from '../src/theme';
 import { meta, renderWithProviders, server } from './harness';
 
 const INSTRUCTOR = { username: 't', displayName: 'Terry Teacher', actorType: 'HUMAN', roles: ['ROLE_INSTRUCTOR'] };
 const ADMIN = { username: 'a', displayName: 'Ada Admin', actorType: 'HUMAN', roles: ['ROLE_INSTRUCTOR', 'ROLE_ADMIN'] };
+
+describe('brand theme', () => {
+  it('reserves verification mint for success rather than secondary actions', () => {
+    const theme = createAppTheme('light');
+
+    expect(theme.palette.success.main).toBe('#03EA9E');
+    expect(theme.palette.secondary.main).not.toBe('#03EA9E');
+  });
+});
 
 function problemResponse(status: number) {
   return new HttpResponse(JSON.stringify({ type: 'about:blank', title: 'Nope', status }), {
@@ -26,18 +36,41 @@ describe('the instructor shell', () => {
   afterEach(() => { server.resetHandlers(); vi.unstubAllGlobals(); });
   afterAll(() => { server.close(); });
 
-  function renderShell() {
+  function renderShell(route = '/dashboard') {
     server.use(http.get('/api/v1/meta', () => HttpResponse.json(meta())));
     return renderWithProviders(
       <MetaProvider>
         <Routes>
           <Route path="/dashboard" element={<InstructorLayout />} />
+          <Route path="/courses" element={<InstructorLayout />} />
+          <Route path="/reports/course/:courseId" element={<InstructorLayout />} />
           <Route path="/login" element={<p>Sign-in page</p>} />
         </Routes>
       </MetaProvider>,
-      { route: '/dashboard' }
+      { route }
     );
   }
+
+  it('identifies course reports in the page context', async () => {
+    server.use(http.get('/api/v1/me', () => HttpResponse.json(INSTRUCTOR)));
+    renderShell('/reports/course/c1');
+
+    expect(await screen.findByText('Test Org - Course reports')).toBeInTheDocument();
+  });
+
+  it('opens mobile navigation and closes it after choosing a route', async () => {
+    server.use(http.get('/api/v1/me', () => HttpResponse.json(INSTRUCTOR)));
+    const user = userEvent.setup();
+    renderShell();
+
+    await user.click(await screen.findByRole('button', { name: 'Open navigation' }));
+    const dashboardLink = await screen.findByRole('link', { name: 'Dashboard' });
+    expect(dashboardLink).toHaveAttribute('aria-current', 'page');
+    expect(screen.queryByRole('link', { name: 'Audit Log' })).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole('link', { name: 'Courses' }));
+    await waitFor(() => { expect(screen.queryByRole('dialog')).not.toBeInTheDocument(); });
+  });
 
   /**
    * Every failure used to send the user to sign in again, so a dropped connection or a

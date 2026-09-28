@@ -77,6 +77,23 @@ describe('a course that could not be loaded in full', () => {
 
     expect(await screen.findByRole('link', { name: 'View Report' })).toHaveAttribute('href', '/reports/course/c1');
   });
+
+  it('opens class progress from the course class list', async () => {
+    server.use(
+      http.get('/api/v1/courses/c1', () => HttpResponse.json(COURSE)),
+      http.get('/api/v1/courses/c1/classes', () => HttpResponse.json([
+        { id: 'class-1', courseId: 'c1', classKey: 'a', name: 'Class A' }
+      ]))
+    );
+
+    renderWithProviders(
+      <Routes><Route path="/courses/:id" element={<CourseDetailPage />} /></Routes>,
+      { route: '/courses/c1' }
+    );
+
+    expect(await screen.findByRole('link', { name: 'View progress for Class A' }))
+      .toHaveAttribute('href', '/courses/c1/classes/class-1');
+  });
 });
 
 describe('the course report', () => {
@@ -123,6 +140,28 @@ describe('the course report', () => {
     expect(await screen.findByText(/Fully completed: 1 of 3/)).toBeInTheDocument();
     expect(screen.getByText(/Partially completed: 1 of 3/)).toBeInTheDocument();
     expect(screen.getByText(/Not started: 1 of 3/)).toBeInTheDocument();
+  });
+
+  it('shows last activity and each assignment score with points', async () => {
+    renderReport({
+      courseId: 'c1', totalMandatoryAssignments: 1, totalPointsAvailable: 10,
+      students: [student({
+        lastActivityAt: '2026-09-20T12:00:00Z',
+        assignments: { strings: { percent: 78, points: 7.8 } }
+      })]
+    });
+
+    expect(await screen.findByRole('columnheader', { name: 'Last activity' })).toBeInTheDocument();
+    expect(screen.getByRole('columnheader', { name: 'strings' })).toBeInTheDocument();
+    expect(screen.getByText('78% · 7.8 points')).toBeInTheDocument();
+    expect(screen.getByText(/9\/20\/2026/)).toBeInTheDocument();
+  });
+
+  it('explains an empty course report and a course with no assignment points', async () => {
+    renderReport({ courseId: 'c1', totalMandatoryAssignments: 0, totalPointsAvailable: 0, students: [] });
+
+    expect(await screen.findByText('No enrolled students are included in this course report.')).toBeInTheDocument();
+    expect(screen.getByText('No assignment points are available in this course report.')).toBeInTheDocument();
   });
 
   /**

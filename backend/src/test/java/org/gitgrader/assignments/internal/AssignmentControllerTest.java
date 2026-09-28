@@ -27,6 +27,8 @@ import java.util.UUID;
 import org.jspecify.annotations.Nullable;
 
 import org.gitgrader.api.GlobalExceptionHandler;
+import org.gitgrader.assignments.AssignmentAdministration;
+import org.gitgrader.assignments.AssignmentCatalog;
 import org.gitgrader.assignments.AssignmentDefinition;
 import org.gitgrader.assignments.AssignmentStatus;
 import org.gitgrader.assignments.domain.Assignment;
@@ -35,6 +37,7 @@ import org.gitgrader.assignments.web.AssignmentController;
 import org.gitgrader.assignments.web.AssignmentExceptionHandler;
 import org.gitgrader.identity.ActorProvider;
 import org.junit.jupiter.api.Test;
+import org.springframework.data.web.PageableHandlerMethodArgumentResolver;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
@@ -54,6 +57,33 @@ class AssignmentControllerTest {
 	private static final Instant DUE = Instant.parse("2026-03-01T12:00:00Z");
 
 	private static final Clock CLOCK = Clock.fixed(OPENS.minusSeconds(60), ZoneOffset.UTC);
+
+	@Test
+	void sortsAssignmentsBeforeSelectingRequestedPage() throws Exception {
+		UUID courseId = UUID.randomUUID();
+		AssignmentCatalog catalog = mock(AssignmentCatalog.class);
+		when(catalog.findAll())
+			.thenReturn(List
+				.of(assignment(courseId, "z-key", AssignmentStatus.DRAFT),
+						assignment(courseId, "a-key", AssignmentStatus.DRAFT),
+						assignment(courseId, "m-key", AssignmentStatus.DRAFT))
+				.stream()
+				.map(Assignment::toView)
+				.toList());
+		MockMvc mockMvc = MockMvcBuilders
+			.standaloneSetup(
+					new AssignmentController(catalog, mock(AssignmentAdministration.class), mock(ActorProvider.class)))
+			.setCustomArgumentResolvers(new PageableHandlerMethodArgumentResolver())
+			.setControllerAdvice(new GlobalExceptionHandler(), new AssignmentExceptionHandler())
+			.build();
+
+		mockMvc
+			.perform(
+					get("/api/v1/assignments").param("page", "1").param("size", "1").param("sort", "assignmentKey,asc"))
+			.andExpect(status().isOk())
+			.andExpect(jsonPath("$.content[0].assignmentKey").value("m-key"))
+			.andExpect(jsonPath("$.totalElements").value(3));
+	}
 
 	@Test
 	void updatingDraftChangesExerciseMaterial() throws Exception {

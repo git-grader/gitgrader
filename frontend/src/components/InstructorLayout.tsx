@@ -121,7 +121,8 @@ export function InstructorLayout() {
   }
 
   const navItems = MAIN_NAV.concat(isAdmin ? ADMIN_NAV : []);
-  const pageLabel = navItems.find((item) => isCurrent(item.to))?.label ?? 'Dashboard';
+  const pageLabel = navItems.find((item) => isCurrent(item.to))?.label
+    ?? (location.pathname.startsWith('/reports/course/') ? 'Course reports' : 'Dashboard');
 
   const navigation = (
     <Box sx={{ overflow: 'auto' }}>
@@ -134,6 +135,20 @@ export function InstructorLayout() {
               selected={isCurrent(item.to)}
               aria-current={isCurrent(item.to) ? 'page' : undefined}
               onClick={() => { setMobileOpen(false); }}
+              sx={{
+                mx: 1.25,
+                mb: 0.25,
+                width: 'calc(100% - 20px)',
+                borderLeft: '3px solid transparent',
+                borderRadius: 1,
+                '&.Mui-selected': {
+                  borderLeftColor: 'primary.main',
+                  color: 'primary.main',
+                  backgroundColor: 'action.selected',
+                  '&:hover': { backgroundColor: 'action.hover' }
+                },
+                '&.Mui-selected .MuiListItemText-primary': { fontWeight: 600 }
+              }}
             >
               <ListItemText primary={item.label} />
             </ListItemButton>
@@ -185,7 +200,7 @@ export function InstructorLayout() {
         position="fixed"
         sx={{
           zIndex: (t) => t.zIndex.drawer + 1,
-          backgroundColor: 'background.paper',
+          backgroundColor: 'background.default',
           borderBottom: 1,
           borderColor: 'divider',
           color: 'text.primary',
@@ -245,7 +260,12 @@ export function InstructorLayout() {
         sx={{
           width: { md: DRAWER_WIDTH },
           flexShrink: 0,
-          '& .MuiDrawer-paper': { width: DRAWER_WIDTH, boxSizing: 'border-box' }
+          '& .MuiDrawer-paper': {
+            width: DRAWER_WIDTH,
+            boxSizing: 'border-box',
+            backgroundColor: 'background.paper',
+            borderRightColor: 'divider'
+          }
         }}
       >
         <Toolbar />

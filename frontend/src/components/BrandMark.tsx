@@ -9,7 +9,7 @@ import ReversedLogo from '../assets/brand/gitgrader-lockup-reversed.svg';
  * The product lockup, for the pages a student reaches without signing in.
  *
  * The reversed artwork is used on dark surfaces, as the brand requires, and the
- * lockup is never drawn below the 48px it is specified for.
+ * digital lockup stays at or above its 160px minimum width.
  *
  * The alt text names the artwork rather than the configured instance name: the lockup
  * is the product's own wordmark, and an operator who renames their instance has not
@@ -22,7 +22,7 @@ export function BrandMark() {
       component="img"
       src={theme.palette.mode === 'dark' ? ReversedLogo : PrimaryLogo}
       alt="GitGrader"
-      sx={{ height: 48, mb: 3, display: 'block' }}
+      sx={{ width: 200, maxWidth: '100%', height: 'auto', mb: 3, display: 'block' }}
     />
   );
 }

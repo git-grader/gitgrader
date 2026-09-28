@@ -39,6 +39,13 @@ public interface GradingResultQuery {
 	Optional<StudentGradingResult> findLatestForSubmission(UUID submissionId);
 
 	/**
+	 * Finds the latest instructor-safe result for a submission.
+	 * @param submissionId the submission
+	 * @return the instructor result, or empty when nothing has been graded yet
+	 */
+	Optional<InstructorGradingResult> findLatestInstructorResultForSubmission(UUID submissionId);
+
+	/**
 	 * Reads only the latest run's score columns for a group of submissions.
 	 * @param submissionIds submission identifiers
 	 * @return latest-run score projections, with no test-result rows loaded

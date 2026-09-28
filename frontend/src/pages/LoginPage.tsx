@@ -94,15 +94,16 @@ export function LoginPage() {
         justifyContent: 'center',
         alignItems: 'center',
         minHeight: '100vh',
+        p: { xs: 2, sm: 3 },
         bgcolor: 'background.default'
       }}
     >
-      <Paper sx={{ p: 4, width: 400, display: 'flex', flexDirection: 'column', alignItems: 'center' }} elevation={3}>
+      <Paper variant="outlined" sx={{ p: { xs: 3, sm: 4 }, width: '100%', maxWidth: 420, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
         <Box
           component="img"
           src={theme.palette.mode === 'dark' ? ReversedLogo : PrimaryLogo}
           alt="GitGrader"
-          sx={{ height: 48, mb: 3 }}
+          sx={{ width: 200, maxWidth: '100%', height: 'auto', mb: 3 }}
         />
         {meta.organizationName && (
           <Typography variant="subtitle1" color="text.secondary" gutterBottom>

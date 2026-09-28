@@ -96,8 +96,20 @@ public class DefaultCourseService implements CourseCatalog, CourseAdministration
 
 	@Override
 	@Transactional(readOnly = true)
+	public List<EnrollmentView> findClassEnrollments(UUID courseId, UUID classId) {
+		return this.enrollments.findByCourseIdAndClassId(courseId, classId).stream().map(Enrollment::toView).toList();
+	}
+
+	@Override
+	@Transactional(readOnly = true)
 	public List<UUID> findEnrolledStudentIds(UUID courseId) {
 		return this.enrollments.findStudentIdsByCourseId(courseId);
+	}
+
+	@Override
+	@Transactional(readOnly = true)
+	public List<UUID> findEnrolledStudentIds(UUID courseId, UUID classId) {
+		return this.enrollments.findStudentIdsByCourseIdAndClassId(courseId, classId);
 	}
 
 	@Override

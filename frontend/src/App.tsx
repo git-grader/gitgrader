@@ -5,9 +5,10 @@ import { StrictMode, useMemo } from 'react';
 import { createBrowserRouter, RouterProvider, useRouteError, isRouteErrorResponse, Navigate, Link } from 'react-router';
 import { QueryCache, QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ApiProblem } from './api/client';
-import { CssBaseline, ThemeProvider, useMediaQuery, Box, Button, Typography } from '@mui/material';
+import { CssBaseline, ThemeProvider, useMediaQuery, useTheme, Box, Button, Typography } from '@mui/material';
 import { createAppTheme } from './theme';
 import PrimaryLogo from './assets/brand/gitgrader-lockup-primary.svg';
+import ReversedLogo from './assets/brand/gitgrader-lockup-reversed.svg';
 import './styles/fonts.css';
 import { MetaProvider } from './components/MetaProvider';
 import { RegistrationPage } from './pages/RegistrationPage';
@@ -30,6 +31,7 @@ import { CourseDetailPage } from './pages/CourseDetailPage';
 import { AssignmentDetailPage } from './pages/AssignmentDetailPage';
 import { SubmissionDetailPage } from './pages/SubmissionDetailPage';
 import { MaterialsPage } from './pages/MaterialsPage';
+import { ClassProgressPage } from './pages/ClassProgressPage';
 
 /**
  * Sends an expired session back to the sign-in page.
@@ -83,11 +85,13 @@ function errorMessage(error: unknown): string {
 }
 
 function ErrorBoundary() {
+  const theme = useTheme();
   const error = useRouteError();
   return (
-    <Box role="alert" sx={{ p: 4 }}>
+    <Box role="alert" sx={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 2, p: { xs: 3, sm: 6 } }}>
+      <Box component="img" src={theme.palette.mode === 'dark' ? ReversedLogo : PrimaryLogo} alt="GitGrader" sx={{ width: 200, maxWidth: '100%', height: 'auto' }} />
       <Typography variant="h4" gutterBottom>Oops!</Typography>
-      <Typography color="error">{errorMessage(error)}</Typography>
+      <Typography color="error" sx={{ overflowWrap: 'anywhere' }}>{errorMessage(error)}</Typography>
     </Box>
   );
 }
@@ -102,6 +106,7 @@ function ErrorBoundary() {
  * that bounced them straight back to sign-in.
  */
 function NotFound() {
+  const theme = useTheme();
   return (
     <Box
       role="alert"
@@ -113,10 +118,10 @@ function NotFound() {
         justifyContent: 'center',
         textAlign: 'center',
         gap: 2,
-        p: 4
+        p: { xs: 3, sm: 4 }
       }}
     >
-      <Box component="img" src={PrimaryLogo} alt="GitGrader" sx={{ height: 40, mb: 1 }} />
+      <Box component="img" src={theme.palette.mode === 'dark' ? ReversedLogo : PrimaryLogo} alt="GitGrader" sx={{ width: 200, maxWidth: '100%', height: 'auto', mb: 1 }} />
       <Typography variant="h4" component="h1">Page not found</Typography>
       <Typography color="text.secondary" sx={{ maxWidth: 420 }}>
         The address you opened does not exist. If you followed a result link, it may have
@@ -160,6 +165,7 @@ const router = createBrowserRouter([
           { path: 'students/:id', element: <StudentDetailPage /> },
           { path: 'courses', element: <CoursesPage /> },
           { path: 'courses/:id', element: <CourseDetailPage /> },
+          { path: 'courses/:courseId/classes/:classId', element: <ClassProgressPage /> },
           { path: 'assignments', element: <AssignmentsPage /> },
           { path: 'assignments/:id', element: <AssignmentDetailPage /> },
           { path: 'materials', element: <MaterialsPage /> },

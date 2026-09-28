@@ -9,6 +9,8 @@ import type { GridColDef, GridRenderCellParams } from '@mui/x-data-grid';
 import { api } from '../api';
 import { queryKeys } from '../api/queryKeys';
 import { QueryErrorNotice } from '../components/QueryErrorNotice';
+import { PageHeader } from '../components/PageHeader';
+import { useServerPagination } from '../components/useServerPagination';
 import type { AuditEvent } from '../api';
 
 const AUDIT_EVENT_TYPES = [
@@ -50,15 +52,14 @@ function summariseDetail(detail: unknown): string {
 
 export function AdminAuditPage() {
   const theme = useTheme();
-  const [pagination, setPagination] = useState({ page: 0, pageSize: 20 });
+  const { paginationModel, setPaginationModel, sortModel, setSortModel, params } = useServerPagination();
   const [eventType, setEventType] = useState('');
   const [actorType, setActorType] = useState('');
   const { data, isLoading, isError, refetch } = useQuery({
-    queryKey: queryKeys.audit(String(pagination.page), String(pagination.pageSize), eventType, actorType),
+    queryKey: queryKeys.audit(params.page, params.size, eventType, actorType, params.sort),
     queryFn: () =>
       api.getAuditLog({
-        page: String(pagination.page),
-        size: String(pagination.pageSize),
+        ...params,
         ...(eventType ? { eventType } : {}),
         ...(actorType ? { actorType } : {})
       }),
@@ -83,7 +84,6 @@ export function AdminAuditPage() {
     headerName: 'Event',
     flex: 1,
     minWidth: 240,
-    sortable: false,
     renderCell: (params: GridRenderCellParams<AuditEvent>) => {
       const row = params.row;
       return (
@@ -150,33 +150,33 @@ export function AdminAuditPage() {
   ];
 
   return (
-    <Box>
-      <Typography variant="h4" component="h1" gutterBottom>Audit Log</Typography>
-      <Typography color="text.secondary" sx={{ mb: 2 }}>
+    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, minWidth: 0 }}>
+      <PageHeader title="Audit Log" />
+      <Typography variant="body2" color="text.secondary" sx={{ maxWidth: '80ch' }}>
         Every recorded action, newest first. Throttling decisions appear as
         <Box component="code" sx={{ mx: 0.5 }}>RATE_LIMIT_TRIGGERED</Box>
         with the limit and the decision recorded alongside.
       </Typography>
-      <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap', mb: 2 }}>
-        <FormControl size="small" sx={{ minWidth: 220 }}>
+      <Box sx={{ display: 'flex', gap: 1.5, flexWrap: 'wrap' }}>
+        <FormControl size="small" sx={{ width: { xs: '100%', sm: 'auto' }, minWidth: { sm: 220 } }}>
           <InputLabel id="audit-event-type-label">Event Type</InputLabel>
           <Select
             labelId="audit-event-type-label"
             value={eventType}
             label="Event Type"
-            onChange={(e) => { setEventType(e.target.value); setPagination((p) => ({ ...p, page: 0 })); }}
+            onChange={(e) => { setEventType(e.target.value); setPaginationModel({ ...paginationModel, page: 0 }); }}
           >
             <MenuItem value=""><em>All events</em></MenuItem>
             {AUDIT_EVENT_TYPES.map((t) => <MenuItem key={t} value={t}>{t}</MenuItem>)}
           </Select>
         </FormControl>
-        <FormControl size="small" sx={{ minWidth: 180 }}>
+        <FormControl size="small" sx={{ width: { xs: '100%', sm: 'auto' }, minWidth: { sm: 180 } }}>
           <InputLabel id="audit-actor-type-label">Actor Type</InputLabel>
           <Select
             labelId="audit-actor-type-label"
             value={actorType}
             label="Actor Type"
-            onChange={(e) => { setActorType(e.target.value); setPagination((p) => ({ ...p, page: 0 })); }}
+            onChange={(e) => { setActorType(e.target.value); setPaginationModel({ ...paginationModel, page: 0 }); }}
           >
             <MenuItem value=""><em>All actors</em></MenuItem>
             {AUDIT_ACTOR_TYPES.map((t) => <MenuItem key={t} value={t}>{t}</MenuItem>)}
@@ -193,21 +193,21 @@ export function AdminAuditPage() {
           <CircularProgress aria-label="Loading audit log" />
         </Box>
       ) : (
-        <Box sx={{ height: 600, width: '100%' }}>
+        <Box sx={{ height: { xs: 520, md: 600 }, width: '100%', minWidth: 0, overflowX: 'auto' }}>
           <DataGrid
             rows={data?.content ?? []}
             columns={isNarrow ? [summaryColumn] : wideColumns}
             {...(isNarrow ? { getRowHeight: () => 'auto' as const } : {})}
             paginationMode="server"
             rowCount={data?.totalElements ?? 0}
-            paginationModel={pagination}
-            onPaginationModelChange={setPagination}
+            paginationModel={paginationModel}
+            onPaginationModelChange={setPaginationModel}
             pageSizeOptions={[20, 50, 100]}
-            // Only the requested page is in memory, so a client-side sort would silently
-            // reorder that page alone while appearing to sort the whole log. The server
-            // already returns it newest first.
-            disableColumnSorting
+            sortingMode="server"
+            sortModel={sortModel}
+            onSortModelChange={setSortModel}
             disableRowSelectionOnClick
+            sx={{ minWidth: isNarrow ? 260 : 940 }}
           />
         </Box>
       )}

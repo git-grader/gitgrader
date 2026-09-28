@@ -69,9 +69,9 @@ docker compose -f compose.yaml -f compose.dev.yaml exec -T database \
 ## Push work
 
 ```sh
-export GIT_SSH_COMMAND="ssh -i /tmp/student -o StrictHostKeyChecking=no -o IdentitiesOnly=yes"
+export GIT_SSH_COMMAND="ssh -p 2222 -i /tmp/student -o StrictHostKeyChecking=no -o IdentitiesOnly=yes"
 gitgrader="$PWD"
-git clone ssh://git@localhost:2222/example-programming/assignment-01-string-utils/s2001.git /tmp/work
+git clone git@localhost:example-programming/assignment-01-string-utils/s2001.git /tmp/work
 ```
 
 The clone contains the starter project and the public tests. It must **not** contain

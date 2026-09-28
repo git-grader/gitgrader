@@ -17,10 +17,13 @@
 package org.gitgrader.grading;
 
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.util.UUID;
 
 import org.jspecify.annotations.Nullable;
 
-/** Score columns from the latest grading run for one submission. */
-public record SubmissionScoreView(UUID submissionId, @Nullable BigDecimal scorePercent) {
+/** Summary columns from the latest grading run for one submission. */
+public record SubmissionScoreView(UUID submissionId, int attempt, GradingRunStatus status, int testsPassed,
+		int testsTotal, @Nullable BigDecimal scorePercent, @Nullable BigDecimal pointsAwarded, @Nullable Boolean passed,
+		@Nullable Instant finishedAt) {
 }

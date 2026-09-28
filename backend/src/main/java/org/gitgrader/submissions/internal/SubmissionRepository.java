@@ -149,7 +149,7 @@ public interface SubmissionRepository extends JpaRepository<Submission, UUID>, J
 
 	@Query("""
 			SELECT new org.gitgrader.submissions.SubmissionAssessmentView(
-				s.id, s.studentId, s.assignmentId, s.status, s.receivedAt)
+				s.id, s.studentId, s.assignmentId, s.status, s.commitSha, s.gitRef, s.commitMessage, s.receivedAt, s.late)
 			FROM Submission s
 			WHERE s.courseId = :courseId AND s.assignmentId IN :assignmentIds
 			""")

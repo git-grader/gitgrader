@@ -27,7 +27,13 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
+import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
+import org.gitgrader.courses.EnrollmentStatus;
+import org.gitgrader.grading.GradingRunStatus;
+import org.gitgrader.grading.SubmissionScoreView;
+import org.gitgrader.identity.StudentStatus;
+import org.gitgrader.submissions.SubmissionStatus;
 import org.junit.jupiter.api.Test;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
@@ -60,6 +66,46 @@ class ReportExporterTest {
 		try (XSSFWorkbook workbook = new XSSFWorkbook(new ByteArrayInputStream(bytes))) {
 			assertThat(workbook.getSheet("Course report").getRow(1).getCell(2).getStringCellValue())
 				.isEqualTo("Ada Lovelace");
+		}
+	}
+
+	@Test
+	void exportsEveryClassStudentWithAssignmentProgressAndLatestResult() throws IOException {
+		UUID secondStudentId = UUID.fromString("00000000-0000-0000-0000-000000000003");
+		UUID submissionId = UUID.fromString("00000000-0000-0000-0000-000000000004");
+		UUID assignmentId = UUID.fromString("00000000-0000-0000-0000-000000000006");
+		ClassProgressReport.AssignmentProgress assignmentProgress = new ClassProgressReport.AssignmentProgress(
+				new BigDecimal("75.00"), new BigDecimal("7.50"),
+				new ClassProgressReport.LatestSubmission(submissionId, "abc123", "refs/heads/main", "Latest work",
+						CLOCK.instant(), SubmissionStatus.PASSED, false),
+				new SubmissionScoreView(submissionId, 2, GradingRunStatus.COMPLETED, 3, 4, new BigDecimal("75.00"),
+						new BigDecimal("7.50"), true, CLOCK.instant()));
+		ClassProgressReport report = new ClassProgressReport(COURSE_ID,
+				UUID.fromString("00000000-0000-0000-0000-000000000005"), "class-a", "Class A", 1,
+				new BigDecimal("10.00"),
+				List.of(new ClassProgressReport.AssignmentSummary(assignmentId, "assignment-one", "Assignment One",
+						true, new BigDecimal("10.00"), 4, 1, 1, 0, 0, 1, new BigDecimal("75.00"))),
+				List.of(classStudent(STUDENT_ID, "s1", "Ada Lovelace", assignmentProgress),
+						classStudent(secondStudentId, "s2", "Grace Hopper", null)));
+
+		byte[] bytes = new ReportExportService(List.of(new XlsxReportExporter())).exportClassReport(report);
+
+		try (XSSFWorkbook workbook = new XSSFWorkbook(new ByteArrayInputStream(bytes))) {
+			var sheet = workbook.getSheet("Class report");
+			assertThat(sheet.getLastRowNum()).isEqualTo(2);
+			assertThat(sheet.getRow(1).getCell(1).getStringCellValue()).isEqualTo("s1");
+			assertThat(sheet.getRow(2).getCell(1).getStringCellValue()).isEqualTo("s2");
+			Row header = sheet.getRow(0);
+			assertThat(sheet.getRow(1).getCell(column(header, "assignment-one Best percent")).getStringCellValue())
+				.isEqualTo("75.00");
+			assertThat(
+					sheet.getRow(1).getCell(column(header, "assignment-one Latest score percent")).getStringCellValue())
+				.isEqualTo("75.00");
+			assertThat(sheet.getRow(1).getCell(column(header, "assignment-one Tests passed")).getStringCellValue())
+				.isEqualTo("3");
+			assertThat(sheet.getRow(2)
+				.getCell(column(header, "assignment-one Latest submission status"))
+				.getStringCellValue()).isEmpty();
 		}
 	}
 
@@ -138,6 +184,25 @@ class ReportExporterTest {
 		StudentProgressRow row = new StudentProgressRow(STUDENT_ID, "s1", fullName, 1, 0, 0, BigDecimal.ONE,
 				BigDecimal.TEN, BigDecimal.ONE, BigDecimal.TEN, 1, CLOCK.instant(), Map.of());
 		return new CourseReport(COURSE_ID, 1, BigDecimal.TEN, List.of(row));
+	}
+
+	private static ClassProgressReport.StudentRow classStudent(UUID studentId, String username, String fullName,
+			ClassProgressReport.AssignmentProgress progress) {
+		Map<String, ClassProgressReport.AssignmentProgress> assignments = progress == null ? Map.of()
+				: Map.of("assignment-one", progress);
+		return new ClassProgressReport.StudentRow(studentId, username, fullName, StudentStatus.VERIFIED_BY_INSTRUCTOR,
+				EnrollmentStatus.ACTIVE, 1, 0, 0, BigDecimal.ONE, new BigDecimal("7.50"), new BigDecimal("0.75"),
+				new BigDecimal("10.00"), progress == null ? 0 : 1, progress == null ? null : CLOCK.instant(),
+				assignments);
+	}
+
+	private static int column(Row header, String name) {
+		for (int index = 0; index < header.getLastCellNum(); index++) {
+			if (header.getCell(index).getStringCellValue().equals(name)) {
+				return index;
+			}
+		}
+		throw new AssertionError("Missing workbook column: " + name);
 	}
 
 }

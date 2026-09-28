@@ -30,7 +30,12 @@ interface EnrollmentRepository extends JpaRepository<Enrollment, UUID> {
 
 	List<Enrollment> findByStudentId(UUID studentId);
 
+	List<Enrollment> findByCourseIdAndClassId(UUID courseId, UUID classId);
+
 	@Query("SELECT e.studentId FROM Enrollment e WHERE e.courseId = :courseId")
 	List<UUID> findStudentIdsByCourseId(@Param("courseId") UUID courseId);
+
+	@Query("SELECT e.studentId FROM Enrollment e WHERE e.courseId = :courseId AND e.classId = :classId")
+	List<UUID> findStudentIdsByCourseIdAndClassId(@Param("courseId") UUID courseId, @Param("classId") UUID classId);
 
 }

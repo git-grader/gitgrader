@@ -8,9 +8,10 @@ import { api } from '../api';
 import { ApiProblem, fetchBlob } from '../api/client';
 import { queryKeys } from '../api/queryKeys';
 import { QueryErrorNotice } from '../components/QueryErrorNotice';
+import { PageHeader } from '../components/PageHeader';
 import { Alert, Box, Typography, CircularProgress, Button, Paper, Stack } from '@mui/material';
 import { DataGrid } from '@mui/x-data-grid';
-import { useNarrowColumns } from '../components/responsiveColumns';
+import { useIsNarrow } from '../components/responsiveColumns';
 import type { GridColDef } from '@mui/x-data-grid';
 import type { CourseReport } from '../api';
 
@@ -57,10 +58,7 @@ export function ReportPage() {
   });
 
   // Declared before the early returns below: a hook must run on every render.
-  const columnVisibilityModel = useNarrowColumns(
-    ['studentUsername', 'fullName', 'fullyCompleted', 'partiallyCompleted', 'notStarted', 'completionRate', 'pointsEarned', 'pointsRate', 'submissionCount'],
-    ['fullName', 'completionRate', 'pointsRate']
-  );
+  const isNarrow = useIsNarrow();
 
   /**
    * Downloads the export without leaving the application to do it.
@@ -106,26 +104,69 @@ export function ReportPage() {
   const totalStudents = data.students.length;
   const counts = buckets(data.students, data.totalMandatoryAssignments);
 
-  const columns: GridColDef[] = [
+  const columns: GridColDef<StudentRow>[] = [
     { field: 'studentUsername', headerName: 'Student ID / Username', width: 190 },
     { field: 'fullName', headerName: 'Name', flex: 1, minWidth: 120 },
     { field: 'fullyCompleted', headerName: 'Fully Completed', width: 150 },
     { field: 'partiallyCompleted', headerName: 'Partially Completed', width: 150 },
     { field: 'notStarted', headerName: 'Not Started', width: 150 },
-    { field: 'completionRate', headerName: 'Completion', width: 110, valueFormatter: (value: number) => `${(value * 100).toFixed(1)}%` },
-    { field: 'pointsEarned', headerName: 'Points', width: 100 },
-    { field: 'pointsRate', headerName: 'Points %', width: 100, valueFormatter: (value: number) => `${(value * 100).toFixed(1)}%` },
-    { field: 'submissionCount', headerName: 'Submissions', width: 120 }
+    { field: 'completionRate', headerName: 'Completion %', width: 125, valueFormatter: (value: number) => `${(value * 100).toFixed(1)}%` },
+    { field: 'pointsEarned', headerName: 'Points earned', width: 125 },
+    { field: 'pointsRate', headerName: 'Points earned %', width: 145, valueFormatter: (value: number) => `${(value * 100).toFixed(1)}%` },
+    { field: 'submissionCount', headerName: 'Submissions', width: 120 },
+    {
+      field: 'lastActivityAt', headerName: 'Last activity', width: 190,
+      valueGetter: (value: string | null | undefined) => value ? new Date(value).toLocaleString() : 'No activity'
+    },
+    ...Object.keys(data.students[0]?.assignments ?? {}).map((assignmentKey): GridColDef<StudentRow> => ({
+      field: `assignment:${assignmentKey}`,
+      headerName: assignmentKey,
+      description: 'Best graded result, shown as percentage and points.',
+      width: 180,
+      valueGetter: (_value, row) => row.assignments[assignmentKey]?.percent ?? null,
+      renderCell: ({ row }) => {
+        const assignment = row.assignments[assignmentKey];
+        return assignment ? `${assignment.percent}% · ${assignment.points} points` : '—';
+      }
+    }))
   ];
 
-  return (
-    <Box>
-      <Typography variant="h4" component="h1" gutterBottom>Course Report</Typography>
+  const narrowColumn: GridColDef<StudentRow> = {
+    field: 'studentUsername',
+    headerName: 'Student report',
+    flex: 1,
+    minWidth: 0,
+    renderCell: ({ row }) => (
+      <Box sx={{ py: 1, display: 'flex', flexDirection: 'column', gap: 0.5, width: '100%', minWidth: 0 }}>
+        <Typography variant="body2" sx={{ fontWeight: 600, overflowWrap: 'anywhere' }}>{row.fullName}</Typography>
+        <Typography variant="caption" color="text.secondary">{row.studentUsername}</Typography>
+        <Typography variant="body2">
+          Fully completed: {row.fullyCompleted} · Partially completed: {row.partiallyCompleted} · Not started: {row.notStarted}
+        </Typography>
+        <Typography variant="body2">
+          Completion: {(row.completionRate * 100).toFixed(1)}% · Points: {row.pointsEarned} ({(row.pointsRate * 100).toFixed(1)}%) · Submissions: {row.submissionCount}
+        </Typography>
+        <Typography variant="caption" color="text.secondary">
+          Last activity: {row.lastActivityAt ? new Date(row.lastActivityAt).toLocaleString() : 'No activity'}
+        </Typography>
+        {Object.entries(row.assignments).map(([assignmentKey, result]) => (
+          <Typography key={assignmentKey} variant="body2" sx={{ overflowWrap: 'anywhere' }}>
+            {assignmentKey}: {result.percent}% · {result.points} points
+          </Typography>
+        ))}
+      </Box>
+    )
+  };
 
-      <Paper sx={{ p: 3, mb: 3 }}>
+  return (
+    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3, minWidth: 0 }}>
+      <PageHeader title="Course Report" />
+
+      <Paper variant="outlined" sx={{ p: { xs: 2, sm: 3 } }}>
         <Typography variant="h6" gutterBottom>Metrics</Typography>
-        <Typography variant="body1">Completion rate = fully completed mandatory assignments / mandatory assignments</Typography>
-        <Typography variant="body1">Points rate = points earned / points available</Typography>
+        <Typography variant="body1">Completion % = fully completed mandatory assignments / mandatory assignments</Typography>
+        <Typography variant="body1">Points earned % = points earned / points available</Typography>
+        <Typography variant="body2" color="text.secondary">Assignment results show the best graded attempt as percentage and points.</Typography>
 
         <Box sx={{ mt: 2 }}>
           <Typography variant="body2" sx={{ fontWeight: 'bold' }}>
@@ -134,6 +175,11 @@ export function ReportPage() {
           {data.totalMandatoryAssignments === 0 && (
             <Typography variant="body2" color="text.secondary">
               This course has no mandatory assignments, so no student can be counted as fully completed.
+            </Typography>
+          )}
+          {data.totalPointsAvailable === 0 && (
+            <Typography variant="body2" color="text.secondary">
+              No assignment points are available in this course report.
             </Typography>
           )}
         </Box>
@@ -154,19 +200,26 @@ export function ReportPage() {
         </Stack>
       </Paper>
 
-      <Box sx={{ height: 600, width: '100%' }}>
-        <DataGrid
-          getRowId={(row: StudentRow) => row.studentId}
-          rows={data.students}
-          columns={columns}
-          columnVisibilityModel={columnVisibilityModel}
-          initialState={{
-            pagination: { paginationModel: { pageSize: 50 } }
-          }}
-          pageSizeOptions={[50, 100]}
-          disableRowSelectionOnClick
-        />
-      </Box>
+      {data.students.length === 0 ? (
+        <Paper variant="outlined" sx={{ p: 4, textAlign: 'center' }}>
+          <Typography>No enrolled students are included in this course report.</Typography>
+        </Paper>
+      ) : (
+        <Box sx={{ height: { xs: 520, md: 600 }, width: '100%', minWidth: 0, overflow: 'hidden' }}>
+          <DataGrid
+            getRowId={(row: StudentRow) => row.studentId}
+            rows={data.students}
+            columns={isNarrow ? [narrowColumn] : columns}
+            {...(isNarrow ? { getRowHeight: () => 'auto' as const } : {})}
+            initialState={{
+              pagination: { paginationModel: { pageSize: 50 } }
+            }}
+            pageSizeOptions={[50, 100]}
+            disableRowSelectionOnClick
+            sx={{ minWidth: 0, width: '100%' }}
+          />
+        </Box>
+      )}
     </Box>
   );
 }

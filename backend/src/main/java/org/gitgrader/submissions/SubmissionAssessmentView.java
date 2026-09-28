@@ -19,7 +19,9 @@ package org.gitgrader.submissions;
 import java.time.Instant;
 import java.util.UUID;
 
+import org.jspecify.annotations.Nullable;
+
 /** Score-independent submission columns needed by aggregate reports. */
 public record SubmissionAssessmentView(UUID submissionId, UUID studentId, UUID assignmentId, SubmissionStatus status,
-		Instant receivedAt) {
+		String commitSha, String gitRef, @Nullable String commitMessage, Instant receivedAt, boolean late) {
 }

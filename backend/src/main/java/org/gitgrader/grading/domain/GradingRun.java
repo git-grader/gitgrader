@@ -194,6 +194,10 @@ public class GradingRun {
 		return this.passed;
 	}
 
+	public @Nullable Instant finishedAt() {
+		return this.finishedAt;
+	}
+
 	public @Nullable FailureCategory failureCategory() {
 		return this.failureCategory;
 	}

@@ -21,8 +21,8 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
-import org.gitgrader.grading.domain.GradingRun;
 import org.gitgrader.grading.SubmissionScoreView;
+import org.gitgrader.grading.domain.GradingRun;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -75,7 +75,8 @@ public interface GradingRunRepository extends JpaRepository<GradingRun, UUID> {
 	Optional<GradingRun> findBySubmissionIdAndTrigger(UUID submissionId, String trigger);
 
 	@Query("""
-			SELECT new org.gitgrader.grading.SubmissionScoreView(r.submissionId, r.scorePercent)
+			SELECT new org.gitgrader.grading.SubmissionScoreView(r.submissionId, r.attempt, r.status,
+			       r.testsPassed, r.testsTotal, r.scorePercent, r.pointsAwarded, r.passed, r.finishedAt)
 			FROM GradingRun r
 			WHERE r.submissionId IN :submissionIds
 			  AND r.attempt = (SELECT max(latest.attempt) FROM GradingRun latest

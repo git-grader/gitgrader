@@ -9,6 +9,7 @@ import { queryKeys } from '../api/queryKeys';
 import { QueryErrorNotice } from '../components/QueryErrorNotice';
 import { CourseStatusChip } from '../components/CourseStatusChip';
 import { MutationErrorAlert, problemFieldErrors } from '../components/MutationErrorAlert';
+import { PageHeader } from '../components/PageHeader';
 import { fromZonedInputValue, toZonedInputValue } from '../components/localDateTime';
 import type { ClassDefinition, CourseDefinition, CourseView, Class } from '../api';
 import {
@@ -337,17 +338,9 @@ export function CourseDetailPage() {
 
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 2 }}>
-        <Box>
-          <Typography variant="h4" component="h1">{course.name}</Typography>
-          <Box sx={{ display: 'flex', gap: 1, alignItems: 'center', flexWrap: 'wrap' }}>
-            <Typography color="text.secondary" sx={{ overflowWrap: 'anywhere' }}>
-              Key: {course.courseKey}
-            </Typography>
-            <CourseStatusChip status={course.status} />
-          </Box>
-        </Box>
-        <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
+      <PageHeader title={course.name} description={`Key: ${course.courseKey}`} actions={
+        <>
+          <CourseStatusChip status={course.status} />
           <Button variant="outlined" onClick={() => setCourseOpen(true)}>
             Edit Course
           </Button>
@@ -359,8 +352,8 @@ export function CourseDetailPage() {
           <Button variant="outlined" component={Link} to={`/reports/course/${course.id}`}>
             View Report
           </Button>
-        </Box>
-      </Box>
+        </>
+      } />
 
       {!registrationOpen ? (
         <Alert severity="warning">
@@ -419,6 +412,14 @@ export function CourseDetailPage() {
                       <TableCell>{cls.classKey}</TableCell>
                       <TableCell>{cls.name}</TableCell>
                       <TableCell align="right">
+                        <Button
+                          size="small"
+                          component={Link}
+                          to={`/courses/${encodeURIComponent(course.id)}/classes/${encodeURIComponent(cls.id)}`}
+                          aria-label={`View progress for ${cls.name}`}
+                        >
+                          View progress
+                        </Button>
                         <Button size="small" onClick={() => {
                           setEditingClass(cls);
                           setClassOpen(true);

@@ -8,6 +8,7 @@ import { api } from '../api';
 import { queryKeys } from '../api/queryKeys';
 import { QueryErrorNotice } from '../components/QueryErrorNotice';
 import { MutationErrorAlert, problemFieldErrors } from '../components/MutationErrorAlert';
+import { PageHeader } from '../components/PageHeader';
 import { useServerPagination } from '../components/useServerPagination';
 import { useIsNarrow } from '../components/responsiveColumns';
 import { CourseStatusChip } from '../components/CourseStatusChip';
@@ -44,9 +45,9 @@ export function CoursesPage() {
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState<Partial<CourseDefinition>>(emptyForm);
 
-  const { paginationModel, setPaginationModel, params } = useServerPagination();
+  const { paginationModel, setPaginationModel, sortModel, setSortModel, params } = useServerPagination();
   const { data, isLoading, isError, refetch } = useQuery({
-    queryKey: queryKeys.courses.list(statusFilter, params.page, params.size),
+    queryKey: queryKeys.courses.list(statusFilter, params.page, params.size, params.sort),
     queryFn: () => api.getCourses({ ...params, status: statusFilter }),
     // Keeps the current rows on screen while the next page loads; without it the row
     // count drops to zero and the grid bounces back to page one.
@@ -146,9 +147,17 @@ export function CoursesPage() {
       )
     },
     {
-      field: 'actions', headerName: 'Actions', width: 100, sortable: false,
+      field: 'actions', headerName: 'Actions', width: 112, sortable: false,
       renderCell: (params: GridRenderCellParams<CourseView>) => (
-        <Button size="small" component={Link} to={`/courses/${params.row.id}`}>Open</Button>
+        <Button
+          size="small"
+          variant="outlined"
+          component={Link}
+          to={`/courses/${params.row.id}`}
+          onClick={(event) => event.stopPropagation()}
+        >
+          Open
+        </Button>
       )
     }
   ];
@@ -186,10 +195,9 @@ export function CoursesPage() {
   };
 
   return (
-    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 1.5 }}>
-        <Typography variant="h4" component="h1">Courses</Typography>
-        <Box sx={{ display: 'flex', gap: 2, alignItems: 'center', flexWrap: 'wrap', flex: '1 1 auto', justifyContent: 'flex-end' }}>
+    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+      <PageHeader title="Courses" actions={
+        <>
           <FormControl size="small" sx={{ minWidth: { xs: '100%', sm: 200 } }}>
             <InputLabel id="course-status-filter-label">Status Filter</InputLabel>
             <Select
@@ -204,8 +212,8 @@ export function CoursesPage() {
             </Select>
           </FormControl>
           <Button variant="contained" onClick={() => setOpen(true)}>New Course</Button>
-        </Box>
-      </Box>
+        </>
+      } />
 
       {isLoading ? (
         <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}>
@@ -214,7 +222,7 @@ export function CoursesPage() {
       ) : isError ? (
         <QueryErrorNotice message="The courses could not be loaded." onRetry={() => void refetch()} />
       ) : (
-        <Box sx={{ height: 600, width: '100%' }}>
+        <Box sx={{ height: { xs: 520, md: 600 }, width: '100%', minWidth: 0 }}>
           <DataGrid
             rows={data?.content ?? []}
             columns={isNarrow ? [narrowColumn] : wideColumns}
@@ -224,9 +232,9 @@ export function CoursesPage() {
             paginationModel={paginationModel}
             onPaginationModelChange={setPaginationModel}
             pageSizeOptions={[20, 50, 100]}
-            // Only the requested page is in memory, so a client-side sort would silently
-            // reorder that page alone while appearing to sort the whole collection.
-            disableColumnSorting
+            sortingMode="server"
+            sortModel={sortModel}
+            onSortModelChange={setSortModel}
             disableRowSelectionOnClick
             onRowClick={(params) => { void navigate(`/courses/${params.id}`); }}
           />
@@ -270,7 +278,7 @@ export function CoursesPage() {
               disabled={createMutation.isPending}
             />
 
-            <Box sx={{ display: 'flex', gap: 2 }}>
+            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, minmax(0, 1fr))' }, gap: 2 }}>
               <TextField
                 label="Semester"
                 fullWidth
@@ -292,7 +300,7 @@ export function CoursesPage() {
               />
             </Box>
 
-            <Box sx={{ display: 'flex', gap: 2 }}>
+            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, minmax(0, 1fr))' }, gap: 2 }}>
               <TextField label="Starts On" type="date" fullWidth slotProps={{ inputLabel: { shrink: true } }} value={form.startsOn ?? ''} onChange={e => setForm({ ...form, startsOn: e.target.value })} error={!!fieldErrors['startsOn']} helperText={fieldErrors['startsOn']} disabled={createMutation.isPending} />
               <TextField label="Ends On" type="date" fullWidth slotProps={{ inputLabel: { shrink: true } }} value={form.endsOn ?? ''} onChange={e => setForm({ ...form, endsOn: e.target.value })} error={!!fieldErrors['endsOn']} helperText={fieldErrors['endsOn']} disabled={createMutation.isPending} />
             </Box>
@@ -316,7 +324,7 @@ export function CoursesPage() {
               label="Registration Enabled"
             />
 
-            <Box sx={{ display: 'flex', gap: 2 }}>
+            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, minmax(0, 1fr))' }, gap: 2 }}>
               <TextField label="Registration Opens At" type="datetime-local" fullWidth slotProps={{ inputLabel: { shrink: true } }} value={form.registrationOpensAt ?? ''} onChange={e => setForm({ ...form, registrationOpensAt: e.target.value })} error={!!fieldErrors['registrationOpensAt']} helperText={fieldErrors['registrationOpensAt']} disabled={createMutation.isPending} />
               <TextField label="Registration Closes At" type="datetime-local" fullWidth slotProps={{ inputLabel: { shrink: true } }} value={form.registrationClosesAt ?? ''} onChange={e => setForm({ ...form, registrationClosesAt: e.target.value })} error={!!fieldErrors['registrationClosesAt']} helperText={fieldErrors['registrationClosesAt']} disabled={createMutation.isPending} />
             </Box>

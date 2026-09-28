@@ -8,6 +8,7 @@ import type { Runtime, RuntimeDefinition } from '../api';
 import { queryKeys } from '../api/queryKeys';
 import { QueryErrorNotice } from '../components/QueryErrorNotice';
 import { MutationErrorAlert, problemFieldErrors } from '../components/MutationErrorAlert';
+import { PageHeader } from '../components/PageHeader';
 import { useIsNarrow } from '../components/responsiveColumns';
 import { DataGrid } from '@mui/x-data-grid';
 import type { GridColDef, GridRenderCellParams } from '@mui/x-data-grid';
@@ -178,26 +179,24 @@ export function AdminRuntimesPage() {
   };
 
   return (
-    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 1.5 }}>
-        <Typography variant="h4" component="h1">Runtimes</Typography>
-        {isAdmin ? (
+    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3, minWidth: 0 }}>
+      <PageHeader title="Runtimes" actions={isAdmin ? (
           <Button variant="contained" onClick={() => setOpen(true)}>New Runtime</Button>
         ) : (
           <Typography color="text.secondary">An administrator must add runtimes.</Typography>
-        )}
-      </Box>
+        )} />
 
       {runtimes.length === 0 ? (
         <Alert severity="info">No runtimes configured. At least one runtime is required to publish assignments.</Alert>
       ) : (
-        <Box sx={{ height: 600, width: '100%' }}>
+        <Box sx={{ height: { xs: 520, md: 600 }, width: '100%', minWidth: 0, overflowX: 'auto' }}>
           <DataGrid
             rows={runtimes}
             columns={isNarrow ? [narrowColumn] : wideColumns}
             {...(isNarrow ? { getRowHeight: () => 'auto' as const } : {})}
             pageSizeOptions={[20, 50, 100]}
             disableRowSelectionOnClick
+            sx={{ minWidth: isNarrow ? 260 : 1180 }}
           />
         </Box>
       )}

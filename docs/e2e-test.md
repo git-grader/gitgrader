@@ -159,8 +159,8 @@ course report.
 ## 4. Clone, and prove the hidden tests are not in it
 
 ```sh
-export GIT_SSH_COMMAND="ssh -i /tmp/e2e/student -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o IdentitiesOnly=yes"
-git clone ssh://git@localhost:2222/example-programming/assignment-01-string-utils/s2001.git /tmp/e2e/work
+export GIT_SSH_COMMAND="ssh -p 2222 -i /tmp/e2e/student -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o IdentitiesOnly=yes"
+git clone git@localhost:example-programming/assignment-01-string-utils/s2001.git /tmp/e2e/work
 
 find /tmp/e2e/work -iname '*hidden*' -not -path '*/.git/*'
 ```

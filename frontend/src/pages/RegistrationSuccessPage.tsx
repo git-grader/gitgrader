@@ -6,6 +6,7 @@ import { useLocation, Navigate } from 'react-router';
 import { Alert, Box, Typography, Paper, Button } from '@mui/material';
 import { RegistrationResponseSchema } from '../api';
 import { useMeta } from '../components/MetaProvider';
+import { BrandMark } from '../components/BrandMark';
 
 /**
  * Copies one clone command, and admits it when it could not.
@@ -37,7 +38,7 @@ function CopyCloneCommand({ command }: { command: string }) {
       {/* The announcement lives in its own region rather than on the button. A live
           region that is also the focused control is announced inconsistently, and here
           it is the only confirmation that the command was copied at all. */}
-      <Box component="span" role="status" sx={{ position: 'absolute', width: 1, height: 1, overflow: 'hidden', clip: 'rect(0 0 0 0)' }}>
+      <Box component="span" role="status" sx={{ position: 'absolute', width: '1px', height: '1px', padding: 0, margin: '-1px', overflow: 'hidden', clip: 'rect(0 0 0 0)', whiteSpace: 'nowrap', border: 0 }}>
         {outcome === 'copied' ? 'Clone command copied to the clipboard.' : outcome === 'failed' ? 'The clone command could not be copied. Select it and copy it by hand.' : ''}
       </Box>
     </>
@@ -61,15 +62,19 @@ export function RegistrationSuccessPage() {
     state && typeof state === 'object' && 'courseKey' in state && typeof state.courseKey === 'string'
       ? state.courseKey
       : null;
-  // Port 22 is SSH's default and is the port this page is usually on, so the clone
-  // command stays shorter while still working wherever a non-default port is bound.
-  const repositoryRoot =
-    `ssh://git@${meta.sshHost}${meta.sshPort === 22 ? '' : `:${meta.sshPort}`}/${courseKey ?? '<course-key>'}`;
+  // SCP-style Git URLs do not carry a port, so configure SSH for this clone when the
+  // advertised endpoint uses a non-default port.
+  const clonePrefix = meta.sshPort === 22
+    ? 'git clone'
+    : `git -c core.sshCommand="ssh -p ${meta.sshPort}" clone`;
+  const cloneCommand =
+    `${clonePrefix} git@${meta.sshHost}:${courseKey ?? '<course-key>'}/<assignment-key>/${result.studentUsername}.git`;
 
   return (
-    <Box sx={{ p: 4, maxWidth: 'md', mx: 'auto' }}>
-      <Paper sx={{ p: 4 }}>
-        <Typography variant="h4" component="h1" gutterBottom>Registration Successful</Typography>
+    <Box sx={{ minHeight: '100vh', p: { xs: 2, sm: 4 }, maxWidth: 760, width: '100%', mx: 'auto', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 1 }}>
+      <BrandMark />
+      <Paper variant="outlined" sx={{ p: { xs: 2, sm: 4 }, width: '100%' }}>
+        <Typography variant="h4" component="h1" sx={{ overflowWrap: 'anywhere', mb: 2 }}>Registration Successful</Typography>
         <Typography component="p" sx={{ mb: 1 }}>
           Welcome, {result.fullName}. Your student username is {result.studentUsername} and your SSH key fingerprint is {result.keyFingerprint}.
         </Typography>
@@ -108,10 +113,10 @@ export function RegistrationSuccessPage() {
               minWidth: 0
             }}
           >
-            git clone {repositoryRoot}/&lt;assignment-key&gt;/{result.studentUsername}.git
+            {cloneCommand}
           </Box>
           <CopyCloneCommand
-            command={`git clone ${repositoryRoot}/<assignment-key>/${result.studentUsername}.git`}
+            command={cloneCommand}
           />
         </Box>
         <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>

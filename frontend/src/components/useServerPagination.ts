@@ -1,7 +1,8 @@
 // Copyright the GitGrader contributors.
 // SPDX-License-Identifier: Apache-2.0
 
-import { useState } from 'react';
+import { useState } from "react";
+import type { GridSortModel } from "@mui/x-data-grid";
 
 /**
  * The page size used when a list only needs the choices, not a pager.
@@ -10,13 +11,18 @@ import { useState } from 'react';
  * hold every realistic option. The server still caps what it returns, which is the point:
  * the request is explicit rather than silently relying on a default.
  */
-export const CHOICE_PAGE_SIZE = '200';
+export const CHOICE_PAGE_SIZE = "200";
 
 interface ServerPagination {
   readonly paginationModel: { page: number; pageSize: number };
-  readonly setPaginationModel: (model: { page: number; pageSize: number }) => void;
+  readonly setPaginationModel: (model: {
+    page: number;
+    pageSize: number;
+  }) => void;
+  readonly sortModel: GridSortModel;
+  readonly setSortModel: (model: GridSortModel) => void;
   /** Query parameters to send with the request, as the API helpers expect them. */
-  readonly params: { page: string; size: string };
+  readonly params: { page: string; size: string; sort?: string };
 }
 
 /**
@@ -32,9 +38,26 @@ interface ServerPagination {
  */
 export function useServerPagination(pageSize = 20): ServerPagination {
   const [paginationModel, setPaginationModel] = useState({ page: 0, pageSize });
+  const [sortModel, setSortModelState] = useState<GridSortModel>([]);
+
+  function setSortModel(model: GridSortModel) {
+    setPaginationModel((current) => ({ ...current, page: 0 }));
+    setSortModelState(model);
+  }
+
+  const sort = sortModel[0]?.sort
+    ? `${sortModel[0].field},${sortModel[0].sort}`
+    : undefined;
+
   return {
     paginationModel,
     setPaginationModel,
-    params: { page: String(paginationModel.page), size: String(paginationModel.pageSize) }
+    sortModel,
+    setSortModel,
+    params: {
+      page: String(paginationModel.page),
+      size: String(paginationModel.pageSize),
+      ...(sort ? { sort } : {}),
+    },
   };
 }

@@ -17,6 +17,7 @@ const SUBMISSION = {
   repositoryId: 'r1',
   repositoryPath: 'students/alice/hw1',
   studentId: 'st1',
+  studentUsername: 'alice',
   courseId: 'c1',
   assignmentId: 'a1',
   commitSha: 'f0e1d2c3b4a5968778998aa9bbccddeeff001122',
@@ -45,6 +46,7 @@ test('shows the submission the server returned', async () => {
   expect(screen.getByText('Passed')).toBeInTheDocument();
   expect(screen.getByText('Late')).toBeInTheDocument();
   expect(screen.getByText('VERIFIED')).toBeInTheDocument();
+  expect(screen.getByText('alice')).toBeInTheDocument();
   expect(screen.getByText(SUBMISSION.commitSha)).toBeInTheDocument();
   expect(screen.getByText(SUBMISSION.gitRef)).toBeInTheDocument();
   expect(screen.getByText(SUBMISSION.commitMessage)).toBeInTheDocument();

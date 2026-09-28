@@ -8,7 +8,7 @@ import { api } from '../api';
 import { queryKeys } from '../api/queryKeys';
 import { ApiProblem } from '../api/client';
 import { BrandMark } from '../components/BrandMark';
-import { Box, Typography, Paper, Chip, CircularProgress, LinearProgress, Table, TableBody, TableCell, TableHead, TableRow, Alert } from '@mui/material';
+import { Box, Typography, Paper, Chip, CircularProgress, LinearProgress, Table, TableBody, TableCell, TableHead, TableRow, TableContainer, Alert } from '@mui/material';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import CancelIcon from '@mui/icons-material/Cancel';
 import VerifiedUserIcon from '@mui/icons-material/VerifiedUser';
@@ -51,12 +51,13 @@ export function PublicResultPage() {
   });
 
   if (!token) {
-    return <Box sx={{ p: 4 }}><Alert severity="error">This result link is incomplete.</Alert></Box>;
+    return <Box sx={{ minHeight: '100vh', p: { xs: 2, sm: 4 }, maxWidth: 1200, mx: 'auto' }}><BrandMark /><Alert severity="error">This result link is incomplete.</Alert></Box>;
   }
 
   if (isLoading) {
     return (
-      <Box role="status" sx={{ display: 'flex', justifyContent: 'center', p: 8 }}>
+      <Box role="status" sx={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', p: 3 }}>
+        <BrandMark />
         <CircularProgress aria-label="Loading result" />
       </Box>
     );
@@ -68,7 +69,8 @@ export function PublicResultPage() {
   if (error) {
     const missing = error instanceof ApiProblem && error.status === 404;
     return (
-      <Box sx={{ p: 4 }}>
+      <Box sx={{ minHeight: '100vh', p: { xs: 2, sm: 4 }, maxWidth: 1200, mx: 'auto' }}>
+        <BrandMark />
         <Alert severity="error">
           {missing
             ? 'Result not found. This link may have been revoked or may never have been valid - ask your instructor for a new one.'
@@ -77,7 +79,7 @@ export function PublicResultPage() {
       </Box>
     );
   }
-  if (!data) return <Box sx={{ p: 4 }}><Alert severity="error">Result not found or invalid token.</Alert></Box>;
+  if (!data) return <Box sx={{ minHeight: '100vh', p: { xs: 2, sm: 4 }, maxWidth: 1200, mx: 'auto' }}><BrandMark /><Alert severity="error">Result not found or invalid token.</Alert></Box>;
 
   // Defensively strip hidden tests
   const safeTests = data.tests.map(test => {
@@ -93,91 +95,88 @@ export function PublicResultPage() {
   });
 
   return (
-    <Box sx={{ p: 4, maxWidth: 'md', mx: 'auto' }}>
+    <Box sx={{ p: { xs: 2, sm: 3, md: 4 }, maxWidth: 1200, width: '100%', mx: 'auto', minWidth: 0 }}>
       <BrandMark />
-      <Typography variant="h4" component="h1" gutterBottom>{data.assignmentTitle}</Typography>
-      <Typography variant="subtitle1" component="h2" gutterBottom>{data.courseName}</Typography>
-      <Paper sx={{ p: 4, mb: 4 }}>
-        <Box sx={{ display: 'flex', gap: 2, alignItems: 'center', mb: 2, flexWrap: 'wrap' }}>
-          <Chip label={`Commit: ${data.commitSha.substring(0, 8)}`} sx={{ fontFamily: '"JetBrains Mono", monospace' }} />
-          <Chip label={`Received: ${new Date(data.receivedAt).toLocaleString()}`} />
-          {data.verified ? (
-            <Chip 
-              icon={<VerifiedUserIcon />} 
-              label="Verified" 
-              color="success" 
-              aria-label="Commit is verified" 
-            />
-          ) : (
-            <Chip 
-              icon={<WarningAmberIcon />} 
-              label="Unverified" 
-              color="default" 
-              aria-label="Commit is unverified" 
-            />
-          )}
-        </Box>
-        <Typography variant="body2" color="text.secondary" gutterBottom>
-          Verified means the commit was signed with a key registered to this student. It does not certify how the work was produced.
-        </Typography>
+      <Paper variant="outlined" sx={{ p: { xs: 2, sm: 3, md: 4 }, minWidth: 0 }}>
+        <Typography variant="h4" component="h1" sx={{ overflowWrap: 'anywhere' }}>{data.assignmentTitle}</Typography>
+        <Typography variant="h6" component="p" color="text.secondary" sx={{ mt: 0.5, overflowWrap: 'anywhere' }}>{data.courseName}</Typography>
 
-        <Box sx={{ mt: 4, mb: 4 }}>
-          <Typography variant="h3" component="h2" gutterBottom>Overall</Typography>
-          {typeof data.passed === 'number' && typeof data.total === 'number' ? (
-            <Typography variant="body1">{data.passed} of {data.total} tests passed</Typography>
-          ) : (
-            <Typography variant="body1">No checks have been recorded for this submission yet.</Typography>
-          )}
-          {typeof data.score === 'number' ? (
-            <>
-              <Typography variant="body1" sx={{ fontWeight: 'bold' }}>Score: {data.score.toFixed(1)} %</Typography>
-              <LinearProgress
-                variant="determinate"
-                value={data.score}
-                sx={{ mt: 1, height: 10, borderRadius: 5 }}
-                aria-label="Score progress"
-              />
-            </>
-          ) : (
-            // A run that timed out or broke has no score, which is not the same as
-            // having scored nothing. Reading the absent value as a number threw here
-            // and took the whole page with it.
-            <Alert severity="info" sx={{ mt: 1 }}>
-              This submission has no score yet. It is either still being graded, or the grading run could not
-              finish - your instructor can run it again.
-            </Alert>
-          )}
-        </Box>
+        <Box sx={{ display: 'grid', gridTemplateColumns: { xs: 'minmax(0, 1fr)', md: 'minmax(0, 1.6fr) minmax(280px, 0.85fr)' }, gap: { xs: 3, md: 4 }, alignItems: 'start', mt: 3 }}>
+          <Box component="section" aria-labelledby="test-details-heading" sx={{ minWidth: 0 }}>
+            <Typography id="test-details-heading" variant="h5" component="h2" sx={{ mb: 1.5 }}>Test Details</Typography>
+            <TableContainer sx={{ width: '100%', overflowX: 'auto' }}>
+              <Table aria-label="Test results table" sx={{ minWidth: 520 }}>
+                <TableHead>
+                  <TableRow>
+                    <TableCell>Test</TableCell>
+                    <TableCell>Outcome</TableCell>
+                    <TableCell>Details</TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {safeTests.map((test, idx) => (
+                    <TableRow key={`${test.outcome}-${String(idx)}`}>
+                      <TableCell sx={{ overflowWrap: 'anywhere' }}>
+                        {test.public ? test.name : (test.category || 'Hidden Test')}
+                      </TableCell>
+                      <TableCell>
+                        {test.outcome === 'PASSED' ? (
+                          <Chip size="small" color="success" icon={<CheckCircleIcon />} label="Passed" />
+                        ) : (
+                          <Chip size="small" color="error" icon={<CancelIcon />} label={TEST_OUTCOME_LABELS[test.outcome] ?? test.outcome} />
+                        )}
+                      </TableCell>
+                      <TableCell sx={{ overflowWrap: 'anywhere' }}>
+                        {test.public ? test.message : test.hint}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </TableContainer>
+          </Box>
 
-        <Typography variant="h3" component="h2" gutterBottom>Test Details</Typography>
-        <Table aria-label="Test results table">
-          <TableHead>
-            <TableRow>
-              <TableCell>Test</TableCell>
-              <TableCell>Outcome</TableCell>
-              <TableCell>Details</TableCell>
-            </TableRow>
-          </TableHead>
-          <TableBody>
-            {safeTests.map((test, idx) => (
-              <TableRow key={`${test.outcome}-${String(idx)}`}>
-                <TableCell>
-                  {test.public ? test.name : (test.category || 'Hidden Test')}
-                </TableCell>
-                <TableCell>
-                  {test.outcome === 'PASSED' ? (
-                    <Chip size="small" color="success" icon={<CheckCircleIcon />} label="Passed" />
-                  ) : (
-                    <Chip size="small" color="error" icon={<CancelIcon />} label={TEST_OUTCOME_LABELS[test.outcome] ?? test.outcome} />
-                  )}
-                </TableCell>
-                <TableCell>
-                  {test.public ? test.message : test.hint}
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+          <Box
+            component="section"
+            aria-labelledby="overall-heading"
+            sx={{ minWidth: 0, borderColor: 'divider', borderTop: { xs: 1, md: 0 }, borderLeft: { xs: 0, md: 1 }, pt: { xs: 3, md: 0 }, pl: { xs: 0, md: 3 } }}
+          >
+            <Typography id="overall-heading" variant="h5" component="h2" sx={{ mb: 1.5 }}>Overall</Typography>
+            <Box sx={{ display: 'flex', gap: 1, alignItems: 'flex-start', flexWrap: 'wrap', mb: 1.5 }}>
+              <Chip label={`Commit: ${data.commitSha.substring(0, 8)}`} sx={{ maxWidth: '100%', fontFamily: '"JetBrains Mono", monospace', '& .MuiChip-label': { overflowWrap: 'anywhere' } }} />
+              <Chip label={`Received: ${new Date(data.receivedAt).toLocaleString()}`} sx={{ maxWidth: '100%', '& .MuiChip-label': { whiteSpace: 'normal', overflowWrap: 'anywhere' } }} />
+              {data.verified ? (
+                <Chip icon={<VerifiedUserIcon />} label="Verified" color="success" aria-label="Commit is verified" />
+              ) : (
+                <Chip icon={<WarningAmberIcon />} label="Unverified" color="default" aria-label="Commit is unverified" />
+              )}
+            </Box>
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+              Verified means the commit was signed with a key registered to this student. It does not certify how the work was produced.
+            </Typography>
+            {typeof data.passed === 'number' && typeof data.total === 'number' ? (
+              <Typography variant="body2">{data.passed} of {data.total} tests passed</Typography>
+            ) : (
+              <Typography variant="body2">No checks have been recorded for this submission yet.</Typography>
+            )}
+            {typeof data.score === 'number' ? (
+              <>
+                <Typography variant="h4" component="p" sx={{ fontWeight: 700, mt: 1 }}>Score: {data.score.toFixed(1)} %</Typography>
+                <LinearProgress
+                  variant="determinate"
+                  value={data.score}
+                  sx={{ mt: 1, height: 8, borderRadius: 1 }}
+                  aria-label="Score progress"
+                />
+              </>
+            ) : (
+              <Alert severity="info" sx={{ mt: 1 }}>
+                This submission has no score yet. It is either still being graded, or the grading run could not
+                finish - your instructor can run it again.
+              </Alert>
+            )}
+          </Box>
+        </Box>
       </Paper>
     </Box>
   );

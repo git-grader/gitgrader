@@ -58,11 +58,22 @@ public interface CourseCatalog {
 	 */
 	List<EnrollmentView> findEnrollments(UUID studentId);
 
+	/** Lists enrollments for a class within a course. */
+	List<EnrollmentView> findClassEnrollments(UUID courseId, UUID classId);
+
 	/**
 	 * Lists student identifiers enrolled in a course.
 	 * @param courseId course identifier
 	 * @return enrolled student identifiers
 	 */
 	List<UUID> findEnrolledStudentIds(UUID courseId);
+
+	/**
+	 * Lists student identifiers enrolled in a class within a course.
+	 * @param courseId course identifier
+	 * @param classId class identifier
+	 * @return enrolled student identifiers
+	 */
+	List<UUID> findEnrolledStudentIds(UUID courseId, UUID classId);
 
 }

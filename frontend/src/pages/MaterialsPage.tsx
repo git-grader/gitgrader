@@ -7,6 +7,7 @@ import { api } from '../api';
 import { queryKeys } from '../api/queryKeys';
 import { QueryErrorNotice } from '../components/QueryErrorNotice';
 import { MutationErrorAlert } from '../components/MutationErrorAlert';
+import { PageHeader } from '../components/PageHeader';
 import { numberInputValue, parseNumberInput } from '../components/numberInput';
 import { CHOICE_PAGE_SIZE } from '../components/useServerPagination';
 import type { TemplateDefinition, TestSuiteDefinition } from '../api';
@@ -355,18 +356,17 @@ export function MaterialsPage() {
   const emptyStateMessage = searchQuery ? `No matches found for "${searchQuery}".` : 'No items found.';
 
   return (
-    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 2 }}>
-        <Typography variant="h4" component="h1">Materials</Typography>
+    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+      <PageHeader title="Materials" actions={
         <TextField
           size="small"
           label="Search"
           placeholder="Search by name or key..."
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
-          sx={{ width: 300 }}
+          sx={{ width: { xs: '100%', sm: 300 } }}
         />
-      </Box>
+      } />
 
       <Box sx={{ borderBottom: 1, borderColor: 'divider' }}>
         <Tabs value={tab} onChange={(_e, v: number) => setTab(v)} aria-label="Material kind">

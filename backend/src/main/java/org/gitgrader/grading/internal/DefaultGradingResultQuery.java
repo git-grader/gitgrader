@@ -22,6 +22,8 @@ import java.util.Optional;
 import java.util.UUID;
 
 import org.gitgrader.grading.GradingResultQuery;
+import org.gitgrader.grading.InstructorGradingResult;
+import org.gitgrader.grading.InstructorTestResult;
 import org.gitgrader.grading.StudentGradingResult;
 import org.gitgrader.grading.StudentTestResultView;
 import org.gitgrader.grading.SubmissionScoreView;
@@ -53,6 +55,12 @@ class DefaultGradingResultQuery implements GradingResultQuery {
 
 	@Override
 	@Transactional(readOnly = true)
+	public Optional<InstructorGradingResult> findLatestInstructorResultForSubmission(UUID submissionId) {
+		return this.runs.findFirstBySubmissionIdOrderByAttemptDesc(submissionId).map(this::toInstructorResult);
+	}
+
+	@Override
+	@Transactional(readOnly = true)
 	public List<SubmissionScoreView> findLatestScores(Collection<UUID> submissionIds) {
 		return submissionIds.isEmpty() ? List.of() : this.runs.findLatestScores(submissionIds);
 	}
@@ -64,6 +72,21 @@ class DefaultGradingResultQuery implements GradingResultQuery {
 			.toList();
 		return new StudentGradingResult(run.status(), run.testsPassed(), run.testsTotal(), run.scorePercent(),
 				run.passed(), tests);
+	}
+
+	private InstructorGradingResult toInstructorResult(GradingRun run) {
+		List<InstructorTestResult> tests = this.results.findByGradingRunIdOrderByDisplayOrder(run.id())
+			.stream()
+			.map(DefaultGradingResultQuery::toInstructorView)
+			.toList();
+		return new InstructorGradingResult(run.attempt(), run.status(), run.testsPassed(), run.testsTotal(),
+				run.scorePercent(), run.pointsAwarded(), run.passed(), run.finishedAt(), tests);
+	}
+
+	private static InstructorTestResult toInstructorView(TestResultRecord record) {
+		boolean hidden = record.isHidden();
+		return new InstructorTestResult(record.visibility(), record.category(), hidden ? null : record.publicName(),
+				record.outcome(), record.durationMs(), hidden ? null : record.studentMessage());
 	}
 
 	/**

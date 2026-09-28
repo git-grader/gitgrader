@@ -20,6 +20,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.UUID;
 
+import jakarta.persistence.EntityNotFoundException;
 import org.gitgrader.testsupport.EnabledIfDockerAvailable;
 import org.gitgrader.testsupport.RecordingStatementInspector;
 import org.junit.jupiter.api.BeforeEach;
@@ -40,6 +41,7 @@ import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 @SpringBootTest
 @ActiveProfiles("test")
@@ -51,6 +53,8 @@ class ReportControllerTest {
 	private static final UUID COURSE = UUID.fromString("00000000-0000-0000-0000-000000000001");
 
 	private static final UUID ASSIGNMENT = UUID.fromString("00000000-0000-0000-0000-000000000002");
+
+	private static final UUID CLASS = UUID.fromString("00000000-0000-0000-0000-000000000003");
 
 	@Container
 	@SuppressWarnings("resource")
@@ -104,6 +108,11 @@ class ReportControllerTest {
 				VALUES (?, ?, 'assignment-one', 'Assignment one', 1, 'DRAFT', true, 'UTC',
 				        10.00, 1, 50.00, false, false, '2026-08-01T00:00:00Z', '2026-08-01T00:00:00Z')
 				""", ASSIGNMENT, COURSE);
+		this.jdbc.update("""
+				INSERT INTO course_classes
+				(id, course_id, class_key, name, created_at, updated_at)
+				VALUES (?, ?, 'class-one', 'Class one', '2026-08-01T00:00:00Z', '2026-08-01T00:00:00Z')
+				""", CLASS, COURSE);
 		student("00000000-0000-0000-0000-000000000011", "s001", "No", "Submission");
 		student("00000000-0000-0000-0000-000000000012", "s002", "Ungraded", "Student");
 		student("00000000-0000-0000-0000-000000000013", "s003", "Infrastructure", "Error");
@@ -136,6 +145,26 @@ class ReportControllerTest {
 						{"courseId":"00000000-0000-0000-0000-000000000001","totalMandatoryAssignments":1,"totalPointsAvailable":10.00,"students":[{"studentId":"00000000-0000-0000-0000-000000000011","studentUsername":"s001","fullName":"No Submission","fullyCompleted":0,"partiallyCompleted":0,"notStarted":1,"completionRate":0.000000,"pointsEarned":0.00,"pointsRate":0.000000,"totalPoints":10.00,"submissionCount":0,"lastActivityAt":null,"assignments":{"assignment-one":{"percent":0,"points":0.00}}},{"studentId":"00000000-0000-0000-0000-000000000012","studentUsername":"s002","fullName":"Ungraded Student","fullyCompleted":0,"partiallyCompleted":0,"notStarted":1,"completionRate":0.000000,"pointsEarned":0.00,"pointsRate":0.000000,"totalPoints":10.00,"submissionCount":0,"lastActivityAt":null,"assignments":{"assignment-one":{"percent":0,"points":0.00}}},{"studentId":"00000000-0000-0000-0000-000000000013","studentUsername":"s003","fullName":"Infrastructure Error","fullyCompleted":0,"partiallyCompleted":0,"notStarted":1,"completionRate":0.000000,"pointsEarned":0.00,"pointsRate":0.000000,"totalPoints":10.00,"submissionCount":0,"lastActivityAt":null,"assignments":{"assignment-one":{"percent":0,"points":0.00}}},{"studentId":"00000000-0000-0000-0000-000000000014","studentUsername":"s004","fullName":"Scored Student","fullyCompleted":1,"partiallyCompleted":0,"notStarted":0,"completionRate":1.000000,"pointsEarned":7.50,"pointsRate":0.750000,"totalPoints":10.00,"submissionCount":1,"lastActivityAt":"2026-08-02T12:00:00Z","assignments":{"assignment-one":{"percent":75.000,"points":7.50}}}]}
 						"""
 					.strip());
+	}
+
+	@Test
+	@DisplayName("returns only students enrolled in the requested course class")
+	@WithMockUser(roles = "INSTRUCTOR")
+	void scopesClassReportToCourseAndClass() {
+		ClassProgressReport report = this.controller.classReport(COURSE, CLASS);
+
+		assertThat(report.classId()).isEqualTo(CLASS);
+		assertThat(report.classKey()).isEqualTo("class-one");
+		assertThat(report.students()).extracting(ClassProgressReport.StudentRow::studentUsername)
+			.containsExactly("s001", "s002", "s003", "s004");
+	}
+
+	@Test
+	@DisplayName("does not resolve a class through another course")
+	@WithMockUser(roles = "INSTRUCTOR")
+	void rejectsClassThatDoesNotBelongToCourse() {
+		assertThatThrownBy(() -> this.controller.classReport(UUID.randomUUID(), CLASS))
+			.isInstanceOf(EntityNotFoundException.class);
 	}
 
 	@Test
@@ -184,10 +213,10 @@ class ReportControllerTest {
 				""", UUID.fromString(id), number, firstName, lastName, number);
 		this.jdbc.update("""
 				INSERT INTO enrollments
-				(id, student_id, course_id, status, enrolled_at, created_at, updated_at)
-				VALUES (?, ?, ?, 'ACTIVE', '2026-08-01T00:00:00Z',
+				(id, student_id, course_id, class_id, status, enrolled_at, created_at, updated_at)
+				VALUES (?, ?, ?, ?, 'ACTIVE', '2026-08-01T00:00:00Z',
 				        '2026-08-01T00:00:00Z', '2026-08-01T00:00:00Z')
-				""", UUID.randomUUID(), UUID.fromString(id), COURSE);
+				""", UUID.randomUUID(), UUID.fromString(id), COURSE, CLASS);
 	}
 
 	private void submission(String id, String studentId, String status, String receivedAt) {

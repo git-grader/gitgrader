@@ -63,14 +63,18 @@ public class ReportController {
 
 	private final ReportExportService exports;
 
+	private final ClassReportService classReports;
+
 	public ReportController(CourseCatalog courses, AssignmentCatalog assignments, StudentDirectory students,
-			SubmissionService submissions, GradingResultQuery gradingResults, ReportExportService exports) {
+			SubmissionService submissions, GradingResultQuery gradingResults, ReportExportService exports,
+			ClassReportService classReports) {
 		this.courses = courses;
 		this.assignments = assignments;
 		this.students = students;
 		this.submissions = submissions;
 		this.gradingResults = gradingResults;
 		this.exports = exports;
+		this.classReports = classReports;
 	}
 
 	@GetMapping("/{courseId}")
@@ -78,8 +82,8 @@ public class ReportController {
 		this.courses.findCourse(courseId).orElseThrow(() -> new EntityNotFoundException("Course not found"));
 		List<AssignmentView> courseAssignments = this.assignments.findByCourse(courseId);
 		List<StudentView> enrolledStudents = this.students.findByIds(this.courses.findEnrolledStudentIds(courseId));
-		List<SubmissionAssessmentView> assessments = this.submissions.findAssessments(courseId,
-				courseAssignments.stream().map(AssignmentView::id).toList());
+		List<SubmissionAssessmentView> assessments = courseAssignments.isEmpty() ? List.of() : this.submissions
+			.findAssessments(courseId, courseAssignments.stream().map(AssignmentView::id).toList());
 		Map<UUID, BigDecimal> scores = this.gradingResults
 			.findLatestScores(assessments.stream()
 				.filter((assessment) -> assessment.status().isGraded())
@@ -98,6 +102,17 @@ public class ReportController {
 		return new CourseReport(courseId, mandatory, points, rows);
 	}
 
+	@GetMapping("/{courseId}/classes/{classId}")
+	public ClassProgressReport classReport(@PathVariable UUID courseId, @PathVariable UUID classId) {
+		return this.classReports.report(courseId, classId);
+	}
+
+	@GetMapping("/{courseId}/classes/{classId}/students/{studentId}")
+	public ClassStudentDetail classStudentReport(@PathVariable UUID courseId, @PathVariable UUID classId,
+			@PathVariable UUID studentId) {
+		return this.classReports.studentDetail(courseId, classId, studentId);
+	}
+
 	@GetMapping("/{courseId}/export")
 	public ResponseEntity<ByteArrayResource> export(@PathVariable UUID courseId, @RequestParam String format)
 			throws IOException {
@@ -107,6 +122,20 @@ public class ReportController {
 		headers.setContentType(MediaType.parseMediaType(representation.mediaType()));
 		headers.setContentDisposition(
 				ContentDisposition.attachment().filename("course-report." + representation.extension()).build());
+		return ResponseEntity.ok().headers(headers).body(new ByteArrayResource(content));
+	}
+
+	@GetMapping("/{courseId}/classes/{classId}/export")
+	public ResponseEntity<ByteArrayResource> exportClass(@PathVariable UUID courseId, @PathVariable UUID classId,
+			@RequestParam String format) throws IOException {
+		ReportFormat representation = ReportFormat.parse(format);
+		if (representation != ReportFormat.XLSX) {
+			throw new IllegalArgumentException("Class reports are available as XLSX");
+		}
+		byte[] content = this.exports.exportClassReport(this.classReports.report(courseId, classId));
+		HttpHeaders headers = new HttpHeaders();
+		headers.setContentType(MediaType.parseMediaType(representation.mediaType()));
+		headers.setContentDisposition(ContentDisposition.attachment().filename("class-report.xlsx").build());
 		return ResponseEntity.ok().headers(headers).body(new ByteArrayResource(content));
 	}
 

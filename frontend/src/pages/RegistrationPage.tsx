@@ -33,7 +33,8 @@ export function RegistrationPage() {
 
   if (isLoading) {
     return (
-      <Box role="status" sx={{ display: 'flex', justifyContent: 'center', p: 8 }}>
+      <Box role="status" sx={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', p: 3 }}>
+        <BrandMark />
         <CircularProgress aria-label="Checking whether registration is open" />
       </Box>
     );
@@ -44,7 +45,8 @@ export function RegistrationPage() {
   // within the window that they had missed it.
   if (isError) {
     return (
-      <Box sx={{ p: 4, maxWidth: 'sm', mx: 'auto' }}>
+      <Box sx={{ p: { xs: 2, sm: 4 }, maxWidth: 600, width: '100%', mx: 'auto' }}>
+        <BrandMark />
         <QueryErrorNotice
           message="Whether registration is open could not be checked. Try again in a moment."
           onRetry={() => void refetch()}
@@ -55,8 +57,9 @@ export function RegistrationPage() {
 
   if (!avail?.open) {
     return (
-      <Box sx={{ p: 4, maxWidth: 'sm', mx: 'auto' }}>
-        <Alert severity="info">Registration is currently closed.</Alert>
+      <Box sx={{ minHeight: '100vh', p: { xs: 2, sm: 4 }, maxWidth: 600, width: '100%', mx: 'auto', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+        <BrandMark />
+        <Alert severity="info" variant="outlined">Registration is currently closed.</Alert>
       </Box>
     );
   }
@@ -97,10 +100,10 @@ export function RegistrationPage() {
   };
 
   return (
-    <Box sx={{ p: 4, maxWidth: 'md', mx: 'auto' }}>
+    <Box sx={{ p: { xs: 2, sm: 4 }, maxWidth: 760, width: '100%', mx: 'auto', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1 }}>
       <BrandMark />
-      <Paper sx={{ p: 4 }}>
-        <Typography variant="h4" component="h1" gutterBottom>
+      <Paper variant="outlined" sx={{ p: { xs: 2, sm: 4 }, width: '100%' }}>
+        <Typography variant="h4" component="h1" sx={{ overflowWrap: 'anywhere', mb: 2 }}>
           Register for {meta.name}
         </Typography>
         <form onSubmit={handleSubmit}>
@@ -159,7 +162,7 @@ export function RegistrationPage() {
             </Typography>
           </Box>
 
-          <Button type="submit" variant="contained" color="primary" sx={{ mt: 3 }} disabled={mutation.isPending}>
+          <Button type="submit" variant="contained" color="primary" fullWidth sx={{ mt: 3 }} disabled={mutation.isPending}>
             {mutation.isPending ? 'Registering...' : 'Register'}
           </Button>
           {/* The server explains a refusal in `detail` and names the offending fields in
