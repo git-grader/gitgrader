@@ -18,3 +18,17 @@ test('renders a semantic page title, description, and actions', () => {
   expect(screen.getByText('Manage course settings and classes.')).toBeInTheDocument();
   expect(screen.getByRole('button', { name: 'New Course' })).toBeInTheDocument();
 });
+
+test('groups wrapping header actions under a clear label', () => {
+  render(
+    <PageHeader
+      title="A deliberately long course title that must retain its hierarchy"
+      description="Context remains readable while actions wrap at narrow widths."
+      actions={<><button type="button">Save changes</button><button type="button">Archive course</button></>}
+    />
+  );
+
+  const actions = screen.getByRole('group', { name: 'Page actions' });
+  expect(actions).toHaveTextContent('Save changes');
+  expect(actions).toHaveTextContent('Archive course');
+});

@@ -211,7 +211,6 @@ export function ReportPage() {
             rows={data.students}
             columns={isNarrow ? [narrowColumn] : columns}
             {...(isNarrow ? { getRowHeight: () => 'auto' as const } : {})}
-            hideFooterPagination
             disableRowSelectionOnClick
             sx={{ minWidth: 0, width: '100%' }}
           />

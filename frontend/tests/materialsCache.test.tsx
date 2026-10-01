@@ -3,7 +3,7 @@
 
 import { afterAll, afterEach, beforeAll, expect, test } from 'vitest';
 import { http, HttpResponse } from 'msw';
-import { screen, within } from '@testing-library/react';
+import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MaterialsPage } from '../src/pages/MaterialsPage';
 import { AssignmentsPage } from '../src/pages/AssignmentsPage';
@@ -62,7 +62,9 @@ test('publishing a test suite version offers it to the assignment form', async (
   const user = userEvent.setup();
   renderWithProviders(<><MaterialsPage /><AssignmentsPage /></>);
 
-  await user.click(await screen.findByRole('button', { name: 'New Assignment' }));
+  const newAssignment = await screen.findByRole('button', { name: 'New Assignment' });
+  await waitFor(() => { expect(newAssignment).toBeEnabled(); });
+  await user.click(newAssignment);
   const before = within(await screen.findByRole('dialog'));
   await user.click(before.getByRole('combobox', { name: 'Test Suite Version' }));
   expect(screen.getAllByRole('option').map((option) => option.textContent)).toEqual(['None']);
@@ -73,7 +75,7 @@ test('publishing a test suite version offers it to the assignment form', async (
   await user.click(await screen.findByRole('button', { name: 'Publish' }));
   await user.click(await screen.findByRole('button', { name: 'Confirm Publish' }));
 
-  await user.click(await screen.findByRole('button', { name: 'New Assignment' }));
+  await user.click(newAssignment);
   const after = within(await screen.findByRole('dialog'));
   await user.click(after.getByRole('combobox', { name: 'Test Suite Version' }));
   expect(await screen.findByRole('option', { name: /Hidden Suite/ })).toBeInTheDocument();

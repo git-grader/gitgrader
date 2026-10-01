@@ -178,12 +178,11 @@ export function StudentsPage() {
           </Select>
         </FormControl>
       </Box>
-      <Box sx={{ flex: '1 1 0', minHeight: { xs: 520, md: 0 }, width: '100%', minWidth: 0 }}>
+      <Box component="section" aria-label="Student results" sx={{ flex: '1 1 0', minHeight: 520, width: '100%', minWidth: 0 }}>
         <DataGrid
           rows={students}
           columns={isNarrow ? [narrowColumn] : wideColumns}
           {...(isNarrow ? { getRowHeight: () => 'auto' as const } : {})}
-          hideFooterPagination
           disableRowSelectionOnClick
           onRowClick={(params) => { void navigate(`/students/${params.id}`); }}
         />

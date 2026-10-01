@@ -61,6 +61,14 @@ describe('signing in', () => {
     );
   }
 
+  it('explains that this sign-in is only for instructors and administrators', async () => {
+    renderLogin();
+
+    expect(await screen.findByRole('main')).toBeInTheDocument();
+    expect(await screen.findByText('This sign-in is for instructors and administrators.')).toBeInTheDocument();
+    expect(screen.getByText(/Students do not sign in/)).toBeInTheDocument();
+  });
+
   it('goes to the page the expired session interrupted', async () => {
     const assign = stubLocation();
     server.use(

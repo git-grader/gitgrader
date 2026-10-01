@@ -51,14 +51,16 @@ export function PublicResultPage() {
   });
 
   if (!token) {
-    return <Box sx={{ minHeight: '100vh', p: { xs: 2, sm: 4 }, maxWidth: 1200, mx: 'auto' }}><BrandMark /><Alert severity="error">This result link is incomplete.</Alert></Box>;
+    return <Box component="main" sx={{ minHeight: '100vh', p: { xs: 2, sm: 4 }, maxWidth: 1200, mx: 'auto', bgcolor: 'background.default' }}><BrandMark /><Alert severity="error">This result link is incomplete.</Alert></Box>;
   }
 
   if (isLoading) {
     return (
-      <Box role="status" sx={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', p: 3 }}>
-        <BrandMark />
-        <CircularProgress aria-label="Loading result" />
+      <Box component="main" sx={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', p: 3, bgcolor: 'background.default' }}>
+        <Box role="status" sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
+          <BrandMark />
+          <CircularProgress aria-label="Loading result" />
+        </Box>
       </Box>
     );
   }
@@ -69,7 +71,7 @@ export function PublicResultPage() {
   if (error) {
     const missing = error instanceof ApiProblem && error.status === 404;
     return (
-      <Box sx={{ minHeight: '100vh', p: { xs: 2, sm: 4 }, maxWidth: 1200, mx: 'auto' }}>
+      <Box component="main" sx={{ minHeight: '100vh', p: { xs: 2, sm: 4 }, maxWidth: 1200, mx: 'auto', bgcolor: 'background.default' }}>
         <BrandMark />
         <Alert severity="error">
           {missing
@@ -79,7 +81,7 @@ export function PublicResultPage() {
       </Box>
     );
   }
-  if (!data) return <Box sx={{ minHeight: '100vh', p: { xs: 2, sm: 4 }, maxWidth: 1200, mx: 'auto' }}><BrandMark /><Alert severity="error">Result not found or invalid token.</Alert></Box>;
+  if (!data) return <Box component="main" sx={{ minHeight: '100vh', p: { xs: 2, sm: 4 }, maxWidth: 1200, mx: 'auto', bgcolor: 'background.default' }}><BrandMark /><Alert severity="error">Result not found or invalid token.</Alert></Box>;
 
   // Defensively strip hidden tests
   const safeTests = data.tests.map(test => {
@@ -95,7 +97,7 @@ export function PublicResultPage() {
   });
 
   return (
-    <Box sx={{ p: { xs: 2, sm: 3, md: 4 }, maxWidth: 1200, width: '100%', mx: 'auto', minWidth: 0 }}>
+    <Box component="main" sx={{ minHeight: '100vh', p: { xs: 2, sm: 3, md: 4 }, maxWidth: 1200, width: '100%', mx: 'auto', minWidth: 0, bgcolor: 'background.default' }}>
       <BrandMark />
       <Paper variant="outlined" sx={{ p: { xs: 2, sm: 3, md: 4 }, minWidth: 0 }}>
         <Typography variant="h4" component="h1" sx={{ overflowWrap: 'anywhere' }}>{data.assignmentTitle}</Typography>

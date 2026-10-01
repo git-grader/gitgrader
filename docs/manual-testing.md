@@ -27,13 +27,22 @@ minutes the first time, mostly building the image.
 
 ## Sign in as an instructor
 
-Open <http://localhost:8080/> and sign in as `instructor` / `password`. The account
-comes from `deployment/ldap/bootstrap.ldif` and is a member of
+Open <http://localhost:8080/>. Confirm that the page identifies this as an
+instructor/administrator sign-in and directs students to registration or their result
+link; students must not be offered a dashboard account. Sign in as `instructor` /
+`password`. The account comes from `deployment/ldap/bootstrap.ldif` and is a member of
 `gitgrader-instructors`, so the interface should offer courses, assignments,
 submissions and reports.
 
 Local accounts are refused under the production profile on purpose, so the directory
-is the only way in. `admin-user` / `password` is an administrator.
+is the only way in. `admin-user` / `password` is an administrator; confirm that Audit
+log, Settings, and Runtimes are grouped under Administration rather than mixed into
+the instructor task navigation.
+
+At both 1440px and 390px widths, confirm that page actions remain reachable, the
+mobile navigation opens, and tables scroll within their own results area rather than
+the page. Status, warning, and error messages must retain readable labels. Public
+registration and result pages must show no instructor navigation.
 
 ## Register as a student
 

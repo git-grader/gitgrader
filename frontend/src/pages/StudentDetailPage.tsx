@@ -10,6 +10,7 @@ import { queryKeys } from '../api/queryKeys';
 import { QueryErrorNotice } from '../components/QueryErrorNotice';
 import { MutationErrorAlert, problemFieldErrors } from '../components/MutationErrorAlert';
 import { PageHeader } from '../components/PageHeader';
+import { StudentStatusChip } from '../components/StudentStatusChip';
 import type { ClassStudentReport, StudentUpdate } from '../api';
 
 function Coursework({ report, courseId, classId }: {
@@ -161,9 +162,10 @@ export function StudentDetailPage() {
     <Box sx={{ maxWidth: 720, width: '100%', minWidth: 0, display: 'flex', flexDirection: 'column', gap: 3 }}>
       <PageHeader title="Edit Student" description={`${student.firstName} ${student.lastName} · ${student.studentUsername}`} />
       <MutationErrorAlert error={statusMutation.error ?? revokeKeyMutation.error} />
-      <Paper variant="outlined" sx={{ p: 2, display: 'flex', gap: 1, alignItems: 'center', flexWrap: 'wrap' }}>
-        <Typography variant="body2" color="text.secondary">Status: {student.status}</Typography>
-          <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+      <Paper component="section" aria-label="Student status" variant="outlined" sx={{ p: 2, display: 'flex', gap: 1, alignItems: 'center', flexWrap: 'wrap' }}>
+        <Typography variant="body2" color="text.secondary">Status</Typography>
+        <StudentStatusChip status={student.status} />
+        <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
             <Button size="small" variant="outlined" disabled={statusMutation.isPending} onClick={() => statusMutation.mutate({ status: 'VERIFIED_BY_INSTRUCTOR', reason: 'Verified by instructor' })}>
               Verify
             </Button>

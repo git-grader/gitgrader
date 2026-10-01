@@ -61,7 +61,10 @@ export function DashboardPage() {
 
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-      <PageHeader title="Dashboard" />
+      <PageHeader
+        title="Dashboard"
+        description="Monitor course activity and follow up where attention is needed."
+      />
 
       {/* The count was fetched and then dropped, so the one number that says grading
           itself is broken - as opposed to students failing - was never shown anywhere. */}
@@ -76,25 +79,25 @@ export function DashboardPage() {
       <Grid container spacing={2}>
         <Grid size={{ xs: 12, sm: 6, md: 3 }}>
           <Paper variant="outlined" sx={{ p: 2.5, minHeight: 112, display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
-            <Typography variant="h4" sx={{ fontVariantNumeric: 'tabular-nums' }}>{data.courseCount}</Typography>
+            <Typography variant="h4" color="primary" sx={{ fontVariantNumeric: 'tabular-nums' }}>{data.courseCount}</Typography>
             <Typography variant="body2" color="text.secondary">Courses</Typography>
           </Paper>
         </Grid>
         <Grid size={{ xs: 12, sm: 6, md: 3 }}>
           <Paper variant="outlined" sx={{ p: 2.5, minHeight: 112, display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
-            <Typography variant="h4" sx={{ fontVariantNumeric: 'tabular-nums' }}>{data.studentCount}</Typography>
+            <Typography variant="h4" color="primary" sx={{ fontVariantNumeric: 'tabular-nums' }}>{data.studentCount}</Typography>
             <Typography variant="body2" color="text.secondary">Students</Typography>
           </Paper>
         </Grid>
         <Grid size={{ xs: 12, sm: 6, md: 3 }}>
           <Paper variant="outlined" sx={{ p: 2.5, minHeight: 112, display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
-            <Typography variant="h4" sx={{ fontVariantNumeric: 'tabular-nums' }}>{data.openAssignmentCount}</Typography>
+            <Typography variant="h4" color="primary" sx={{ fontVariantNumeric: 'tabular-nums' }}>{data.openAssignmentCount}</Typography>
             <Typography variant="body2" color="text.secondary">Open assignments</Typography>
           </Paper>
         </Grid>
         <Grid size={{ xs: 12, sm: 6, md: 3 }}>
           <Paper variant="outlined" sx={{ p: 2.5, minHeight: 112, display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
-            <Typography variant="h4" sx={{ fontVariantNumeric: 'tabular-nums' }}>{data.runningGradingCount}</Typography>
+            <Typography variant="h4" color="primary" sx={{ fontVariantNumeric: 'tabular-nums' }}>{data.runningGradingCount}</Typography>
             <Typography variant="body2" color="text.secondary">Running grading</Typography>
           </Paper>
         </Grid>

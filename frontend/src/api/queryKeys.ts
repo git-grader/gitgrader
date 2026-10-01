@@ -24,8 +24,7 @@ export const queryKeys = {
 
   courses: {
     all: ["courses"] as const,
-    list: (status: string, page: string, size: string, sort = "") =>
-      ["courses", "list", status, page, size, sort] as const,
+    list: (status: string) => ["courses", "list", status] as const,
     choices: ["courses", "choices"] as const,
     detail: (id: string) => ["courses", "detail", id] as const,
     classes: (id: string) => ["courses", "detail", id, "classes"] as const,
@@ -33,13 +32,8 @@ export const queryKeys = {
 
   assignments: {
     all: ["assignments"] as const,
-    list: (
-      courseId: string,
-      page: string,
-      size: string,
-      status = "",
-      sort = "",
-    ) => ["assignments", "list", courseId, status, page, size, sort] as const,
+    list: (courseId: string, status = "") =>
+      ["assignments", "list", courseId, status] as const,
     detail: (id: string) => ["assignments", "detail", id] as const,
     extensions: (id: string) =>
       ["assignments", "detail", id, "extensions"] as const,

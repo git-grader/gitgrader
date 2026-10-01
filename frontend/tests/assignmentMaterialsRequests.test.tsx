@@ -3,7 +3,7 @@
 
 import { afterAll, afterEach, beforeAll, expect, test } from 'vitest';
 import { http, HttpResponse } from 'msw';
-import { screen, within } from '@testing-library/react';
+import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { AssignmentsPage } from '../src/pages/AssignmentsPage';
 import { page, renderWithProviders, server } from './harness';
@@ -55,7 +55,9 @@ test('the assignment form asks for its choices in a fixed number of requests', a
   const user = userEvent.setup();
   renderWithProviders(<AssignmentsPage />);
 
-  await user.click(await screen.findByRole('button', { name: 'New Assignment' }));
+  const newAssignment = await screen.findByRole('button', { name: 'New Assignment' });
+  await waitFor(() => { expect(newAssignment).toBeEnabled(); });
+  await user.click(newAssignment);
   const dialog = within(await screen.findByRole('dialog'));
   await user.click(dialog.getByRole('combobox', { name: 'Template Version' }));
 

@@ -88,10 +88,12 @@ function ErrorBoundary() {
   const theme = useTheme();
   const error = useRouteError();
   return (
-    <Box role="alert" sx={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 2, p: { xs: 3, sm: 6 } }}>
-      <Box component="img" src={theme.palette.mode === 'dark' ? ReversedLogo : PrimaryLogo} alt="GitGrader" sx={{ width: 200, maxWidth: '100%', height: 'auto' }} />
-      <Typography variant="h4" gutterBottom>Oops!</Typography>
-      <Typography color="error" sx={{ overflowWrap: 'anywhere' }}>{errorMessage(error)}</Typography>
+    <Box component="main" sx={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 2, p: { xs: 3, sm: 6 } }}>
+      <Box role="alert">
+        <Box component="img" src={theme.palette.mode === 'dark' ? ReversedLogo : PrimaryLogo} alt="GitGrader" sx={{ width: 200, maxWidth: '100%', height: 'auto' }} />
+        <Typography variant="h4" gutterBottom>Oops!</Typography>
+        <Typography color="error" sx={{ overflowWrap: 'anywhere' }}>{errorMessage(error)}</Typography>
+      </Box>
     </Box>
   );
 }
@@ -109,7 +111,7 @@ function NotFound() {
   const theme = useTheme();
   return (
     <Box
-      role="alert"
+      component="main"
       sx={{
         minHeight: '100vh',
         display: 'flex',
@@ -121,16 +123,18 @@ function NotFound() {
         p: { xs: 3, sm: 4 }
       }}
     >
-      <Box component="img" src={theme.palette.mode === 'dark' ? ReversedLogo : PrimaryLogo} alt="GitGrader" sx={{ width: 200, maxWidth: '100%', height: 'auto', mb: 1 }} />
-      <Typography variant="h4" component="h1">Page not found</Typography>
-      <Typography color="text.secondary" sx={{ maxWidth: 420 }}>
-        The address you opened does not exist. If you followed a result link, it may have
-        been changed or revoked since it was sent to you - ask your instructor for a new
-        one. If you teach here, sign in to continue.
-      </Typography>
-      <Button component={Link} to="/login" variant="contained" sx={{ mt: 1 }}>
-        Go to sign-in
-      </Button>
+      <Box role="alert">
+        <Box component="img" src={theme.palette.mode === 'dark' ? ReversedLogo : PrimaryLogo} alt="GitGrader" sx={{ width: 200, maxWidth: '100%', height: 'auto', mb: 1 }} />
+        <Typography variant="h4" component="h1">Page not found</Typography>
+        <Typography color="text.secondary" sx={{ maxWidth: 420 }}>
+          The address you opened does not exist. If you followed a result link, it may have
+          been changed or revoked since it was sent to you - ask your instructor for a new
+          one. If you teach here, sign in to continue.
+        </Typography>
+        <Button component={Link} to="/login" variant="contained" sx={{ mt: 1 }}>
+          Go to sign-in
+        </Button>
+      </Box>
     </Box>
   );
 }

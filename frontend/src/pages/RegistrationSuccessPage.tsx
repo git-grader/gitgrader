@@ -71,7 +71,7 @@ export function RegistrationSuccessPage() {
     `${clonePrefix} git@${meta.sshHost}:${courseKey ?? '<course-key>'}/<assignment-key>/${result.studentUsername}.git`;
 
   return (
-    <Box sx={{ minHeight: '100vh', p: { xs: 2, sm: 4 }, maxWidth: 760, width: '100%', mx: 'auto', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 1 }}>
+    <Box component="main" sx={{ minHeight: '100vh', p: { xs: 2, sm: 4 }, maxWidth: 760, width: '100%', mx: 'auto', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 1, bgcolor: 'background.default' }}>
       <BrandMark />
       <Paper variant="outlined" sx={{ p: { xs: 2, sm: 4 }, width: '100%' }}>
         <Typography variant="h4" component="h1" sx={{ overflowWrap: 'anywhere', mb: 2 }}>Registration Successful</Typography>

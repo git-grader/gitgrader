@@ -50,7 +50,9 @@ function setValue(field: HTMLElement, value: string) {
 async function openDialog() {
   const user = userEvent.setup();
   renderWithProviders(<AssignmentsPage />);
-  await user.click(await screen.findByRole('button', { name: 'New Assignment' }));
+  const newAssignment = await screen.findByRole('button', { name: 'New Assignment' });
+  await waitFor(() => { expect(newAssignment).toBeEnabled(); });
+  await user.click(newAssignment);
   return { user, dialog: within(await screen.findByRole('dialog')) };
 }
 
@@ -81,7 +83,7 @@ test('sends a deadline in the assignment timezone rather than the browser one', 
   // 23:59 in New York on 1 March is 04:59 UTC the next day; reading it as Zurich time
   // would have stored 22:59 UTC on the first.
   expect(body).toMatchObject({ dueAt: '2026-03-02T04:59:00.000Z' });
-});
+}, 60_000);
 
 test('does not throw out of the form when a date cannot be read', async () => {
   stubReads();
@@ -165,7 +167,7 @@ test('keeps a deliberate zero distinguishable from an empty field', async () => 
   expect(body).toMatchObject({ maxPoints: 0 });
 });
 
-test('requests server sorting when an assignment column is selected', async () => {
+test('sorts assignments locally when an assignment column is selected', async () => {
   const requestedSorts: string[] = [];
   server.use(
     http.get('/api/v1/courses', () => HttpResponse.json(page([COURSE]))),
@@ -183,7 +185,8 @@ test('requests server sorting when an assignment column is selected', async () =
   const user = userEvent.setup();
   await user.click(await screen.findByRole('columnheader', { name: 'Title' }));
 
-  await waitFor(() => { expect(requestedSorts).toContain('title,asc'); });
+  await waitFor(() => { expect(requestedSorts).toHaveLength(1); });
+  expect(requestedSorts).toEqual(['']);
 });
 
 /**

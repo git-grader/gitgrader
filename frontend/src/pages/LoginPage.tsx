@@ -89,6 +89,7 @@ export function LoginPage() {
 
   return (
     <Box
+      component="main"
       sx={{
         display: 'flex',
         justifyContent: 'center',
@@ -110,6 +111,15 @@ export function LoginPage() {
             {meta.organizationName}
           </Typography>
         )}
+        <Typography variant="h5" component="h1" sx={{ width: '100%', mt: 1 }}>
+          Instructor sign-in
+        </Typography>
+        <Typography variant="body2" color="text.secondary" sx={{ width: '100%', mt: 1 }}>
+          This sign-in is for instructors and administrators.
+        </Typography>
+        <Typography variant="body2" color="text.secondary" sx={{ width: '100%', mt: 0.5 }}>
+          Students do not sign in. Register an SSH key to submit work, then use the result link provided after grading.
+        </Typography>
         {error && (
           <Alert ref={errorRef} severity="error" tabIndex={-1} sx={{ width: '100%', mb: 1 }}>
             {error}

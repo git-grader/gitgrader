@@ -42,6 +42,7 @@ test('edits the loaded student', async () => {
   expect(screen.getByRole('textbox', { name: 'First Name' })).toHaveValue('Alice');
   expect(screen.getByRole('textbox', { name: 'Last Name' })).toHaveValue('Lee');
   expect(screen.getByRole('textbox', { name: 'Email' })).toHaveValue('alice@example.org');
+  expect(screen.getByRole('region', { name: 'Student status' })).toBeInTheDocument();
 });
 
 test('saves the changes and returns to the list', async () => {

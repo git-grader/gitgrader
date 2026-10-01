@@ -259,7 +259,6 @@ export function ClassProgressPage() {
               rows={students}
               columns={columns}
               getRowId={(row) => row.studentId}
-              hideFooter
               disableRowSelectionOnClick
               sx={{ minWidth: 720, '& .MuiDataGrid-cell': { alignItems: 'center' } }}
             />

@@ -52,6 +52,7 @@ describe("StudentsPage", () => {
 
     expect(await screen.findByText("Ada")).toBeInTheDocument();
     expect(await screen.findByText("Grace")).toBeInTheDocument();
+    expect(screen.getByRole("region", { name: "Student results" })).toBeInTheDocument();
     expect(requestedPages).toEqual(["0", "1"]);
 
     await user.type(screen.getByRole("textbox", { name: "Search" }), "grace");

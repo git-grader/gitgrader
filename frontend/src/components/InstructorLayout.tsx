@@ -125,9 +125,9 @@ export function InstructorLayout() {
     ?? (location.pathname.startsWith('/reports/course/') ? 'Course reports' : 'Dashboard');
 
   const navigation = (
-    <Box sx={{ overflow: 'auto' }}>
-      <List component="nav">
-        {navItems.map((item) => (
+    <Box component="nav" aria-label="Primary navigation" sx={{ overflow: 'auto' }}>
+      <List>
+        {MAIN_NAV.map((item) => (
           <ListItem key={item.to} disablePadding>
             <ListItemButton
               component={Link}
@@ -155,11 +155,47 @@ export function InstructorLayout() {
           </ListItem>
         ))}
       </List>
+      {isAdmin && (
+        <>
+          <Typography id="administration-navigation-heading" variant="overline" component="h2" sx={{ display: 'block', px: 3, pt: 2, pb: 0.5, color: 'text.secondary' }}>
+            Administration
+          </Typography>
+          <List aria-labelledby="administration-navigation-heading">
+            {ADMIN_NAV.map((item) => (
+              <ListItem key={item.to} disablePadding>
+                <ListItemButton
+                  component={Link}
+                  to={item.to}
+                  selected={isCurrent(item.to)}
+                  aria-current={isCurrent(item.to) ? 'page' : undefined}
+                  onClick={() => { setMobileOpen(false); }}
+                  sx={{
+                    mx: 1.25,
+                    mb: 0.25,
+                    width: 'calc(100% - 20px)',
+                    borderLeft: '3px solid transparent',
+                    borderRadius: 1,
+                    '&.Mui-selected': {
+                      borderLeftColor: 'primary.main',
+                      color: 'primary.main',
+                      backgroundColor: 'action.selected',
+                      '&:hover': { backgroundColor: 'action.hover' }
+                    },
+                    '&.Mui-selected .MuiListItemText-primary': { fontWeight: 600 }
+                  }}
+                >
+                  <ListItemText primary={item.label} />
+                </ListItemButton>
+              </ListItem>
+            ))}
+          </List>
+        </>
+      )}
     </Box>
   );
 
   return (
-    <Box sx={{ display: 'flex', minHeight: '100dvh' }}>
+    <Box sx={{ display: 'flex', minHeight: '100dvh', bgcolor: 'background.default' }}>
       {/* The drawer repeats every link on every page, so a keyboard or screen-reader
           user met the whole navigation again before reaching the content each time. */}
       <Box
@@ -286,13 +322,16 @@ export function InstructorLayout() {
           display: 'flex',
           flexDirection: 'column',
           height: '100dvh',
+          overflow: 'auto',
           boxSizing: 'border-box',
           p: { xs: 2, md: 3 },
           '&:focus': { outline: 'none' }
         }}
       >
         <Toolbar />
-        <Outlet />
+        <Box sx={{ width: '100%', maxWidth: 1600, mx: 'auto' }}>
+          <Outlet />
+        </Box>
       </Box>
     </Box>
   );

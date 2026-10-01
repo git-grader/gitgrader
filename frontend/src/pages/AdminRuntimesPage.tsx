@@ -189,12 +189,11 @@ export function AdminRuntimesPage() {
       {runtimes.length === 0 ? (
         <Alert severity="info">No runtimes configured. At least one runtime is required to publish assignments.</Alert>
       ) : (
-        <Box sx={{ flex: '1 1 0', minHeight: { xs: 520, md: 0 }, width: '100%', minWidth: 0, overflowX: 'auto' }}>
+        <Box component="section" aria-label="Runtime results" sx={{ flex: '1 1 0', minHeight: 520, width: '100%', minWidth: 0, overflowX: 'auto' }}>
           <DataGrid
             rows={runtimes}
             columns={isNarrow ? [narrowColumn] : wideColumns}
             {...(isNarrow ? { getRowHeight: () => 'auto' as const } : {})}
-            hideFooterPagination
             disableRowSelectionOnClick
             sx={{ minWidth: isNarrow ? 260 : 1180 }}
           />

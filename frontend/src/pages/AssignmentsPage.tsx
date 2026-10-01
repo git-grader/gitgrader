@@ -5,7 +5,7 @@ import { useState, useMemo } from 'react';
 import { useSearchParams, Link as RouterLink } from 'react-router';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAssignmentMaterials } from '../hooks/useAssignmentMaterials';
-import { api } from '../api';
+import { api, getAllPages } from '../api';
 import { queryKeys } from '../api/queryKeys';
 import { QueryErrorNotice } from '../components/QueryErrorNotice';
 import { MutationErrorAlert, problemFieldErrors } from '../components/MutationErrorAlert';
@@ -17,7 +17,6 @@ import { Box, Link, Typography, CircularProgress, Button, Dialog, DialogTitle, D
 import { DataGrid } from '@mui/x-data-grid';
 import { AssignmentStatusChip } from '../components/AssignmentStatusChip';
 import { useNarrowColumns } from '../components/responsiveColumns';
-import { useServerPagination, CHOICE_PAGE_SIZE } from '../components/useServerPagination';
 import type { GridColDef, GridRenderCellParams } from '@mui/x-data-grid';
 
 const ASSIGNMENT_STATUSES = ['DRAFT', 'SCHEDULED', 'OPEN', 'CLOSED', 'ARCHIVED'] as const;
@@ -54,20 +53,17 @@ export function AssignmentsPage() {
     refetch: refetchCourses
   } = useQuery({
     queryKey: queryKeys.courses.choices,
-    queryFn: () => api.getCourses({ size: CHOICE_PAGE_SIZE })
+    queryFn: () => getAllPages(api.getCourses, {}, (course) => course.id)
   });
   const materials = useAssignmentMaterials();
 
-  const { paginationModel, setPaginationModel, sortModel, setSortModel, params } = useServerPagination();
   const assignmentParams = {
-    ...params,
     ...(selectedCourseId ? { courseId: selectedCourseId } : {}),
     ...(selectedStatus ? { status: selectedStatus } : {})
   };
   const { data, isLoading, isError, refetch } = useQuery({
-    queryKey: queryKeys.assignments.list(selectedCourseId, params.page, params.size, selectedStatus, params.sort),
-    queryFn: () => api.getAssignments(assignmentParams),
-    placeholderData: (previous) => previous
+    queryKey: queryKeys.assignments.list(selectedCourseId, selectedStatus),
+    queryFn: () => getAllPages(api.getAssignments, assignmentParams, (assignment) => assignment.id)
   });
 
   const createMutation = useMutation({
@@ -86,7 +82,6 @@ export function AssignmentsPage() {
   }
 
   function selectCourse(courseId: string) {
-    setPaginationModel({ ...paginationModel, page: 0 });
     // Rebuilt from the current parameters rather than replacing them: assigning a fresh
     // object dropped every other parameter in the address.
     const newParams = new URLSearchParams(searchParams);
@@ -100,7 +95,6 @@ export function AssignmentsPage() {
   }
 
   function selectStatus(status: string) {
-    setPaginationModel({ ...paginationModel, page: 0 });
     const newParams = new URLSearchParams(searchParams);
     if (status) {
       newParams.set('status', status);
@@ -222,7 +216,7 @@ export function AssignmentsPage() {
               onChange={(e) => { selectCourse(e.target.value); }}
             >
               <MenuItem value=""><em>All courses</em></MenuItem>
-              {courses?.content.map(c => <MenuItem key={c.id} value={c.id}>{c.name}</MenuItem>)}
+              {courses?.map(c => <MenuItem key={c.id} value={c.id}>{c.name}</MenuItem>)}
             </Select>
           </FormControl>
           <FormControl size="small" sx={{ minWidth: { xs: '100%', sm: 160 } }}>
@@ -239,9 +233,9 @@ export function AssignmentsPage() {
           </FormControl>
           <Button
             variant="contained"
-            disabled={coursesFailed || !courses || courses.content.length === 0}
+            disabled={coursesFailed || !courses || courses.length === 0}
             onClick={() => {
-              setForm({ ...emptyForm(), courseId: selectedCourseId || courses?.content[0]?.id || '' });
+              setForm({ ...emptyForm(), courseId: selectedCourseId || courses?.[0]?.id || '' });
               setOpen(true);
             }}
           >
@@ -267,19 +261,11 @@ export function AssignmentsPage() {
       ) : isError ? (
         <QueryErrorNotice message="The assignments could not be loaded." onRetry={() => void refetch()} />
       ) : (
-        <Box sx={{ height: { xs: 520, md: 600 }, width: '100%', minWidth: 0 }}>
+        <Box component="section" aria-label="Assignment results" sx={{ height: { xs: 520, md: 600 }, width: '100%', minWidth: 0 }}>
           <DataGrid
-            rows={data?.content ?? []}
+            rows={data ?? []}
             columns={columns}
             columnVisibilityModel={columnVisibilityModel}
-            paginationMode="server"
-            rowCount={data?.totalElements ?? 0}
-            paginationModel={paginationModel}
-            onPaginationModelChange={setPaginationModel}
-            sortingMode="server"
-            sortModel={sortModel}
-            onSortModelChange={setSortModel}
-            pageSizeOptions={[20, 50, 100]}
             disableRowSelectionOnClick
           />
         </Box>
@@ -300,7 +286,7 @@ export function AssignmentsPage() {
                 onChange={e => setForm({ ...form, courseId: e.target.value })}
                 disabled={createMutation.isPending}
               >
-                {courses?.content.map(c => <MenuItem key={c.id} value={c.id}>{c.name}</MenuItem>)}
+                {courses?.map(c => <MenuItem key={c.id} value={c.id}>{c.name}</MenuItem>)}
               </Select>
               {errorFor('courseId') && <FormHelperText>{errorFor('courseId')}</FormHelperText>}
             </FormControl>

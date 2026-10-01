@@ -33,9 +33,11 @@ export function RegistrationPage() {
 
   if (isLoading) {
     return (
-      <Box role="status" sx={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', p: 3 }}>
-        <BrandMark />
-        <CircularProgress aria-label="Checking whether registration is open" />
+      <Box component="main" sx={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', p: 3, bgcolor: 'background.default' }}>
+        <Box role="status" sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
+          <BrandMark />
+          <CircularProgress aria-label="Checking whether registration is open" />
+        </Box>
       </Box>
     );
   }
@@ -45,7 +47,7 @@ export function RegistrationPage() {
   // within the window that they had missed it.
   if (isError) {
     return (
-      <Box sx={{ p: { xs: 2, sm: 4 }, maxWidth: 600, width: '100%', mx: 'auto' }}>
+      <Box component="main" sx={{ minHeight: '100vh', p: { xs: 2, sm: 4 }, maxWidth: 600, width: '100%', mx: 'auto', bgcolor: 'background.default' }}>
         <BrandMark />
         <QueryErrorNotice
           message="Whether registration is open could not be checked. Try again in a moment."
@@ -57,7 +59,7 @@ export function RegistrationPage() {
 
   if (!avail?.open) {
     return (
-      <Box sx={{ minHeight: '100vh', p: { xs: 2, sm: 4 }, maxWidth: 600, width: '100%', mx: 'auto', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+      <Box component="main" sx={{ minHeight: '100vh', p: { xs: 2, sm: 4 }, maxWidth: 600, width: '100%', mx: 'auto', display: 'flex', flexDirection: 'column', justifyContent: 'center', bgcolor: 'background.default' }}>
         <BrandMark />
         <Alert severity="info" variant="outlined">Registration is currently closed.</Alert>
       </Box>
@@ -100,7 +102,7 @@ export function RegistrationPage() {
   };
 
   return (
-    <Box sx={{ p: { xs: 2, sm: 4 }, maxWidth: 760, width: '100%', mx: 'auto', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1 }}>
+    <Box component="main" sx={{ minHeight: '100vh', p: { xs: 2, sm: 4 }, maxWidth: 760, width: '100%', mx: 'auto', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1, bgcolor: 'background.default' }}>
       <BrandMark />
       <Paper variant="outlined" sx={{ p: { xs: 2, sm: 4 }, width: '100%' }}>
         <Typography variant="h4" component="h1" sx={{ overflowWrap: 'anywhere', mb: 2 }}>

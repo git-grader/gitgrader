@@ -34,6 +34,8 @@ export function PageHeader({ title, description, actions }: PageHeaderProps) {
       </Box>
       {actions && (
         <Box
+          role="group"
+          aria-label="Page actions"
           sx={{
             display: 'flex',
             alignItems: 'center',

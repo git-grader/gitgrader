@@ -72,6 +72,16 @@ describe('the instructor shell', () => {
     await waitFor(() => { expect(screen.queryByRole('dialog')).not.toBeInTheDocument(); });
   });
 
+  it('groups administrator-only controls under an administration label', async () => {
+    server.use(http.get('/api/v1/me', () => HttpResponse.json(ADMIN)));
+    const user = userEvent.setup();
+    renderShell();
+
+    await user.click(await screen.findByRole('button', { name: 'Open navigation' }));
+    expect(await screen.findByRole('heading', { name: 'Administration' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Audit Log' })).toBeInTheDocument();
+  });
+
   /**
    * Every failure used to send the user to sign in again, so a dropped connection or a
    * 500 discarded whatever they had open. Only a refusal means the session is over.

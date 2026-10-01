@@ -3,13 +3,12 @@
 
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { api } from '../api';
+import { api, getAllPages } from '../api';
 import { queryKeys } from '../api/queryKeys';
 import { QueryErrorNotice } from '../components/QueryErrorNotice';
 import { MutationErrorAlert } from '../components/MutationErrorAlert';
 import { PageHeader } from '../components/PageHeader';
 import { numberInputValue, parseNumberInput } from '../components/numberInput';
-import { CHOICE_PAGE_SIZE } from '../components/useServerPagination';
 import type { TemplateDefinition, TestSuiteDefinition } from '../api';
 import { Typography, CircularProgress, Button, Dialog, DialogTitle, DialogContent, DialogActions, TextField, Alert, Tabs, Tab, Paper, Box } from '@mui/material';
 
@@ -308,11 +307,11 @@ export function MaterialsPage() {
 
   const { data: templates, isLoading: tLoading, isError: tFailed, refetch: refetchTemplates } = useQuery({
     queryKey: queryKeys.templates.list,
-    queryFn: () => api.getTemplates({ size: CHOICE_PAGE_SIZE })
+    queryFn: () => getAllPages(api.getTemplates, {}, (template) => template.id)
   });
   const { data: testSuites, isLoading: tsLoading, isError: tsFailed, refetch: refetchTestSuites } = useQuery({
     queryKey: queryKeys.testSuites.list,
-    queryFn: () => api.getTestSuites({ size: CHOICE_PAGE_SIZE })
+    queryFn: () => getAllPages(api.getTestSuites, {}, (testSuite) => testSuite.id)
   });
 
   const createTemplateMutation = useMutation({
@@ -343,12 +342,12 @@ export function MaterialsPage() {
     createTestSuiteMutation.reset();
   }
 
-  const filteredTemplates = templates?.content.filter(t =>
+  const filteredTemplates = templates?.filter(t =>
     t.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
     t.templateKey.toLowerCase().includes(searchQuery.toLowerCase())
   ) ?? [];
 
-  const filteredTestSuites = testSuites?.content.filter(ts =>
+  const filteredTestSuites = testSuites?.filter(ts =>
     ts.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
     ts.suiteKey.toLowerCase().includes(searchQuery.toLowerCase())
   ) ?? [];

@@ -65,6 +65,14 @@ function renderDashboard() {
 }
 
 describe('dashboard course summaries', () => {
+  it('frames the dashboard as an operational overview', async () => {
+    installSummaryHandlers();
+    renderDashboard();
+
+    expect(await screen.findByRole('heading', { level: 1, name: 'Dashboard' })).toBeInTheDocument();
+    expect(screen.getByText('Monitor course activity and follow up where attention is needed.')).toBeInTheDocument();
+  });
+
   it('shows available course, student, submission, completion, and class summaries', async () => {
     installSummaryHandlers();
     renderDashboard();

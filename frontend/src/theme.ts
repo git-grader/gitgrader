@@ -53,8 +53,8 @@ export const createAppTheme = (mode: "light" | "dark") => {
         contrastText: inkRamp[950],
       },
       background: {
-        default: mode === "light" ? "#FFFFFF" : inkRamp[950],
-        paper: mode === "light" ? "#F5F7FA" : inkRamp[900],
+        default: mode === "light" ? "#F8FAFC" : inkRamp[950],
+        paper: mode === "light" ? "#FFFFFF" : inkRamp[900],
       },
       text: {
         primary: mode === "light" ? inkRamp[950] : "#F5F7FA",
@@ -120,6 +120,7 @@ export const createAppTheme = (mode: "light" | "dark") => {
       MuiOutlinedInput: {
         styleOverrides: {
           root: {
+            borderRadius: 6,
             backgroundColor: mode === "light" ? "#FFFFFF" : inkRamp[950],
             "&.Mui-disabled": {
               backgroundColor: mode === "light" ? "#F5F7FA" : inkRamp[900],
@@ -131,6 +132,13 @@ export const createAppTheme = (mode: "light" | "dark") => {
         styleOverrides: {
           root: {
             backgroundImage: "none",
+          },
+        },
+      },
+      MuiDialog: {
+        styleOverrides: {
+          paper: {
+            borderRadius: 6,
           },
         },
       },

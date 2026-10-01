@@ -4,12 +4,11 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigate, useSearchParams, Link } from 'react-router';
-import { api } from '../api';
+import { api, getAllPages } from '../api';
 import { queryKeys } from '../api/queryKeys';
 import { QueryErrorNotice } from '../components/QueryErrorNotice';
 import { MutationErrorAlert, problemFieldErrors } from '../components/MutationErrorAlert';
 import { PageHeader } from '../components/PageHeader';
-import { useServerPagination } from '../components/useServerPagination';
 import { useIsNarrow } from '../components/responsiveColumns';
 import { CourseStatusChip } from '../components/CourseStatusChip';
 import { fromZonedInputValue } from '../components/localDateTime';
@@ -45,21 +44,12 @@ export function CoursesPage() {
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState<Partial<CourseDefinition>>(emptyForm);
 
-  const { paginationModel, setPaginationModel, sortModel, setSortModel, params } = useServerPagination();
   const { data, isLoading, isError, refetch } = useQuery({
-    queryKey: queryKeys.courses.list(statusFilter, params.page, params.size, params.sort),
-    queryFn: () => api.getCourses({ ...params, status: statusFilter }),
-    // Keeps the current rows on screen while the next page loads; without it the row
-    // count drops to zero and the grid bounces back to page one.
-    placeholderData: (previous) => previous
+    queryKey: queryKeys.courses.list(statusFilter),
+    queryFn: () => getAllPages(api.getCourses, { status: statusFilter }, (course) => course.id)
   });
 
   function showStatus(status: string) {
-    // Creating a course also switches the status filter, so it needs the same page
-    // reset the filter control does. Landing on page 3 of a status that has one page
-    // shows "No courses found" for a course that was just created successfully, and
-    // the empty branch renders no pager to get back with.
-    setPaginationModel({ ...paginationModel, page: 0 });
     const newParams = new URLSearchParams(searchParams);
     newParams.set('status', status);
     setSearchParams(newParams);
@@ -222,19 +212,11 @@ export function CoursesPage() {
       ) : isError ? (
         <QueryErrorNotice message="The courses could not be loaded." onRetry={() => void refetch()} />
       ) : (
-        <Box sx={{ height: { xs: 520, md: 600 }, width: '100%', minWidth: 0 }}>
+        <Box component="section" aria-label="Course results" sx={{ height: { xs: 520, md: 600 }, width: '100%', minWidth: 0 }}>
           <DataGrid
-            rows={data?.content ?? []}
+            rows={data ?? []}
             columns={isNarrow ? [narrowColumn] : wideColumns}
             {...(isNarrow ? { getRowHeight: () => 'auto' as const } : {})}
-            paginationMode="server"
-            rowCount={data?.totalElements ?? 0}
-            paginationModel={paginationModel}
-            onPaginationModelChange={setPaginationModel}
-            pageSizeOptions={[20, 50, 100]}
-            sortingMode="server"
-            sortModel={sortModel}
-            onSortModelChange={setSortModel}
             disableRowSelectionOnClick
             onRowClick={(params) => { void navigate(`/courses/${params.id}`); }}
           />

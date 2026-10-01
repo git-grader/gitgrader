@@ -185,7 +185,7 @@ export function SubmissionsPage() {
       ) : isError ? (
         <QueryErrorNotice message="The submissions could not be loaded." onRetry={() => void refetch()} />
       ) : (
-        <Box sx={{ flex: '1 1 0', minHeight: { xs: 520, md: 0 }, width: '100%', minWidth: 0 }}>
+        <Box component="section" aria-label="Submission results" sx={{ flex: '1 1 0', minHeight: { xs: 520, md: 0 }, width: '100%', minWidth: 0 }}>
           <DataGrid
             rows={data?.content ?? []}
             columns={isNarrow ? [narrowColumn] : wideColumns}

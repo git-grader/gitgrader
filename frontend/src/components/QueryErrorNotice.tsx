@@ -14,7 +14,7 @@ import { Alert, Box, Button } from '@mui/material';
  */
 export function QueryErrorNotice({ message, onRetry }: { message: string; onRetry: () => void }) {
   return (
-    <Box sx={{ p: 2 }}>
+    <Box sx={{ p: 2, maxWidth: 760 }}>
       <Alert
         severity="error"
         action={
