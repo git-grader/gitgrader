@@ -17,11 +17,11 @@
 package org.gitgrader.grading.internal;
 
 import java.io.IOException;
-import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Clock;
+import java.math.BigDecimal;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -30,6 +30,9 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
+import org.gitgrader.audit.AuditEventType;
+import org.gitgrader.audit.AuditQuery;
+import org.gitgrader.audit.AuditService;
 import org.gitgrader.configuration.GradingProperties;
 import org.gitgrader.assignments.AssignmentAdministration;
 import org.gitgrader.assignments.AssignmentDefinition;
@@ -43,6 +46,7 @@ import org.gitgrader.courses.CourseView;
 import org.gitgrader.git.internal.GitRepositoryService;
 import org.gitgrader.grading.GradingJobStatus;
 import org.gitgrader.grading.GradingRunStatus;
+import org.gitgrader.grading.GradingScore;
 import org.gitgrader.grading.domain.GradingJob;
 import org.gitgrader.identity.StudentRegistration;
 import org.gitgrader.identity.StudentRegistry;
@@ -71,6 +75,9 @@ import org.testcontainers.postgresql.PostgreSQLContainer;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.DynamicPropertyRegistry;
@@ -154,6 +161,12 @@ class GradingQueueFairnessIT {
 
 	@Autowired
 	private JdbcTemplate jdbc;
+
+	@Autowired
+	private AuditService audit;
+
+	@Autowired
+	private PlatformTransactionManager transactions;
 
 	private CourseView course;
 
@@ -250,6 +263,35 @@ class GradingQueueFairnessIT {
 
 		assertThat(studentsAmong(claimIds("worker-test"))).containsOnlyOnce(student.id());
 		assertThat(studentsAmong(claimIds("worker-test"))).doesNotContain(student.id());
+	}
+
+	@Test
+	@DisplayName("grading completion is audited after commit and never on rollback")
+	void completionAuditFollowsTransactionCommit() {
+		Student student = enrol("s-audit");
+		SubmissionView submission = push(student, this.first, sha('a'));
+		GradingQueue.ClaimedJob lease = this.queue.claimBatch("worker-audit", 1).getFirst();
+		UUID runId = jobFor(submission).gradingRunId();
+		assertThat(this.queue.markRunning(lease, runId)).isTrue();
+		GradingExecutor.Outcome outcome = new GradingExecutor.Outcome(Path.of("unused"), List.of(),
+				new GradingScore(1, 1, 0, 0, 0, BigDecimal.valueOf(100), BigDecimal.TEN, true), 0, 100, false, null);
+		AuditQuery query = new AuditQuery(AuditEventType.GRADING_COMPLETED, null, null, null,
+				submission.id().toString());
+		TransactionTemplate transaction = new TransactionTemplate(this.transactions);
+		transaction.executeWithoutResult(status -> {
+			assertThat(this.queue.recordSuccess(lease, runId, outcome)).isTrue();
+			assertThat(this.audit.find(query, PageRequest.of(0, 20))).isEmpty();
+			status.setRollbackOnly();
+		});
+		assertThat(this.audit.find(query, PageRequest.of(0, 20))).isEmpty();
+		assertThat(this.submissions.findById(submission.id()).orElseThrow().status())
+			.isEqualTo(SubmissionStatus.RUNNING);
+		assertThat(this.queue.recordSuccess(lease, runId, outcome)).isTrue();
+		assertThat(this.audit.find(query, PageRequest.of(0, 20)).getContent()).singleElement().satisfies(entry -> {
+			assertThat(entry.detail()).containsEntry("status", "PASSED")
+				.containsEntry("gradingRunId", runId.toString());
+			assertThat(entry.courseId()).isEqualTo(this.course.id());
+		});
 	}
 
 	/**

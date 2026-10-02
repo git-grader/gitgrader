@@ -11,6 +11,7 @@ import {
 import { api, getAllPages, SubmissionSchema } from "../src/api";
 import type { Page } from "../src/api";
 import { queryKeys } from "../src/api/queryKeys";
+import { retryApiQuery } from "../src/api/queryRetry";
 
 /**
  * Covers the one place every call to the API passes through.
@@ -60,6 +61,23 @@ describe("api client", () => {
     const init = fetchMock.mock.calls[0]?.[1] as RequestInit;
     return init.headers as Headers;
   }
+
+  it.each([401, 403, 429, 503])('keeps a plain proxy %s response identifiable and never retries it automatically', async status => {
+    fetchMock.mockResolvedValue(new Response('<html>Proxy rejection</html>', { status, headers: { 'content-type': 'text/html' } }));
+    const error = await fetchApi('/api/v1/courses').catch((error: unknown) => error);
+    expect(error).toBeInstanceOf(ApiProblem);
+    if (!(error instanceof ApiProblem)) throw new Error('Expected an API problem');
+    expect(error.status).toBe(status);
+    expect(error.message).not.toContain('Proxy rejection');
+    expect(retryApiQuery(0, error)).toBe(false);
+  });
+
+  it('retains bounded retries for network faults and other server errors', () => {
+    const error = new ApiProblem('about:blank', 'Bad Gateway', 502);
+    expect(retryApiQuery(0, error)).toBe(true);
+    expect(retryApiQuery(2, new TypeError('Failed to fetch'))).toBe(true);
+    expect(retryApiQuery(3, error)).toBe(false);
+  });
 
   describe("cross-site request forgery token", () => {
     it("sends the token from the cookie on a state-changing request", async () => {

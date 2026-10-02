@@ -4,6 +4,7 @@
 import assert from 'node:assert/strict';
 import { chromium } from 'playwright';
 import { createServer } from 'vite';
+import { getContrastRatio } from '@mui/material/styles';
 import { mkdir, readFile, mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -67,6 +68,8 @@ function response(url) {
     case '/api/v1/meta': return meta;
     case '/api/v1/me': return { username: 'admin', displayName: 'Admin', actorType: 'HUMAN', roles: ['ROLE_ADMIN'] };
     case '/api/v1/courses': return paged([course], url);
+    case '/api/v1/courses/c1': return course;
+    case '/api/v1/registration/availability': return { open: true, courses: [{ courseKey: course.courseKey, name: course.name, classes: [{ classKey: 'class', name: 'Browser test class' }] }] };
     case '/api/v1/students': return paged(registeredStudents.map(student => ({ ...student, status: verifiedStudents.has(student.id) ? 'VERIFIED_BY_INSTRUCTOR' : student.status })), url);
     case '/api/v1/students/st1':
     case '/api/v1/students/st2': return { student: { ...registeredStudents.find(student => student.id === url.pathname.split('/').at(-1)), status: verifiedStudents.has(url.pathname.split('/').at(-1)) ? 'VERIFIED_BY_INSTRUCTOR' : 'SELF_REGISTERED' }, sshKeys: [] };
@@ -171,8 +174,23 @@ try {
   });
   const paths = ['/students', '/courses', '/assignments', '/admin/runtimes', '/submissions', '/admin/audit', '/reports/course/c1', '/submissions?status=INFRASTRUCTURE_ERROR', '/courses/c1/classes/cl1'];
   let checks = 0;
+  let pageChecks = 0;
+  async function checkNavigationContrast() {
+    const current = page.locator('nav [aria-current="page"]');
+    if (!await current.count() || !await current.isVisible()) return;
+    const colors = await current.evaluate(link => ({
+      foreground: getComputedStyle(link.querySelector('.MuiListItemText-primary')).color,
+      overlay: getComputedStyle(link).backgroundColor,
+      background: getComputedStyle(link.closest('.MuiDrawer-paper')).backgroundColor
+    }));
+    const overlay = colors.overlay.match(/[\d.]+/g).map(Number);
+    const background = colors.background.match(/[\d.]+/g).map(Number);
+    const alpha = overlay[3] ?? 1;
+    const composed = `rgb(${overlay.slice(0, 3).map((channel, index) => Math.round(channel * alpha + background[index] * (1 - alpha))).join(',')})`;
+    assert.ok(getContrastRatio(colors.foreground, composed) >= 4.5, `Selected navigation text has insufficient contrast: ${JSON.stringify(colors)}`);
+  }
   for (const colorScheme of ['light', 'dark']) {
-    await page.emulateMedia({ colorScheme });
+    await page.emulateMedia({ colorScheme, reducedMotion: 'reduce' });
     for (const width of [320, 390, 768, 1024, 1440]) {
       await page.setViewportSize({ width, height: 900 });
       for (const path of paths) {
@@ -180,6 +198,8 @@ try {
         await page.locator('.MuiDataGrid-row').first().waitFor();
         const dimensions = await page.locator('.MuiDataGrid-root').evaluate((grid) => ({
           height: grid.getBoundingClientRect().height,
+          width: grid.getBoundingClientRect().width,
+          containerWidth: grid.parentElement.getBoundingClientRect().width,
           panelHeight: grid.parentElement.parentElement.getBoundingClientRect().height,
           viewport: grid.querySelector('.MuiDataGrid-virtualScroller').getBoundingClientRect().height,
           overflow: document.documentElement.scrollWidth > innerWidth,
@@ -187,18 +207,50 @@ try {
         }));
         assert.ok(dimensions.panelHeight >= (width < 900 ? 500 : 350), `${colorScheme} ${width} ${path}: grid collapsed`);
         assert.ok(dimensions.viewport >= (width < 900 ? 240 : 150), `${colorScheme} ${width} ${path}: rows are clipped`);
+        if (screenshotDir && path.startsWith('/admin/')) await page.screenshot({ path: join(screenshotDir, `admin-${colorScheme}-${width}-${path.split('/').at(-1)}.png`), fullPage: true });
+        assert.ok(dimensions.width <= dimensions.containerWidth + 1, `${width} ${path}: table is clipped by its container ${JSON.stringify(dimensions)}`);
         assert.equal(dimensions.overflow || dimensions.mainOverflow, false, `${width} ${path}: page overflow ${JSON.stringify(dimensions)}`);
+        if (width >= 900 && path.startsWith('/admin/')) {
+          await page.locator('.MuiDataGrid-virtualScroller').evaluate(element => { element.scrollLeft = element.scrollWidth; });
+          await page.waitForTimeout(100);
+          const reachable = await page.locator('.MuiDataGrid-columnHeader').last().evaluate(header => {
+            const container = header.closest('.MuiDataGrid-root').getBoundingClientRect();
+            const rect = header.getBoundingClientRect();
+            return rect.right <= container.right + 1;
+          });
+          assert.ok(reachable, `${path}: last column remains inaccessible after scrolling`);
+          if (path === '/admin/runtimes') {
+            await page.getByRole('columnheader', { name: 'Display Name', exact: true }).focus();
+            await page.keyboard.press('ArrowDown');
+            await page.keyboard.press('End');
+            assert.equal(await page.evaluate(() => document.activeElement?.closest('[data-field]')?.getAttribute('data-field')), 'testCommand', 'Runtime columns cannot be reached by keyboard');
+          }
+        }
+        await checkNavigationContrast();
         checks++;
         if (screenshotDir && width === 390 && path === '/submissions') {
           await page.screenshot({ path: join(screenshotDir, `mobile-${colorScheme}.png`), fullPage: true });
         }
       }
-      for (const path of ['/result/test-result', '/register/success']) {
+      for (const path of ['/dashboard', '/deadlines?show=all', '/materials', '/courses/c1', '/students/st1?courseId=c1&classId=cl1', '/assignments/a1', '/submissions/s1?classId=cl1', '/admin/settings', '/register', '/register/success', '/result/test-result', '/login', '/missing-page']) {
         await page.goto(new URL(path, base).href);
         await page.locator('h1').waitFor();
+        await page.waitForFunction(() => document.querySelectorAll('.MuiCircularProgress-root').length === 0);
+        assert.equal(await page.getByRole('alert').filter({ hasText: /could not be (loaded|reached)|Oops!/ }).count(), 0, `${path}: page failed to load`);
+        if (screenshotDir) await page.screenshot({ path: join(screenshotDir, `page-${colorScheme}-${width}-${path.split('?')[0].replaceAll('/', '-')}.png`), fullPage: true });
         assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false,
           `${colorScheme} ${width} ${path}: page overflow`);
+        assert.equal(await page.locator('main').evaluate(main => main.scrollWidth > main.clientWidth + 1), false, `${path}: main content overflows`);
         assert.equal(await page.getByText('Do not disclose').count(), 0);
+        if (path === '/result/test-result' && width < 520) {
+          const results = page.getByRole('region', { name: 'Test results', exact: true });
+          await results.focus();
+          await page.keyboard.press('ArrowRight');
+          await page.waitForTimeout(100);
+          assert.ok(await results.evaluate(element => element.scrollLeft > 0), `${colorScheme} ${width}: public test results cannot be scrolled by keyboard`);
+        }
+        await checkNavigationContrast();
+        pageChecks++;
       }
     }
   }
@@ -369,7 +421,7 @@ try {
   assert.equal(await page.evaluate(() => document.querySelector('main').scrollWidth > document.querySelector('main').clientWidth), false, 'Mobile deadlines overflow');
   if (screenshotDir) await page.screenshot({ path: join(screenshotDir, 'deadlines-mobile.png'), fullPage: true });
   assert.deepEqual(errors, [], 'Browser errors or missing fixtures');
-  console.log(`UI browser checks passed (${checks} grid layouts, full-height panels, viewport resizing, summary toggles, filter reset, paging, navigation, dialog labels, attention badges, search, attention filters, contextual scores, confirmed retries and all six instructor workflows)`);
+  console.log(`UI browser checks passed (${checks + pageChecks} responsive page renders, ${checks} grid layouts, full-height panels, viewport resizing, summary toggles, filter reset, paging, navigation, dialog labels, attention badges, search, attention filters, contextual scores, confirmed retries and all six instructor workflows)`);
 } finally {
   await browser?.close();
   await server.close();

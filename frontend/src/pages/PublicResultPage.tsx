@@ -106,7 +106,7 @@ export function PublicResultPage() {
         <Box sx={{ display: 'grid', gridTemplateColumns: { xs: 'minmax(0, 1fr)', md: 'minmax(0, 1.6fr) minmax(280px, 0.85fr)' }, gap: { xs: 3, md: 4 }, alignItems: 'start', mt: 3 }}>
           <Box component="section" aria-labelledby="test-details-heading" sx={{ minWidth: 0 }}>
             <Typography id="test-details-heading" variant="h5" component="h2" sx={{ mb: 1.5 }}>Test Details</Typography>
-            <TableContainer sx={{ width: '100%', overflowX: 'auto' }}>
+            <TableContainer tabIndex={0} role="region" aria-label="Test results" sx={{ '&:focus-visible': { outline: '2px solid', outlineColor: 'primary.main', outlineOffset: -2 }, width: '100%', overflowX: 'auto' }}>
               <Table aria-label="Test results table" sx={{ minWidth: 520 }}>
                 <TableHead>
                   <TableRow>

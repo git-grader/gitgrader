@@ -170,6 +170,10 @@ public class GradingRun {
 		return this.status;
 	}
 
+	public @Nullable String runtimeImageDigest() {
+		return this.runtimeImageDigest;
+	}
+
 	public String correlationId() {
 		return this.correlationId;
 	}

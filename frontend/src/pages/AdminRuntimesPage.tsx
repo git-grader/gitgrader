@@ -198,7 +198,7 @@ export function AdminRuntimesPage() {
             columns={isNarrow ? [narrowColumn] : wideColumns}
             {...(isNarrow ? { getRowHeight: () => 'auto' as const } : {})}
             disableRowSelectionOnClick
-            sx={{ minWidth: isNarrow ? 260 : 1180 }}
+            sx={{ minWidth: 0 }}
           />
         </Box>
       )}

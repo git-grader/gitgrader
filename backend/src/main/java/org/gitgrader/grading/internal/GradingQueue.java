@@ -22,6 +22,10 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
+import org.gitgrader.audit.AuditEventType;
+import org.gitgrader.audit.AuditRecord;
+import org.gitgrader.audit.AuditRecord.AuditSeverity;
+import org.gitgrader.audit.AuditService;
 import org.gitgrader.configuration.GradingProperties;
 import org.gitgrader.grading.FailureCategory;
 import org.gitgrader.grading.GradingJobStatus;
@@ -30,11 +34,14 @@ import org.gitgrader.grading.domain.GradingJob;
 import org.gitgrader.grading.domain.GradingRun;
 import org.gitgrader.submissions.SubmissionService;
 import org.gitgrader.submissions.SubmissionStatus;
+import org.gitgrader.submissions.SubmissionView;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 /**
  * The transactional half of the grading worker.
@@ -73,14 +80,17 @@ public class GradingQueue {
 
 	private final Clock clock;
 
+	private final AuditService audit;
+
 	public GradingQueue(GradingJobRepository jobs, GradingRunRepository runs, GradingExecutor executor,
-			SubmissionService submissions, GradingProperties properties, Clock clock) {
+			SubmissionService submissions, GradingProperties properties, Clock clock, AuditService audit) {
 		this.jobs = jobs;
 		this.runs = runs;
 		this.executor = executor;
 		this.submissions = submissions;
 		this.properties = properties;
 		this.clock = clock;
+		this.audit = audit;
 	}
 
 	/**
@@ -216,7 +226,8 @@ public class GradingQueue {
 		this.jobs.findById(lease.jobId()).ifPresent((job) -> job.markDone(this.clock));
 
 		SubmissionStatus status = resolveSubmissionStatus(run);
-		this.submissions.markStatus(run.submissionId(), status);
+		SubmissionView submission = this.submissions.markStatus(run.submissionId(), status);
+		recordCompletion(run, submission);
 		logger.info("Grading run {} finished: {} ({} of {} tests passed) [correlationId={}]", run.id(), status,
 				run.testsPassed(), run.testsTotal(), run.correlationId());
 		return true;
@@ -248,11 +259,46 @@ public class GradingQueue {
 			this.runs.findById(runId).ifPresent((run) -> {
 				run.fail(FailureCategory.INFRASTRUCTURE_ERROR, truncated, GradingRunStatus.INFRASTRUCTURE_ERROR,
 						this.clock);
-				this.submissions.markStatus(run.submissionId(), SubmissionStatus.INFRASTRUCTURE_ERROR);
+				SubmissionView submission = this.submissions.markStatus(run.submissionId(),
+						SubmissionStatus.INFRASTRUCTURE_ERROR);
+				recordCompletion(run, submission);
 			});
 		}
 		logger.error("Grading job {} failed (attempt {}, retry={})", lease.jobId(), job.attempts(), willRetry, cause);
 		return true;
+	}
+
+	/**
+	 * Records only committed terminal outcomes, without sandbox output or failure text.
+	 */
+	private void recordCompletion(GradingRun run, SubmissionView submission) {
+		AuditRecord.Builder builder = AuditRecord.of(AuditEventType.GRADING_COMPLETED)
+			.subject("SUBMISSION", run.submissionId().toString())
+			.course(submission.courseId())
+			.correlationId(run.correlationId())
+			.with("gradingRunId", run.id().toString())
+			.with("attempt", run.attempt())
+			.with("status", submission.status().name())
+			.with("gradingStatus", run.status().name())
+			.with("failureCategory", run.failureCategory())
+			.with("runtimeImageDigest", run.runtimeImageDigest())
+			.with("testsPassed", run.testsPassed())
+			.with("testsTotal", run.testsTotal());
+		if (submission.status() == SubmissionStatus.INFRASTRUCTURE_ERROR) {
+			builder.failed().severity(AuditSeverity.WARNING);
+		}
+		AuditRecord record = builder.build();
+		TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+			@Override
+			public void afterCommit() {
+				try {
+					audit.record(record);
+				}
+				catch (RuntimeException exception) {
+					logger.error("Unable to audit completed grading run {}", run.id(), exception);
+				}
+			}
+		});
 	}
 
 	/**

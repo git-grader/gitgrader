@@ -59,7 +59,9 @@ async function failureOf(res: Response): Promise<Error> {
       problem.errors,
     );
   }
-  return new Error(`API error: ${res.status} ${res.statusText}`);
+  // Proxies may return plain text or HTML. Keep the wire status so callers still
+  // recognise refused sessions and throttling without rendering the proxy body.
+  return new ApiProblem("about:blank", `API error: ${res.status} ${res.statusText}`, res.status);
 }
 
 async function readBody<T>(res: Response): Promise<T> {

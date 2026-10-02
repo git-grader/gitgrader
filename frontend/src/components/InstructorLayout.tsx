@@ -145,7 +145,7 @@ export function InstructorLayout() {
                 borderRadius: 1,
                 '&.Mui-selected': {
                   borderLeftColor: 'primary.main',
-                  color: 'primary.main',
+                  color: theme.palette.mode === 'dark' ? 'primary.light' : 'primary.dark',
                   backgroundColor: 'action.selected',
                   '&:hover': { backgroundColor: 'action.hover' }
                 },
@@ -179,7 +179,7 @@ export function InstructorLayout() {
                     borderRadius: 1,
                     '&.Mui-selected': {
                       borderLeftColor: 'primary.main',
-                      color: 'primary.main',
+                      color: theme.palette.mode === 'dark' ? 'primary.light' : 'primary.dark',
                       backgroundColor: 'action.selected',
                       '&:hover': { backgroundColor: 'action.hover' }
                     },
@@ -313,7 +313,7 @@ export function InstructorLayout() {
       <Box
         component="main"
         id="main-content"
-        tabIndex={-1}
+        tabIndex={0}
         sx={{
           flexGrow: 1,
           // Without this a flex child refuses to shrink below the intrinsic width of
@@ -327,7 +327,7 @@ export function InstructorLayout() {
           overflow: 'auto',
           boxSizing: 'border-box',
           p: { xs: 2, md: 3 },
-          '&:focus': { outline: 'none' }
+          '&:focus-visible': { outline: '2px solid', outlineColor: 'primary.main', outlineOffset: -2 }
         }}
       >
         <Toolbar sx={{ flexShrink: 0 }} />

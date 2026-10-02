@@ -214,7 +214,7 @@ export function AdminAuditPage() {
             sortModel={sortModel}
             onSortModelChange={setSortModel}
             disableRowSelectionOnClick
-            sx={{ minWidth: isNarrow ? 260 : 940 }}
+            sx={{ minWidth: 0 }}
           />
         </Box>
       )}

@@ -5,6 +5,7 @@ import { StrictMode, useMemo } from 'react';
 import { createBrowserRouter, RouterProvider, useRouteError, isRouteErrorResponse, Navigate, Link } from 'react-router';
 import { QueryCache, QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ApiProblem } from './api/client';
+import { retryApiQuery } from './api/queryRetry';
 import { CssBaseline, ThemeProvider, useMediaQuery, useTheme, Box, Button, Typography } from '@mui/material';
 import { createAppTheme } from './theme';
 import PrimaryLogo from './assets/brand/gitgrader-lockup-primary.svg';
@@ -60,13 +61,7 @@ const queryClient = new QueryClient({
   }),
   defaultOptions: {
     queries: {
-      // A 4xx is an answer, not a hiccup; retrying one only delays it.
-      retry: (failureCount, error) => {
-        if (error instanceof ApiProblem && error.status >= 400 && error.status < 500) {
-          return false;
-        }
-        return failureCount < 3;
-      }
+      retry: retryApiQuery
     }
   }
 });
