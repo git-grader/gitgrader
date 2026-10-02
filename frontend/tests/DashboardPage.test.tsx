@@ -1,7 +1,7 @@
 // Copyright the GitGrader contributors.
 // SPDX-License-Identifier: Apache-2.0
 
-import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { http, HttpResponse } from 'msw';
 import { screen } from '@testing-library/react';
 import { Route, Routes } from 'react-router';
@@ -52,6 +52,8 @@ function installSummaryHandlers() {
     }))
   );
 }
+
+beforeEach(() => { server.use(http.get('/api/v1/students', () => HttpResponse.json(PAGE([])))); });
 
 beforeAll(() => { server.listen({ onUnhandledRequest: 'error' }); });
 afterEach(() => { server.resetHandlers(); });
@@ -110,4 +112,23 @@ describe('dashboard course summaries', () => {
     expect(await screen.findByText('Available course summaries could not be loaded.')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Retry' })).toBeInTheDocument();
   });
+});
+
+it('links the follow-up dashboard to pending registrations and matching active class filters', async () => {
+  installSummaryHandlers();
+  const pending = { id: 'pending', studentUsername: 'pending', firstName: 'Pending', lastName: 'Student', email: 'test@example.org', status: 'SELF_REGISTERED' };
+  const result = { bestPercent: 0, bestPoints: 0, latestSubmission: { id: 'sub', commitSha: 'sha', gitRef: 'main', receivedAt: '', status: 'FAILED', late: false } };
+  const student = { studentId: 's', studentUsername: 's', fullName: 'Student', status: 'SELF_REGISTERED', enrollmentStatus: 'ACTIVE', fullyCompleted: 0, partiallyCompleted: 1, notStarted: 1, completionRate: 0, pointsEarned: 0, pointsRate: 0, totalPoints: 10, submissionCount: 1, assignments: { strings: result } };
+  server.use(
+    http.get('/api/v1/students', () => HttpResponse.json(PAGE([pending, { ...pending, id: 'verified', status: 'VERIFIED_BY_INSTRUCTOR' }]))),
+    http.get('/api/v1/reports/courses/course-1/classes/class-1', () => HttpResponse.json({
+      courseId: 'course-1', classId: 'class-1', classKey: 'a', className: 'Class A', totalMandatoryAssignments: 2,
+      totalPointsAvailable: 10, assignments: [], students: [student, { ...student, studentId: 'withdrawn', enrollmentStatus: 'WITHDRAWN' }]
+    }))
+  );
+  renderDashboard();
+  expect(await screen.findByRole('link', { name: 'Review pending registrations (1)' })).toHaveAttribute('href', '/students?status=SELF_REGISTERED');
+  expect(await screen.findByRole('link', { name: 'Review missing work (1)' })).toHaveAttribute('href', '/courses/course-1/classes/class-1?attention=missing&enrollment=ACTIVE');
+  expect(screen.getByRole('link', { name: 'Review failed attempts (1)' })).toHaveAttribute('href', '/courses/course-1/classes/class-1?attention=failed&enrollment=ACTIVE');
+  expect(screen.getByRole('link', { name: 'Upcoming deadlines' })).toHaveAttribute('href', '/deadlines');
 });

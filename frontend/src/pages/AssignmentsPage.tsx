@@ -16,7 +16,7 @@ import { fromZonedInputValue } from '../components/localDateTime';
 import { numberInputValue, parseNumberInput } from '../components/numberInput';
 import type { AssignmentDefinition, AssignmentDetail } from '../api';
 import { Box, Link, Typography, CircularProgress, Button, Dialog, DialogTitle, DialogContent, DialogActions, TextField, Select, MenuItem, InputLabel, FormControl, FormControlLabel, Checkbox, Switch, FormHelperText, Tooltip } from '@mui/material';
-import { DataGrid } from '@mui/x-data-grid';
+import { InstructorDataGrid } from '../components/InstructorDataGrid';
 import { AssignmentStatusChip } from '../components/AssignmentStatusChip';
 import { useNarrowColumns } from '../components/responsiveColumns';
 import type { GridColDef, GridRenderCellParams } from '@mui/x-data-grid';
@@ -264,7 +264,7 @@ export function AssignmentsPage() {
         <QueryErrorNotice message="The assignments could not be loaded." onRetry={() => void refetch()} />
       ) : (
         <Box component="section" aria-label="Assignment results" sx={tablePanelSx}>
-          <DataGrid
+          <InstructorDataGrid
             rows={data ?? []}
             columns={columns}
             columnVisibilityModel={columnVisibilityModel}

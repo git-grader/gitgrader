@@ -1,13 +1,14 @@
 // Copyright the GitGrader contributors.
 // SPDX-License-Identifier: Apache-2.0
 
+import { MemoryRouter } from 'react-router';
 import { act, renderHook } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import { useServerPagination } from '../src/components/useServerPagination';
 
 describe('useServerPagination', () => {
   it('serializes the selected sort and returns to the first page', () => {
-    const { result } = renderHook(() => useServerPagination());
+    const { result } = renderHook(() => useServerPagination(), { wrapper: MemoryRouter });
 
     act(() => result.current.setPaginationModel({ page: 2, pageSize: 20 }));
     act(() => result.current.setSortModel([{ field: 'name', sort: 'asc' }]));

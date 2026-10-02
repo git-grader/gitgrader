@@ -1,6 +1,8 @@
 // Copyright the GitGrader contributors.
 // SPDX-License-Identifier: Apache-2.0
 
+import { useLocation } from 'react-router';
+import { useTableSettings } from './tablePreferences';
 import { useState } from "react";
 import type { GridSortModel } from "@mui/x-data-grid";
 
@@ -37,8 +39,10 @@ interface ServerPagination {
  * @returns the model to give a DataGrid, its setter, and the query parameters to send
  */
 export function useServerPagination(pageSize = 20): ServerPagination {
-  const [paginationModel, setPaginationModel] = useState({ page: 0, pageSize });
-  const [sortModel, setSortModelState] = useState<GridSortModel>([]);
+  const { pathname } = useLocation();
+  const { settings } = useTableSettings(pathname, pageSize === 50 || pageSize === 100 ? pageSize : 20);
+  const [paginationModel, setPaginationModel] = useState<{ page: number; pageSize: number }>({ page: 0, pageSize: settings.model.pageSize });
+  const [sortModel, setSortModelState] = useState<GridSortModel>(settings.model.sort);
 
   function setSortModel(model: GridSortModel) {
     setPaginationModel((current) => ({ ...current, page: 0 }));

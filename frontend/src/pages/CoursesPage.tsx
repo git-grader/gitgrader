@@ -14,7 +14,7 @@ import { useIsNarrow } from '../components/responsiveColumns';
 import { CourseStatusChip } from '../components/CourseStatusChip';
 import { fromZonedInputValue } from '../components/localDateTime';
 import type { CourseView, CourseDefinition } from '../api';
-import { DataGrid } from '@mui/x-data-grid';
+import { InstructorDataGrid } from '../components/InstructorDataGrid';
 import type { GridColDef, GridRenderCellParams } from '@mui/x-data-grid';
 import { Box, Chip, Typography, CircularProgress, Button, Dialog, DialogTitle, DialogContent, DialogActions, TextField, FormControlLabel, Switch, FormControl, InputLabel, Select, MenuItem } from '@mui/material';
 
@@ -214,7 +214,7 @@ export function CoursesPage() {
         <QueryErrorNotice message="The courses could not be loaded." onRetry={() => void refetch()} />
       ) : (
         <Box component="section" aria-label="Course results" sx={tablePanelSx}>
-          <DataGrid
+          <InstructorDataGrid
             rows={data ?? []}
             columns={isNarrow ? [narrowColumn] : wideColumns}
             {...(isNarrow ? { getRowHeight: () => 'auto' as const } : {})}

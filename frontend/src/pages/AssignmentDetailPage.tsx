@@ -4,13 +4,16 @@
 import { useState } from 'react';
 import { useParams } from 'react-router';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { api } from '../api';
+import { api, AssignmentDefinitionSchema } from '../api';
 import { queryKeys } from '../api/queryKeys';
 import { QueryErrorNotice } from '../components/QueryErrorNotice';
 import { AssignmentStatusChip } from '../components/AssignmentStatusChip';
 import { MutationErrorAlert } from '../components/MutationErrorAlert';
 import { SearchableChoice } from '../components/SearchableChoice';
+import { AssignmentReadiness } from '../components/AssignmentReadiness';
+import { DuplicateAssignment } from '../components/DuplicateAssignment';
 import { PageHeader } from '../components/PageHeader';
+import { numberInputValue, parseNumberInput } from '../components/numberInput';
 import { fromZonedInputValue, toZonedInputValue } from '../components/localDateTime';
 import type { AssignmentDefinition, AssignmentDetail } from '../api';
 import { Typography, CircularProgress, Button, Paper, Alert, Tooltip, Box, TextField, Table, TableHead, TableRow, TableCell, TableBody, TableContainer } from '@mui/material';
@@ -29,19 +32,24 @@ interface ConfigurationFormProps {
 function ConfigurationForm({ assignment, materials, isDraft, pending, onSave }: ConfigurationFormProps) {
   // Seeded from the assignment rather than synchronised in an effect; the parent
   // remounts this form via a key when a different assignment is opened.
-  const [form, setForm] = useState<Partial<AssignmentDefinition>>(() => ({
+  const [form, setForm] = useState<{ [K in keyof AssignmentDefinition]?: AssignmentDefinition[K] | undefined }>(() => ({
     ...assignment,
     opensAt: toZonedInputValue(assignment.opensAt, assignment.timezone),
     dueAt: toZonedInputValue(assignment.dueAt, assignment.timezone)
   }));
 
   const disabled = !isDraft || pending;
+  const [validationError, setValidationError] = useState('');
 
   const handleSave = (event: React.SyntheticEvent) => {
     event.preventDefault();
+    if (form.maxPoints === undefined || form.maxPoints < 0 || form.testCount === undefined || !Number.isInteger(form.testCount) || form.testCount < 0 || form.passThreshold === undefined || form.passThreshold < 0 || form.passThreshold > 100) {
+      setValidationError('Enter non-negative points and test count, and a pass threshold from 0 to 100.'); return;
+    }
+    setValidationError('');
     // The two dates mean wall-clock time in the assignment's own zone, not the reader's.
     const zone = form.timezone ?? assignment.timezone;
-    onSave({
+    onSave(AssignmentDefinitionSchema.parse({
       ...assignment,
       ...form,
       courseId: assignment.courseId,
@@ -55,13 +63,17 @@ function ConfigurationForm({ assignment, materials, isDraft, pending, onSave }: 
       templateVersionId: form.templateVersionId || null,
       testSuiteVersionId: form.testSuiteVersionId || null,
       runtimeId: form.runtimeId || null,
-      networkEnabled: form.networkEnabled ?? assignment.networkEnabled
-    });
+      networkEnabled: form.networkEnabled ?? assignment.networkEnabled,
+      maxPoints: form.maxPoints, testCount: form.testCount, passThreshold: form.passThreshold,
+      allowLate: form.allowLate ?? assignment.allowLate
+    }));
   };
 
   return (
-    <Paper component="form" onSubmit={handleSave} sx={{ p: 3, display: 'flex', flexDirection: 'column', gap: 3 }}>
+    <Paper id="assignment-configuration" tabIndex={-1} component="form" onSubmit={handleSave} sx={{ p: 3, display: 'flex', flexDirection: 'column', gap: 3, scrollMarginTop: 96 }}>
       <Typography variant="h6">Configuration</Typography>
+      {validationError && <Alert severity="error">{validationError}</Alert>}
+      <Typography variant="body2" color="text.secondary">Dates use {assignment.timezone || 'your local timezone'}.</Typography>
 
       <SearchableChoice label="Template Version" value={form.templateVersionId ?? ''} options={materials.publishedTemplateVersions}
         onChange={(value) => setForm({ ...form, templateVersionId: value })} disabled={disabled} loading={materials.isLoading} />
@@ -89,6 +101,12 @@ function ConfigurationForm({ assignment, materials, isDraft, pending, onSave }: 
           onChange={(event) => setForm({ ...form, dueAt: event.target.value })}
           disabled={disabled}
         />
+      </Box>
+
+      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(3, minmax(0, 1fr))' }, gap: 2 }}>
+        <TextField label="Max Points" type="number" required value={numberInputValue(form.maxPoints)} disabled={disabled} onChange={event => setForm({ ...form, maxPoints: parseNumberInput(event.target.value) })} />
+        <TextField label="Test Count" type="number" required value={numberInputValue(form.testCount)} disabled={disabled} onChange={event => setForm({ ...form, testCount: parseNumberInput(event.target.value) })} />
+        <TextField label="Pass Threshold" type="number" required value={numberInputValue(form.passThreshold)} disabled={disabled} onChange={event => setForm({ ...form, passThreshold: parseNumberInput(event.target.value) })} />
       </Box>
 
       <Box sx={{ display: 'flex', justifyContent: 'flex-end' }}>
@@ -193,6 +211,7 @@ export function AssignmentDetailPage() {
       <PageHeader title={assignment.title} description={`Key: ${assignment.assignmentKey}`} actions={
         <>
           <AssignmentStatusChip status={assignment.status} />
+          <DuplicateAssignment assignment={assignment} />
         <Tooltip title={publishTooltip}>
           <span>
             <Button
@@ -211,6 +230,8 @@ export function AssignmentDetailPage() {
       <MutationErrorAlert error={error} />
       {!isDraft && <Alert severity="info">Published assignments are immutable. Configuration cannot be changed.</Alert>}
       {updateMutation.isSuccess && <Alert severity="success">Assignment updated successfully.</Alert>}
+
+      <AssignmentReadiness assignment={assignment} materials={materials} />
 
       <ConfigurationForm
         key={assignment.id}

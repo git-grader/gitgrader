@@ -27,6 +27,7 @@ import {
 } from '@mui/material';
 import MenuIcon from '@mui/icons-material/Menu';
 import LogoutIcon from '@mui/icons-material/Logout';
+import { PreferenceUserContext } from './tablePreferences';
 import { useMeta } from './MetaProvider';
 import PrimaryMark from '../assets/brand/gitgrader-mark-primary.svg';
 import ReversedMark from '../assets/brand/gitgrader-mark-reversed.svg';
@@ -43,6 +44,7 @@ const MAIN_NAV: readonly NavItem[] = [
   { label: 'Students', to: '/students' },
   { label: 'Courses', to: '/courses' },
   { label: 'Assignments', to: '/assignments' },
+  { label: 'Deadlines', to: '/deadlines' },
   { label: 'Materials', to: '/materials' },
   { label: 'Submissions', to: '/submissions' }
 ];
@@ -330,7 +332,7 @@ export function InstructorLayout() {
       >
         <Toolbar sx={{ flexShrink: 0 }} />
         <Box sx={{ display: 'flex', flexDirection: 'column', flex: '1 0 auto', minHeight: 0, minWidth: 0, width: '100%', maxWidth: 1600, mx: 'auto' }}>
-          <Outlet />
+          <PreferenceUserContext.Provider value={me.username}><Outlet /></PreferenceUserContext.Provider>
         </Box>
       </Box>
     </Box>

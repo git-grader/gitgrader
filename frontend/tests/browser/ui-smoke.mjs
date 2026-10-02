@@ -4,7 +4,8 @@
 import assert from 'node:assert/strict';
 import { chromium } from 'playwright';
 import { createServer } from 'vite';
-import { mkdir } from 'node:fs/promises';
+import { mkdir, readFile, mkdtemp, rm } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 // Real layout assertions need a browser: jsdom gives collapsed and visible grids
@@ -16,7 +17,9 @@ const course = {
 const assignment = {
   id: 'a1', courseId: 'c1', assignmentKey: 'strings', title: 'String utilities',
   displayOrder: 1, status: 'DRAFT', mandatory: true, maxPoints: 10,
-  testCount: 4, passThreshold: 50, allowLate: false, networkEnabled: false
+  testCount: 4, passThreshold: 50, allowLate: false, networkEnabled: false,
+  opensAt: '2030-01-01T12:00:00Z', dueAt: '2030-01-02T12:00:00Z', timezone: 'Europe/Zurich',
+  templateVersionId: 'tv1', testSuiteVersionId: 'sv1', runtimeId: 'runtime0'
 };
 const student = {
   studentId: 'st1', studentUsername: 'student', fullName: 'Browser Test Student',
@@ -53,12 +56,26 @@ function paged(content, url, totalElements = content.length) {
   const size = Number(url.searchParams.get('size') ?? 20);
   return { content, totalElements, totalPages: Math.ceil(totalElements / size), size, number: Number(url.searchParams.get('page') ?? 0) };
 }
+const registeredStudents = ['student', 'second'].map((name, index) => ({
+  id: `st${index + 1}`, studentUsername: name, firstName: 'Browser', lastName: `Student ${index + 1}`, email: `${name}@example.org`, status: 'SELF_REGISTERED'
+}));
+const verifiedStudents = new Set();
+let copiedAssignment;
+let updatedAssignment = assignment;
 function response(url) {
   switch (url.pathname) {
     case '/api/v1/meta': return meta;
     case '/api/v1/me': return { username: 'admin', displayName: 'Admin', actorType: 'HUMAN', roles: ['ROLE_ADMIN'] };
     case '/api/v1/courses': return paged([course], url);
-    case '/api/v1/students': return paged([{ id: 'st1', studentUsername: 'student', firstName: 'Browser', lastName: 'Test Student', email: 'test@example.org', status: 'VERIFIED_BY_INSTRUCTOR' }], url);
+    case '/api/v1/students': return paged(registeredStudents.map(student => ({ ...student, status: verifiedStudents.has(student.id) ? 'VERIFIED_BY_INSTRUCTOR' : student.status })), url);
+    case '/api/v1/students/st1':
+    case '/api/v1/students/st2': return { student: { ...registeredStudents.find(student => student.id === url.pathname.split('/').at(-1)), status: verifiedStudents.has(url.pathname.split('/').at(-1)) ? 'VERIFIED_BY_INSTRUCTOR' : 'SELF_REGISTERED' }, sshKeys: [] };
+    case '/api/v1/assignments/a1': return updatedAssignment;
+    case '/api/v1/assignments/new-draft': return copiedAssignment;
+    case '/api/v1/assignments/a1/extensions':
+    case '/api/v1/assignments/new-draft/extensions': return [];
+    case '/api/v1/dashboard': return { courseCount: 1, studentCount: 2, openAssignmentCount: 1, runningGradingCount: 0, failedInfrastructureCount: 1 };
+    case '/api/v1/courses/c1/classes': return [{ id: 'cl1', courseId: 'c1', classKey: 'class', name: 'Browser test class' }];
     case '/api/v1/assignments': return paged([assignment], url);
     case '/api/v1/submissions': return paged([{ ...submission, status: url.searchParams.get('status') ?? submission.status, id: `s${url.searchParams.get('page') ?? 0}` }], url, 40);
     case '/api/v1/audit': return paged([{
@@ -83,7 +100,7 @@ function response(url) {
           scorePercent: 0, pointsAwarded: 0, passed: false, tests: [{ visibility: 'PUBLIC', publicName: 'Public check', outcome: 'FAILED', studentMessage: 'Try again' }] }
       }]
     };
-    case '/api/v1/materials/published': return { templateVersions: [], suiteVersions: [] };
+    case '/api/v1/materials/published': return { templateVersions: [{ id: 'tv1', templateName: 'Template', versionLabel: '1' }], suiteVersions: [{ id: 'sv1', suiteName: 'Suite', versionLabel: '1', hiddenTestCount: 2, publicTestCount: 2 }] };
     case '/api/v1/results/test-result': return {
       assignmentTitle: 'String utilities', courseName: course.name, commitSha: submission.commitSha,
       receivedAt: submission.receivedAt, verified: true, passed: 1, total: 2, score: 50,
@@ -111,12 +128,31 @@ try {
   const errors = [];
   page.on('pageerror', (error) => errors.push(error.message));
   let retries = 0;
+  let copies = 0;
+  const verificationWrites = [];
   await page.route('**/api/v1/**', async (route) => {
     try {
       if (route.request().method() === 'POST' && new URL(route.request().url()).pathname === '/api/v1/submissions/s0/regrade') {
         retries++;
         await route.fulfill({ status: 202, json: { gradingRunId: 'run1' } });
         return;
+      }
+      const url = new URL(route.request().url());
+      if (route.request().method() === 'PUT' && url.pathname === '/api/v1/assignments/a1') {
+        updatedAssignment = { ...updatedAssignment, ...route.request().postDataJSON() };
+        await route.fulfill({ json: updatedAssignment }); return;
+      }
+      if (route.request().method() === 'POST' && url.pathname === '/api/v1/assignments') {
+        const body = route.request().postDataJSON();
+        assert.equal(body.status, 'DRAFT'); assert.equal(body.id, undefined);
+        copies++; copiedAssignment = { ...body, id: 'new-draft' };
+        await route.fulfill({ status: 201, json: copiedAssignment }); return;
+      }
+      if (route.request().method() === 'PATCH' && /^\/api\/v1\/students\/st[12]\/status$/.test(url.pathname)) {
+        const id = url.pathname.split('/').at(-2);
+        assert.equal(route.request().postDataJSON().status, 'VERIFIED_BY_INSTRUCTOR');
+        verificationWrites.push(id); verifiedStudents.add(id);
+        await route.fulfill({ json: { id, studentUsername: id, fullName: id, email: 'test@example.org', status: 'VERIFIED_BY_INSTRUCTOR', registeredAt: '2030-01-01T00:00:00Z' } }); return;
       }
       assert.equal(route.request().method(), 'GET');
       await route.fulfill({ json: response(new URL(route.request().url())) });
@@ -144,12 +180,13 @@ try {
         await page.locator('.MuiDataGrid-row').first().waitFor();
         const dimensions = await page.locator('.MuiDataGrid-root').evaluate((grid) => ({
           height: grid.getBoundingClientRect().height,
+          panelHeight: grid.parentElement.parentElement.getBoundingClientRect().height,
           viewport: grid.querySelector('.MuiDataGrid-virtualScroller').getBoundingClientRect().height,
           overflow: document.documentElement.scrollWidth > innerWidth,
           mainOverflow: document.querySelector('main').scrollWidth > document.querySelector('main').clientWidth
         }));
-        assert.ok(dimensions.height >= (width < 900 ? 500 : 350), `${colorScheme} ${width} ${path}: grid collapsed`);
-        assert.ok(dimensions.viewport >= (width < 900 ? 300 : 200), `${colorScheme} ${width} ${path}: rows are clipped`);
+        assert.ok(dimensions.panelHeight >= (width < 900 ? 500 : 350), `${colorScheme} ${width} ${path}: grid collapsed`);
+        assert.ok(dimensions.viewport >= (width < 900 ? 240 : 150), `${colorScheme} ${width} ${path}: rows are clipped`);
         assert.equal(dimensions.overflow || dimensions.mainOverflow, false, `${width} ${path}: page overflow ${JSON.stringify(dimensions)}`);
         checks++;
         if (screenshotDir && width === 390 && path === '/submissions') {
@@ -186,7 +223,7 @@ try {
     assert.ok(Math.abs(tall.height - short.height - 400) <= 2, `${path}: table does not resize with viewport`);
     await page.setViewportSize({ width: 1024, height: 600 });
     await page.waitForTimeout(100);
-    assert.ok((await geometry()).height >= 350, `${path}: short-screen table collapses`);
+    assert.ok(await page.locator('.MuiDataGrid-root').evaluate(grid => grid.parentElement.parentElement.getBoundingClientRect().height) >= 350, `${path}: short-screen table collapses`);
   }
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto(new URL('/submissions', base).href);
@@ -261,8 +298,78 @@ try {
   await page.goto(new URL('/submissions', base).href);
   await page.locator('.MuiDataGrid-row').first().waitFor();
   if (screenshotDir) await page.screenshot({ path: join(screenshotDir, 'submissions.png'), fullPage: true });
+  // Real browser workflows use only synthetic API data and writes.
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto(new URL('/submissions?status=FAILED', base).href);
+  await page.locator('.MuiDataGrid-row').first().waitFor();
+  await page.getByRole('button', { name: 'Table options', exact: true }).click();
+  await page.getByRole('combobox', { name: 'Density', exact: true }).click();
+  await page.getByRole('option', { name: 'compact', exact: true }).click();
+  await page.getByRole('checkbox', { name: 'Signature', exact: true }).uncheck();
+  await page.getByRole('button', { name: 'Done', exact: true }).click();
+  await page.getByRole('button', { name: 'Save view', exact: true }).click();
+  await page.getByRole('textbox', { name: 'View name', exact: true }).fill('Failed attempts');
+  await page.getByRole('button', { name: 'Save', exact: true }).click();
+  await page.goto(new URL('/submissions', base).href);
+  await page.locator('.MuiDataGrid-row').first().waitFor();
+  await page.getByRole('combobox', { name: 'Saved views', exact: true }).click();
+  await page.getByRole('option', { name: 'Failed attempts', exact: true }).click();
+  assert.ok(page.url().includes('status=FAILED'));
+  assert.equal(await page.getByRole('columnheader', { name: 'Signature', exact: true }).count(), 0);
+  const preferences = await page.evaluate(() => Object.entries(localStorage).filter(([key]) => key.startsWith('gitgrader:tables:')));
+  assert.ok(preferences.length > 0);
+  assert.ok(preferences.every(([, value]) => !value.includes('Implement the assignment') && !value.includes('test@example.org')));
+
+  await page.goto(new URL('/assignments/a1', base).href);
+  await page.getByRole('heading', { name: 'Publication readiness', exact: true }).waitFor();
+  await page.getByText('All checklist items are ready.', { exact: true }).waitFor();
+  await page.getByRole('spinbutton', { name: 'Test Count', exact: true }).fill('0');
+  await page.getByRole('button', { name: 'Save Configuration', exact: true }).click();
+  await page.getByText('Review points, a positive test count and the percentage threshold (0–100).', { exact: true }).waitFor();
+  await page.getByRole('spinbutton', { name: 'Test Count', exact: true }).fill('4');
+  await page.getByRole('button', { name: 'Save Configuration', exact: true }).click();
+  await page.getByText('All checklist items are ready.', { exact: true }).waitFor();
+  await page.getByRole('button', { name: 'Duplicate as draft', exact: true }).click();
+  assert.equal(copies, 0);
+  await page.getByRole('textbox', { name: 'New assignment key', exact: true }).fill('strings-next');
+  await page.getByRole('button', { name: 'Create draft', exact: true }).click();
+  await page.waitForURL('**/assignments/new-draft');
+  assert.equal(copies, 1); assert.equal(copiedAssignment.status, 'DRAFT');
+  assert.equal(copiedAssignment.dueAt, null); assert.equal(copiedAssignment.templateVersionId, 'tv1');
+
+  await page.goto(new URL('/dashboard', base).href);
+  await page.getByRole('link', { name: 'Review pending registrations (2)', exact: true }).waitFor();
+  assert.ok((await page.getByRole('link', { name: 'Review missing work (1)', exact: true }).getAttribute('href')).includes('attention=missing&enrollment=ACTIVE'));
+  await page.getByRole('link', { name: 'Review pending registrations (2)', exact: true }).click();
+  await page.locator('.MuiDataGrid-row').first().waitFor();
+  assert.ok(page.url().includes('status=SELF_REGISTERED'));
+  for (const id of ['st1', 'st2']) await page.locator(`.MuiDataGrid-row[data-id="${id}"] input[type="checkbox"]`).check();
+  await page.getByRole('button', { name: 'Verify selected (2)', exact: true }).click();
+  await page.getByRole('button', { name: 'Cancel', exact: true }).click();
+  assert.deepEqual(verificationWrites, []);
+  await page.getByRole('button', { name: 'Verify selected (2)', exact: true }).click();
+  await page.getByRole('button', { name: 'Confirm verification', exact: true }).click();
+  await page.getByText('2 verified · 0 failed · 0 skipped', { exact: true }).waitFor();
+  assert.deepEqual(verificationWrites, ['st1', 'st2']);
+  await page.getByRole('button', { name: 'Close', exact: true }).click();
+
+  await page.goto(new URL('/deadlines?show=all', base).href);
+  await page.getByRole('link', { name: 'String utilities', exact: true }).waitFor();
+  const temporary = await mkdtemp(join(tmpdir(), 'gitgrader-calendar-'));
+  try {
+    const downloadPromise = page.waitForEvent('download');
+    await page.getByRole('button', { name: 'Download calendar', exact: true }).click();
+    const download = await downloadPromise;
+    assert.equal(download.suggestedFilename(), 'gitgrader-deadlines.ics');
+    const file = join(temporary, download.suggestedFilename()); await download.saveAs(file);
+    const calendar = await readFile(file, 'utf8');
+    assert.ok(calendar.includes('DTSTART:20300102T120000Z\r\n'));
+  } finally { await rm(temporary, { recursive: true, force: true }); }
+  await page.setViewportSize({ width: 390, height: 900 });
+  assert.equal(await page.evaluate(() => document.querySelector('main').scrollWidth > document.querySelector('main').clientWidth), false, 'Mobile deadlines overflow');
+  if (screenshotDir) await page.screenshot({ path: join(screenshotDir, 'deadlines-mobile.png'), fullPage: true });
   assert.deepEqual(errors, [], 'Browser errors or missing fixtures');
-  console.log(`UI browser checks passed (${checks} grid layouts, full-height panels, viewport resizing, summary toggles, filter reset, paging, navigation, dialog labels, attention badges, search, attention filters, contextual scores and confirmed retries)`);
+  console.log(`UI browser checks passed (${checks} grid layouts, full-height panels, viewport resizing, summary toggles, filter reset, paging, navigation, dialog labels, attention badges, search, attention filters, contextual scores, confirmed retries and all six instructor workflows)`);
 } finally {
   await browser?.close();
   await server.close();

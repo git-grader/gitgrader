@@ -11,7 +11,7 @@ import { MutationErrorAlert } from '../components/MutationErrorAlert';
 import { PageHeader } from '../components/PageHeader';
 import { tablePageSx, tablePanelSx } from '../components/pageLayout';
 import { Box, Link, Chip, Typography, CircularProgress, Select, MenuItem, InputLabel, FormControl, Alert, Button, Dialog, DialogTitle, DialogContent, DialogActions } from '@mui/material';
-import { DataGrid } from '@mui/x-data-grid';
+import { InstructorDataGrid } from '../components/InstructorDataGrid';
 import type { GridColDef, GridRenderCellParams } from '@mui/x-data-grid';
 import { SubmissionStatusChip } from '../components/SubmissionStatusChip';
 import { useIsNarrow } from '../components/responsiveColumns';
@@ -257,7 +257,7 @@ export function SubmissionsPage() {
         <QueryErrorNotice message="The submissions could not be loaded." onRetry={() => void refetch()} />
       ) : (
         <Box component="section" aria-label="Submission results" sx={tablePanelSx}>
-          <DataGrid
+          <InstructorDataGrid
             loading={isFetching}
             rows={data?.content ?? []}
             columns={isNarrow ? [narrowColumn] : wideColumns}

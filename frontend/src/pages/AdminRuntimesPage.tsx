@@ -11,7 +11,7 @@ import { MutationErrorAlert, problemFieldErrors } from '../components/MutationEr
 import { PageHeader } from '../components/PageHeader';
 import { tablePageSx, tablePanelSx } from '../components/pageLayout';
 import { useIsNarrow } from '../components/responsiveColumns';
-import { DataGrid } from '@mui/x-data-grid';
+import { InstructorDataGrid } from '../components/InstructorDataGrid';
 import type { GridColDef, GridRenderCellParams } from '@mui/x-data-grid';
 import {
   Box, Typography, CircularProgress, Button, Dialog, DialogTitle,
@@ -193,7 +193,7 @@ export function AdminRuntimesPage() {
         <Alert severity="info">No runtimes configured. At least one runtime is required to publish assignments.</Alert>
       ) : (
         <Box component="section" aria-label="Runtime results" sx={tablePanelSx}>
-          <DataGrid
+          <InstructorDataGrid
             rows={runtimes}
             columns={isNarrow ? [narrowColumn] : wideColumns}
             {...(isNarrow ? { getRowHeight: () => 'auto' as const } : {})}

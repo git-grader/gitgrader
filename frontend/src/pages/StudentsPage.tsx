@@ -2,14 +2,16 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Link as RouterLink, useNavigate } from 'react-router';
+import { Link as RouterLink, useNavigate, useSearchParams } from 'react-router';
 import { api, getAllPages } from '../api';
 import { queryKeys } from '../api/queryKeys';
 import { QueryErrorNotice } from '../components/QueryErrorNotice';
 import { PageHeader } from '../components/PageHeader';
 import { tablePageSx, tablePanelSx } from '../components/pageLayout';
 import { Box, Link, Typography, CircularProgress, Button, TextField, FormControl, InputLabel, Select, MenuItem } from '@mui/material';
-import { DataGrid } from '@mui/x-data-grid';
+import { InstructorDataGrid } from '../components/InstructorDataGrid';
+import { BulkVerification } from '../components/BulkVerification';
+import type { GridRowSelectionModel } from '@mui/x-data-grid';
 import { StudentStatusChip } from '../components/StudentStatusChip';
 import { useIsNarrow } from '../components/responsiveColumns';
 import { useMemo, useState } from 'react';
@@ -21,8 +23,16 @@ const STUDENT_STATUSES = ['', 'SELF_REGISTERED', 'VERIFIED_BY_INSTRUCTOR', 'SUSP
 export function StudentsPage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const [search, setSearch] = useState('');
-  const [statusFilter, setStatusFilter] = useState<string>('');
+  const [selection, setSelection] = useState<GridRowSelectionModel>({ type: 'include', ids: new Set() });
+  const [bulkBusy, setBulkBusy] = useState(false);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const search = searchParams.get('q') ?? '';
+  const statusFilter = searchParams.get('status') ?? '';
+  function setFilter(key: string, value: string) {
+    const next = new URLSearchParams(searchParams);
+    if (value) next.set(key, value); else next.delete(key);
+    setSearchParams(next, { replace: true });
+  }
   const archiveMutation = useMutation({
     mutationFn: (id: string) => api.archiveStudent(id),
     onSuccess: () => { void queryClient.invalidateQueries({ queryKey: ['students', 'list'] }); }
@@ -65,6 +75,7 @@ export function StudentsPage() {
     return <QueryErrorNotice message="The student list could not be loaded." onRetry={() => void refetch()} />;
   }
 
+  const mutationsBusy = bulkBusy || archiveMutation.isPending || restoreMutation.isPending || verifyMutation.isPending || suspendMutation.isPending;
   const wideColumns: GridColDef[] = [
     {
       field: 'studentUsername', headerName: 'Student ID / Username', width: 190,
@@ -92,7 +103,7 @@ export function StudentsPage() {
         const row = params.row;
         if (row.status === 'ARCHIVED') {
           return (
-            <Button size="small" variant="outlined" disabled={restoreMutation.isPending}
+            <Button size="small" variant="outlined" disabled={mutationsBusy}
               onClick={(event) => {
                 event.stopPropagation();
                 if (window.confirm(`Restore ${row.firstName} ${row.lastName} so they can submit again?`)) restoreMutation.mutate(row.id);
@@ -107,23 +118,23 @@ export function StudentsPage() {
             onClick={(event) => event.stopPropagation()}
           >
             {(row.status === 'SELF_REGISTERED') && (
-              <Button size="small" variant="outlined" disabled={verifyMutation.isPending}
+              <Button size="small" variant="outlined" disabled={mutationsBusy}
                 onClick={() => verifyMutation.mutate(row.id)}>
                 Verify
               </Button>
             )}
             {row.status !== 'SUSPENDED' ? (
-              <Button size="small" variant="outlined" color="warning" disabled={suspendMutation.isPending}
+              <Button size="small" variant="outlined" color="warning" disabled={mutationsBusy}
                 onClick={() => { if (window.confirm(`Suspend ${row.firstName} ${row.lastName}? Pushes will be refused until restored.`)) suspendMutation.mutate(row.id); }}>
                 Suspend
               </Button>
             ) : (
-              <Button size="small" variant="outlined" disabled={restoreMutation.isPending}
+              <Button size="small" variant="outlined" disabled={mutationsBusy}
                 onClick={() => restoreMutation.mutate(row.id)}>
                 Restore
               </Button>
             )}
-            <Button size="small" variant="outlined" color="error" disabled={archiveMutation.isPending}
+            <Button size="small" variant="outlined" color="error" disabled={mutationsBusy}
               onClick={() => { if (window.confirm(`Archive ${row.firstName} ${row.lastName}?`)) archiveMutation.mutate(row.id); }}>
               Archive
             </Button>
@@ -164,14 +175,17 @@ export function StudentsPage() {
 
   return (
     <Box sx={tablePageSx}>
-      <PageHeader title="Students" />
+      <PageHeader title="Students" actions={<BulkVerification
+        students={students.filter(student => student.status === 'SELF_REGISTERED' && selection.ids.has(student.id))}
+        disabled={mutationsBusy} onBusyChange={setBulkBusy}
+        onFinished={() => setSelection({ type: 'include', ids: new Set() })} />} />
       <Box sx={{ display: 'flex', gap: 1.5, flexWrap: 'wrap', alignItems: 'center' }}>
         <TextField
           size="small"
           label="Search"
           placeholder="Name, username or email"
           value={search}
-          onChange={(e) => { setSearch(e.target.value); }}
+          onChange={(e) => { setFilter('q', e.target.value); }}
           sx={{ minWidth: { xs: '100%', sm: 260 }, flex: '0 1 320px' }}
         />
         <FormControl size="small" sx={{ minWidth: { xs: '100%', sm: 200 } }}>
@@ -180,7 +194,7 @@ export function StudentsPage() {
             labelId="student-status-filter-label"
             value={statusFilter}
             label="Status Filter"
-            onChange={(e) => { setStatusFilter(e.target.value); }}
+            onChange={(e) => { setFilter('status', e.target.value); }}
           >
             {STUDENT_STATUSES.map((s) => (
               <MenuItem key={s} value={s}>{s === '' ? 'All statuses' : s}</MenuItem>
@@ -189,7 +203,10 @@ export function StudentsPage() {
         </FormControl>
       </Box>
       <Box component="section" aria-label="Student results" sx={tablePanelSx}>
-        <DataGrid
+        <InstructorDataGrid
+          checkboxSelection disableRowSelectionExcludeModel
+          rowSelectionModel={selection} onRowSelectionModelChange={model => { if (!bulkBusy) setSelection(model); }}
+          isRowSelectable={({ row }: { row: StudentSummary }) => !mutationsBusy && row.status === 'SELF_REGISTERED'}
           rows={students}
           columns={isNarrow ? [narrowColumn] : wideColumns}
           {...(isNarrow ? { getRowHeight: () => 'auto' as const } : {})}

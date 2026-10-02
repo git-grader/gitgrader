@@ -39,3 +39,6 @@ attention filters, exact-submission grading results, and confirmed grading retri
 
 Class roster checks cover hiding assignment summaries and resetting combined filters.
 Set `UI_BROWSER_SCREENSHOT_DIR` to a directory to save review screenshots.
+
+See [Instructor workflows](FEATURES.md) for saved views, publication readiness,
+draft duplication, bulk verification, deadlines and dashboard follow-up.

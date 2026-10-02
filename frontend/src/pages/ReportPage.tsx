@@ -11,7 +11,7 @@ import { QueryErrorNotice } from '../components/QueryErrorNotice';
 import { PageHeader } from '../components/PageHeader';
 import { tablePageSx, tablePanelSx } from '../components/pageLayout';
 import { Alert, Box, Typography, CircularProgress, Button, Paper, Stack } from '@mui/material';
-import { DataGrid } from '@mui/x-data-grid';
+import { InstructorDataGrid } from '../components/InstructorDataGrid';
 import { useIsNarrow } from '../components/responsiveColumns';
 import type { GridColDef } from '@mui/x-data-grid';
 import type { CourseReport } from '../api';
@@ -207,7 +207,7 @@ export function ReportPage() {
         </Paper>
       ) : (
         <Box sx={tablePanelSx}>
-          <DataGrid
+          <InstructorDataGrid
             getRowId={(row: StudentRow) => row.studentId}
             rows={data.students}
             columns={isNarrow ? [narrowColumn] : columns}

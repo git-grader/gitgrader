@@ -3,7 +3,8 @@
 
 import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router';
-import { api } from '../api';
+import { classFollowUps } from '../features/followUps';
+import { api, getAllPages } from '../api';
 import type { Class, ClassProgressReport, CourseReport, CourseView } from '../api';
 import { queryKeys } from '../api/queryKeys';
 import { QueryErrorNotice } from '../components/QueryErrorNotice';
@@ -49,6 +50,10 @@ export function DashboardPage() {
     queryKey: queryKeys.dashboard,
     queryFn: api.getDashboard
   });
+  const registrations = useQuery({
+    queryKey: queryKeys.students.list(),
+    queryFn: () => getAllPages(api.getStudents, {}, student => student.id)
+  });
   const coursesQuery = useQuery({
     queryKey: queryKeys.dashboardCourses,
     queryFn: loadCourseSummaries
@@ -70,8 +75,8 @@ export function DashboardPage() {
           itself is broken - as opposed to students failing - was never shown anywhere. */}
       {data.failedInfrastructureCount > 0 && (
         <Alert severity="warning">
-          {data.failedInfrastructureCount} grading {data.failedInfrastructureCount === 1 ? 'run' : 'runs'} could not be
-          carried out. This is a platform fault rather than a student one, and the affected submissions can be graded
+          {data.failedInfrastructureCount} {data.failedInfrastructureCount === 1 ? 'submission' : 'submissions'} could not be graded
+          because of infrastructure errors. This is a platform fault rather than a student one, and the affected submissions can be graded
           again.
           <Button component={Link} to="/submissions?status=INFRASTRUCTURE_ERROR" color="inherit" sx={{ display: 'block', mt: 1 }}>
             Review infrastructure failures
@@ -105,6 +110,36 @@ export function DashboardPage() {
           </Paper>
         </Grid>
       </Grid>
+
+      <Paper component="section" aria-labelledby="follow-up-heading" variant="outlined" sx={{ p: 2.5 }}>
+        <Typography id="follow-up-heading" component="h2" variant="h5" gutterBottom>Instructor follow-up</Typography>
+        <Stack direction="row" useFlexGap sx={{ gap: 1, flexWrap: 'wrap', mb: 2 }}>
+          {registrations.isPending ? <CircularProgress size={20} aria-label="Loading pending registrations" /> : registrations.isError ?
+            <QueryErrorNotice message="Pending registrations could not be loaded." onRetry={() => void registrations.refetch()} /> :
+            <Button component={Link} to="/students?status=SELF_REGISTERED">Review pending registrations ({registrations.data.filter(student => student.status === 'SELF_REGISTERED').length})</Button>}
+          <Button component={Link} to="/submissions?status=INFRASTRUCTURE_ERROR">Review infrastructure errors ({data.failedInfrastructureCount})</Button>
+          <Button component={Link} to="/deadlines">Upcoming deadlines</Button>
+        </Stack>
+        <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>Class follow-up counts cover active enrollments in active courses. A student can appear in more than one class.</Typography>
+        {coursesQuery.isPending ? <CircularProgress size={20} aria-label="Loading class follow-up" /> : coursesQuery.isError ?
+          <Alert severity="warning">Class follow-up could not be loaded. Retry the available course summaries below.</Alert> : <Stack spacing={1}>
+          {coursesQuery.data.flatMap(({ course, classes }) => classes.map(({ courseClass, report }) => {
+            const counts = classFollowUps(report);
+            const base = `/courses/${encodeURIComponent(course.id)}/classes/${encodeURIComponent(courseClass.id)}`;
+            if (!counts.missing && !counts.failed && !counts.infrastructure) return null;
+            return <Box key={`${course.id}/${courseClass.id}`}>
+              <Typography variant="subtitle2">{course.name} · {courseClass.name}</Typography>
+              <Stack direction="row" useFlexGap sx={{ gap: 1, flexWrap: 'wrap' }}>
+                {counts.missing > 0 && <Button component={Link} to={`${base}?attention=missing&enrollment=ACTIVE`}>Review missing work ({counts.missing})</Button>}
+                {counts.failed > 0 && <Button component={Link} to={`${base}?attention=failed&enrollment=ACTIVE`}>Review failed attempts ({counts.failed})</Button>}
+                {counts.infrastructure > 0 && <Button component={Link} to={`${base}?attention=infrastructure&enrollment=ACTIVE`}>Review class infrastructure errors ({counts.infrastructure})</Button>}
+              </Stack>
+            </Box>;
+          }))}
+          {coursesQuery.data.every(({ classes }) => classes.every(({ report }) => Object.values(classFollowUps(report)).every(count => count === 0))) &&
+            <Typography>No missing work or failed attempts in active class enrollments.</Typography>}
+        </Stack>}
+      </Paper>
 
       <Box component="section" aria-labelledby="available-courses-heading">
         <Typography id="available-courses-heading" variant="h5" component="h2" gutterBottom>

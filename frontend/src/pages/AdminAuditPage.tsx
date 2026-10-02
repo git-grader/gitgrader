@@ -1,10 +1,10 @@
 // Copyright the GitGrader contributors.
 // SPDX-License-Identifier: Apache-2.0
 
-import { useState } from 'react';
+import { useSearchParams } from 'react-router';
 import { Box, Chip, CircularProgress, FormControl, InputLabel, MenuItem, Select, Tooltip, Typography, useMediaQuery, useTheme } from '@mui/material';
 import { useQuery } from '@tanstack/react-query';
-import { DataGrid } from '@mui/x-data-grid';
+import { InstructorDataGrid } from '../components/InstructorDataGrid';
 import type { GridColDef, GridRenderCellParams } from '@mui/x-data-grid';
 import { api } from '../api';
 import { queryKeys } from '../api/queryKeys';
@@ -54,8 +54,14 @@ function summariseDetail(detail: unknown): string {
 export function AdminAuditPage() {
   const theme = useTheme();
   const { paginationModel, setPaginationModel, sortModel, setSortModel, params } = useServerPagination();
-  const [eventType, setEventType] = useState('');
-  const [actorType, setActorType] = useState('');
+  const [searchParams, setSearchParams] = useSearchParams();
+  const eventType = searchParams.get('eventType') ?? '';
+  const actorType = searchParams.get('actorType') ?? '';
+  function setFilter(key: string, value: string) {
+    const next = new URLSearchParams(searchParams);
+    if (value) next.set(key, value); else next.delete(key);
+    setSearchParams(next);
+  }
   const { data, isLoading, isError, refetch } = useQuery({
     queryKey: queryKeys.audit(params.page, params.size, eventType, actorType, params.sort),
     queryFn: () =>
@@ -165,7 +171,7 @@ export function AdminAuditPage() {
             labelId="audit-event-type-label"
             value={eventType}
             label="Event Type"
-            onChange={(e) => { setEventType(e.target.value); setPaginationModel({ ...paginationModel, page: 0 }); }}
+            onChange={(e) => { setFilter('eventType', e.target.value); setPaginationModel({ ...paginationModel, page: 0 }); }}
           >
             <MenuItem value=""><em>All events</em></MenuItem>
             {AUDIT_EVENT_TYPES.map((t) => <MenuItem key={t} value={t}>{t}</MenuItem>)}
@@ -177,7 +183,7 @@ export function AdminAuditPage() {
             labelId="audit-actor-type-label"
             value={actorType}
             label="Actor Type"
-            onChange={(e) => { setActorType(e.target.value); setPaginationModel({ ...paginationModel, page: 0 }); }}
+            onChange={(e) => { setFilter('actorType', e.target.value); setPaginationModel({ ...paginationModel, page: 0 }); }}
           >
             <MenuItem value=""><em>All actors</em></MenuItem>
             {AUDIT_ACTOR_TYPES.map((t) => <MenuItem key={t} value={t}>{t}</MenuItem>)}
@@ -195,7 +201,7 @@ export function AdminAuditPage() {
         </Box>
       ) : (
         <Box sx={tablePanelSx}>
-          <DataGrid
+          <InstructorDataGrid
             rows={data?.content ?? []}
             columns={isNarrow ? [summaryColumn] : wideColumns}
             {...(isNarrow ? { getRowHeight: () => 'auto' as const } : {})}

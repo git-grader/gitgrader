@@ -14,6 +14,7 @@ import { MetaProvider } from './components/MetaProvider';
 import { RegistrationPage } from './pages/RegistrationPage';
 import { RegistrationSuccessPage } from './pages/RegistrationSuccessPage';
 import { PublicResultPage } from './pages/PublicResultPage';
+import { DeadlinesPage } from './pages/DeadlinesPage';
 import { DashboardPage } from './pages/DashboardPage';
 import { StudentsPage } from './pages/StudentsPage';
 import { ReportPage } from './pages/ReportPage';
@@ -165,6 +166,7 @@ const router = createBrowserRouter([
         children: [
           { index: true, element: <Navigate to="/dashboard" replace /> },
           { path: 'dashboard', element: <DashboardPage /> },
+          { path: 'deadlines', element: <DeadlinesPage /> },
           { path: 'students', element: <StudentsPage /> },
           { path: 'students/:id', element: <StudentDetailPage /> },
           { path: 'courses', element: <CoursesPage /> },

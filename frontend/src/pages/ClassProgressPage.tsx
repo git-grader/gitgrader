@@ -6,7 +6,7 @@ import { Link as RouterLink, useParams, useSearchParams } from 'react-router';
 import { useQuery } from '@tanstack/react-query';
 import { Alert, Box, Button, Chip, CircularProgress, Collapse, Link, MenuItem, Paper, Stack, TextField, Typography } from '@mui/material';
 import FileDownloadOutlinedIcon from '@mui/icons-material/FileDownloadOutlined';
-import { DataGrid } from '@mui/x-data-grid';
+import { InstructorDataGrid } from '../components/InstructorDataGrid';
 import type { GridColDef } from '@mui/x-data-grid';
 import { api } from '../api';
 import type { ClassProgressReport } from '../api';
@@ -42,9 +42,16 @@ export function ClassProgressPage() {
     setSearchParams(next);
   }
   const [summariesOpen, setSummariesOpen] = useState(true);
-  const [search, setSearch] = useState('');
-  const [progress, setProgress] = useState<ProgressFilter>('all');
-  const [enrollment, setEnrollment] = useState('ALL');
+  const search = searchParams.get('q') ?? '';
+  const progress = searchParams.get('progress') ?? 'all';
+  const enrollment = searchParams.get('enrollment') ?? 'ALL';
+  function setFilter(key: string, value: string, defaultValue = '') {
+    setSearchParams(current => {
+      const next = new URLSearchParams(current);
+      if (value === defaultValue) next.delete(key); else next.set(key, value);
+      return next;
+    }, { replace: true });
+  }
   const [exporting, setExporting] = useState(false);
   const [exportError, setExportError] = useState<string | null>(null);
   const query = useQuery({
@@ -256,17 +263,17 @@ export function ClassProgressPage() {
           <TextField
             label="Search students"
             value={search}
-            onChange={(event) => setSearch(event.target.value)}
+            onChange={(event) => setFilter('q', event.target.value)}
             size="small"
             sx={{ width: { xs: '100%', sm: 'auto' }, minWidth: { sm: 240 } }}
           />
-          <TextField select label="Progress" value={progress} onChange={(event) => setProgress(event.target.value as ProgressFilter)} size="small" sx={{ width: { xs: '100%', sm: 'auto' }, minWidth: { sm: 170 } }}>
+          <TextField select label="Progress" value={progress} onChange={(event) => setFilter('progress', event.target.value, 'all')} size="small" sx={{ width: { xs: '100%', sm: 'auto' }, minWidth: { sm: 170 } }}>
             <MenuItem value="all">All progress</MenuItem>
             <MenuItem value="not-started">Not started</MenuItem>
             <MenuItem value="in-progress">In progress</MenuItem>
             <MenuItem value="complete">Complete</MenuItem>
           </TextField>
-          <TextField select label="Enrollment" value={enrollment} onChange={(event) => setEnrollment(event.target.value)} size="small" sx={{ width: { xs: '100%', sm: 'auto' }, minWidth: { sm: 170 } }}>
+          <TextField select label="Enrollment" value={enrollment} onChange={(event) => setFilter('enrollment', event.target.value, 'ALL')} size="small" sx={{ width: { xs: '100%', sm: 'auto' }, minWidth: { sm: 170 } }}>
             <MenuItem value="ALL">All enrollments</MenuItem>
             <MenuItem value="ACTIVE">Active</MenuItem>
             <MenuItem value="WITHDRAWN">Withdrawn</MenuItem>
@@ -284,7 +291,7 @@ export function ClassProgressPage() {
             {report.assignments.map((assignment) => <MenuItem key={assignment.assignmentId} value={assignment.assignmentKey}>{assignment.title}</MenuItem>)}
           </TextField>
           <Button disabled={!search && progress === 'all' && enrollment === 'ALL' && attention === 'all' && !assignmentKey}
-            onClick={() => { setSearch(''); setProgress('all'); setEnrollment('ALL'); filterAttention('all', ''); }}>
+            onClick={() => { const next = new URLSearchParams(searchParams); for (const key of ['q', 'progress', 'enrollment', 'attention', 'assignment']) next.delete(key); setSearchParams(next); }}>
             Reset filters
           </Button>
         </Stack>
@@ -296,7 +303,7 @@ export function ClassProgressPage() {
           <Typography color="text.secondary">No students match these filters.</Typography>
         ) : (
           <Box sx={tablePanelSx}>
-            <DataGrid
+            <InstructorDataGrid
               aria-label="Class roster"
               getRowHeight={() => 'auto'}
               rows={students}
