@@ -9,6 +9,7 @@ import { queryKeys } from '../api/queryKeys';
 import { QueryErrorNotice } from '../components/QueryErrorNotice';
 import { MutationErrorAlert } from '../components/MutationErrorAlert';
 import { PageHeader } from '../components/PageHeader';
+import { tablePageSx, tablePanelSx } from '../components/pageLayout';
 import { Box, Link, Chip, Typography, CircularProgress, Select, MenuItem, InputLabel, FormControl, Alert, Button, Dialog, DialogTitle, DialogContent, DialogActions } from '@mui/material';
 import { DataGrid } from '@mui/x-data-grid';
 import type { GridColDef, GridRenderCellParams } from '@mui/x-data-grid';
@@ -168,7 +169,7 @@ export function SubmissionsPage() {
   };
 
   return (
-    <Box sx={{ display: 'flex', flexDirection: 'column', flex: '1 1 0', minHeight: 0, gap: 3 }}>
+    <Box sx={tablePageSx}>
       <PageHeader title="Submissions" actions={
         <Box sx={{ display: 'flex', gap: 1.5, flexWrap: 'wrap', width: { xs: '100%', sm: 'auto' } }}>
         <FormControl size="small" sx={{ minWidth: { xs: '100%', sm: 200 } }}>
@@ -255,7 +256,7 @@ export function SubmissionsPage() {
       ) : isError ? (
         <QueryErrorNotice message="The submissions could not be loaded." onRetry={() => void refetch()} />
       ) : (
-        <Box component="section" aria-label="Submission results" sx={{ height: { xs: 520, md: 600 }, flexShrink: 0, width: '100%', minWidth: 0 }}>
+        <Box component="section" aria-label="Submission results" sx={tablePanelSx}>
           <DataGrid
             loading={isFetching}
             rows={data?.content ?? []}

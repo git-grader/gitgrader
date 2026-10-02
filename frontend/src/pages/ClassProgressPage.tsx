@@ -4,7 +4,7 @@
 import { useState } from 'react';
 import { Link as RouterLink, useParams, useSearchParams } from 'react-router';
 import { useQuery } from '@tanstack/react-query';
-import { Alert, Box, Button, Chip, CircularProgress, Link, MenuItem, Paper, Stack, TextField, Typography } from '@mui/material';
+import { Alert, Box, Button, Chip, CircularProgress, Collapse, Link, MenuItem, Paper, Stack, TextField, Typography } from '@mui/material';
 import FileDownloadOutlinedIcon from '@mui/icons-material/FileDownloadOutlined';
 import { DataGrid } from '@mui/x-data-grid';
 import type { GridColDef } from '@mui/x-data-grid';
@@ -14,6 +14,7 @@ import { fetchBlob, ApiProblem } from '../api/client';
 import { queryKeys } from '../api/queryKeys';
 import { QueryErrorNotice } from '../components/QueryErrorNotice';
 import { PageHeader } from '../components/PageHeader';
+import { tablePageSx, tablePanelSx } from '../components/pageLayout';
 import { StudentStatusChip } from '../components/StudentStatusChip';
 
 type StudentRow = ClassProgressReport['students'][number];
@@ -40,6 +41,7 @@ export function ClassProgressPage() {
     if (assignment) next.set('assignment', assignment); else next.delete('assignment');
     setSearchParams(next);
   }
+  const [summariesOpen, setSummariesOpen] = useState(true);
   const [search, setSearch] = useState('');
   const [progress, setProgress] = useState<ProgressFilter>('all');
   const [enrollment, setEnrollment] = useState('ALL');
@@ -176,7 +178,7 @@ export function ClassProgressPage() {
   ];
 
   return (
-    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+    <Box sx={tablePageSx}>
       <PageHeader title={report.className} description={`Class ${report.classKey}`} actions={
         <>
           <Button component={RouterLink} to={`/courses/${encodeURIComponent(courseId)}`}>
@@ -211,36 +213,41 @@ export function ClassProgressPage() {
       </Stack>
 
       <Box component="section" aria-labelledby="assignment-results-heading">
-        <Typography id="assignment-results-heading" variant="h6" component="h2" sx={{ mb: 1 }}>
-          Assignment results
-        </Typography>
-        {report.assignments.length === 0 ? (
-          <Typography color="text.secondary">No assignments are available in this course.</Typography>
-        ) : (
-          <Stack spacing={1}>
-            {report.assignments.map((assignment) => (
-              <Paper key={assignment.assignmentId} variant="outlined" sx={{ p: 2 }}>
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', gap: 2, flexWrap: 'wrap' }}>
-                  <Box>
-                    <Typography variant="subtitle1">{assignment.title}</Typography>
-                    <Typography variant="body2" color="text.secondary">
-                      {assignment.testCount} tests · average latest graded result {assignment.averagePercent.toFixed(1)}%
-                    </Typography>
+        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 1, mb: 1 }}>
+          <Typography id="assignment-results-heading" variant="h6" component="h2">Assignment results</Typography>
+          <Button aria-expanded={summariesOpen} aria-controls="assignment-summaries" onClick={() => setSummariesOpen((open) => !open)}>
+            {summariesOpen ? 'Hide summaries' : 'Show summaries'}
+          </Button>
+        </Box>
+        <Collapse in={summariesOpen} id="assignment-summaries" unmountOnExit>
+          {report.assignments.length === 0 ? (
+            <Typography color="text.secondary">No assignments are available in this course.</Typography>
+          ) : (
+            <Stack spacing={1}>
+              {report.assignments.map((assignment) => (
+                <Paper key={assignment.assignmentId} variant="outlined" sx={{ p: 2 }}>
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', gap: 2, flexWrap: 'wrap' }}>
+                    <Box>
+                      <Typography variant="subtitle1">{assignment.title}</Typography>
+                      <Typography variant="body2" color="text.secondary">
+                        {assignment.testCount} tests · average latest graded result {assignment.averagePercent.toFixed(1)}%
+                      </Typography>
+                    </Box>
+                    <Stack direction="row" spacing={1} useFlexGap sx={{ flexWrap: 'wrap' }}>
+                      <Chip size="small" label={`${assignment.passedCount} passed`} color="success" variant="outlined" />
+                      <Chip size="small" label={`${assignment.failedCount} failed`} color="error" variant="outlined" onClick={() => filterAttention('failed', assignment.assignmentKey)} />
+                      <Chip size="small" label={`${assignment.infrastructureErrorCount} infrastructure errors`} color="warning" variant="outlined" onClick={() => filterAttention('infrastructure', assignment.assignmentKey)} />
+                      <Chip size="small" label={`${assignment.notStartedCount} not started`} onClick={() => filterAttention('missing', assignment.assignmentKey)} />
+                    </Stack>
                   </Box>
-                  <Stack direction="row" spacing={1} useFlexGap sx={{ flexWrap: 'wrap' }}>
-                    <Chip size="small" label={`${assignment.passedCount} passed`} color="success" variant="outlined" />
-                    <Chip size="small" label={`${assignment.failedCount} failed`} color="error" variant="outlined" onClick={() => filterAttention('failed', assignment.assignmentKey)} />
-                    <Chip size="small" label={`${assignment.infrastructureErrorCount} infrastructure errors`} color="warning" variant="outlined" onClick={() => filterAttention('infrastructure', assignment.assignmentKey)} />
-                    <Chip size="small" label={`${assignment.notStartedCount} not started`} onClick={() => filterAttention('missing', assignment.assignmentKey)} />
-                  </Stack>
-                </Box>
-              </Paper>
-            ))}
-          </Stack>
-        )}
+                </Paper>
+              ))}
+            </Stack>
+          )}
+        </Collapse>
       </Box>
 
-      <Box component="section" aria-labelledby="roster-heading">
+      <Box component="section" aria-labelledby="roster-heading" sx={{ display: 'flex', flexDirection: 'column', flex: '1 0 auto', '& > *': { flexShrink: 0 } }}>
         <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 2, mb: 1 }}>
           <Typography id="roster-heading" variant="h6" component="h2">Students</Typography>
           <Typography color="text.secondary">{students.length} of {report.students.length} students</Typography>
@@ -272,10 +279,14 @@ export function ClassProgressPage() {
             <MenuItem value="infrastructure">Infrastructure errors</MenuItem>
             <MenuItem value="inactive">Inactive</MenuItem>
           </TextField>
-          <TextField select label="Assignment attention scope" value={assignmentKey} onChange={(event) => filterAttention(attention, event.target.value)} size="small" sx={{ width: { xs: '100%', sm: 'auto' }, minWidth: { sm: 200 } }}>
+          <TextField select label="Assignment attention scope" slotProps={{ select: { displayEmpty: true }, inputLabel: { shrink: true } }} value={assignmentKey} onChange={(event) => filterAttention(attention, event.target.value)} size="small" sx={{ width: { xs: '100%', sm: 'auto' }, minWidth: { sm: 200 } }}>
             <MenuItem value="">All assignments</MenuItem>
             {report.assignments.map((assignment) => <MenuItem key={assignment.assignmentId} value={assignment.assignmentKey}>{assignment.title}</MenuItem>)}
           </TextField>
+          <Button disabled={!search && progress === 'all' && enrollment === 'ALL' && attention === 'all' && !assignmentKey}
+            onClick={() => { setSearch(''); setProgress('all'); setEnrollment('ALL'); filterAttention('all', ''); }}>
+            Reset filters
+          </Button>
         </Stack>
         {report.students.length === 0 ? (
           <Paper variant="outlined" sx={{ p: 4, textAlign: 'center' }}>
@@ -284,7 +295,7 @@ export function ClassProgressPage() {
         ) : students.length === 0 ? (
           <Typography color="text.secondary">No students match these filters.</Typography>
         ) : (
-          <Box sx={{ height: { xs: 520, md: 600 }, flexShrink: 0, width: '100%', minWidth: 0 }}>
+          <Box sx={tablePanelSx}>
             <DataGrid
               aria-label="Class roster"
               getRowHeight={() => 'auto'}

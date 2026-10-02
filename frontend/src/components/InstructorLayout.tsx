@@ -328,8 +328,8 @@ export function InstructorLayout() {
           '&:focus': { outline: 'none' }
         }}
       >
-        <Toolbar />
-        <Box sx={{ width: '100%', maxWidth: 1600, mx: 'auto' }}>
+        <Toolbar sx={{ flexShrink: 0 }} />
+        <Box sx={{ display: 'flex', flexDirection: 'column', flex: '1 0 auto', minHeight: 0, minWidth: 0, width: '100%', maxWidth: 1600, mx: 'auto' }}>
           <Outlet />
         </Box>
       </Box>

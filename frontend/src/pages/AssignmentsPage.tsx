@@ -11,6 +11,7 @@ import { QueryErrorNotice } from '../components/QueryErrorNotice';
 import { MutationErrorAlert, problemFieldErrors } from '../components/MutationErrorAlert';
 import { SearchableChoice } from '../components/SearchableChoice';
 import { PageHeader } from '../components/PageHeader';
+import { tablePageSx, tablePanelSx } from '../components/pageLayout';
 import { fromZonedInputValue } from '../components/localDateTime';
 import { numberInputValue, parseNumberInput } from '../components/numberInput';
 import type { AssignmentDefinition, AssignmentDetail } from '../api';
@@ -205,7 +206,7 @@ export function AssignmentsPage() {
   ], []);
 
   return (
-    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+    <Box sx={tablePageSx}>
       <PageHeader title="Assignments" actions={
         <>
           <FormControl size="small" sx={{ minWidth: { xs: '100%', sm: 200 } }}>
@@ -262,7 +263,7 @@ export function AssignmentsPage() {
       ) : isError ? (
         <QueryErrorNotice message="The assignments could not be loaded." onRetry={() => void refetch()} />
       ) : (
-        <Box component="section" aria-label="Assignment results" sx={{ height: { xs: 520, md: 600 }, width: '100%', minWidth: 0 }}>
+        <Box component="section" aria-label="Assignment results" sx={tablePanelSx}>
           <DataGrid
             rows={data ?? []}
             columns={columns}

@@ -9,6 +9,7 @@ import { queryKeys } from '../api/queryKeys';
 import { QueryErrorNotice } from '../components/QueryErrorNotice';
 import { MutationErrorAlert, problemFieldErrors } from '../components/MutationErrorAlert';
 import { PageHeader } from '../components/PageHeader';
+import { tablePageSx, tablePanelSx } from '../components/pageLayout';
 import { useIsNarrow } from '../components/responsiveColumns';
 import { CourseStatusChip } from '../components/CourseStatusChip';
 import { fromZonedInputValue } from '../components/localDateTime';
@@ -185,7 +186,7 @@ export function CoursesPage() {
   };
 
   return (
-    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+    <Box sx={tablePageSx}>
       <PageHeader title="Courses" actions={
         <>
           <FormControl size="small" sx={{ minWidth: { xs: '100%', sm: 200 } }}>
@@ -212,7 +213,7 @@ export function CoursesPage() {
       ) : isError ? (
         <QueryErrorNotice message="The courses could not be loaded." onRetry={() => void refetch()} />
       ) : (
-        <Box component="section" aria-label="Course results" sx={{ height: { xs: 520, md: 600 }, width: '100%', minWidth: 0 }}>
+        <Box component="section" aria-label="Course results" sx={tablePanelSx}>
           <DataGrid
             rows={data ?? []}
             columns={isNarrow ? [narrowColumn] : wideColumns}

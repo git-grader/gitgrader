@@ -4,6 +4,8 @@
 import assert from 'node:assert/strict';
 import { chromium } from 'playwright';
 import { createServer } from 'vite';
+import { mkdir } from 'node:fs/promises';
+import { join } from 'node:path';
 
 // Real layout assertions need a browser: jsdom gives collapsed and visible grids
 // the same zero-sized rectangles. All responses here are synthetic and offline.
@@ -56,6 +58,7 @@ function response(url) {
     case '/api/v1/meta': return meta;
     case '/api/v1/me': return { username: 'admin', displayName: 'Admin', actorType: 'HUMAN', roles: ['ROLE_ADMIN'] };
     case '/api/v1/courses': return paged([course], url);
+    case '/api/v1/students': return paged([{ id: 'st1', studentUsername: 'student', firstName: 'Browser', lastName: 'Test Student', email: 'test@example.org', status: 'VERIFIED_BY_INSTRUCTOR' }], url);
     case '/api/v1/assignments': return paged([assignment], url);
     case '/api/v1/submissions': return paged([{ ...submission, status: url.searchParams.get('status') ?? submission.status, id: `s${url.searchParams.get('page') ?? 0}` }], url, 40);
     case '/api/v1/audit': return paged([{
@@ -93,6 +96,9 @@ function response(url) {
   }
 }
 
+const screenshotDir = process.env.UI_BROWSER_SCREENSHOT_DIR;
+if (screenshotDir) await mkdir(screenshotDir, { recursive: true });
+
 const server = await createServer({ server: { host: '127.0.0.1', port: 0, open: false } });
 let browser;
 try {
@@ -127,7 +133,7 @@ try {
       }, key: 'test', idx: 0 }, '');
     }
   });
-  const paths = ['/submissions', '/admin/audit', '/reports/course/c1', '/submissions?status=INFRASTRUCTURE_ERROR'];
+  const paths = ['/students', '/courses', '/assignments', '/admin/runtimes', '/submissions', '/admin/audit', '/reports/course/c1', '/submissions?status=INFRASTRUCTURE_ERROR', '/courses/c1/classes/cl1'];
   let checks = 0;
   for (const colorScheme of ['light', 'dark']) {
     await page.emulateMedia({ colorScheme });
@@ -142,10 +148,13 @@ try {
           overflow: document.documentElement.scrollWidth > innerWidth,
           mainOverflow: document.querySelector('main').scrollWidth > document.querySelector('main').clientWidth
         }));
-        assert.ok(dimensions.height >= 500, `${colorScheme} ${width} ${path}: grid collapsed`);
-        assert.ok(dimensions.viewport >= 300, `${colorScheme} ${width} ${path}: rows are clipped`);
-        assert.equal(dimensions.overflow || dimensions.mainOverflow, false, `${width} ${path}: page overflow`);
+        assert.ok(dimensions.height >= (width < 900 ? 500 : 350), `${colorScheme} ${width} ${path}: grid collapsed`);
+        assert.ok(dimensions.viewport >= (width < 900 ? 300 : 200), `${colorScheme} ${width} ${path}: rows are clipped`);
+        assert.equal(dimensions.overflow || dimensions.mainOverflow, false, `${width} ${path}: page overflow ${JSON.stringify(dimensions)}`);
         checks++;
+        if (screenshotDir && width === 390 && path === '/submissions') {
+          await page.screenshot({ path: join(screenshotDir, `mobile-${colorScheme}.png`), fullPage: true });
+        }
       }
       for (const path of ['/result/test-result', '/register/success']) {
         await page.goto(new URL(path, base).href);
@@ -156,6 +165,30 @@ try {
       }
     }
   }
+  for (const path of paths) {
+    await page.setViewportSize({ width: 1440, height: 1600 });
+    await page.goto(new URL(path, base).href);
+    await page.locator('.MuiDataGrid-row').first().waitFor();
+    async function geometry() {
+      return page.locator('.MuiDataGrid-root').evaluate((grid) => ({
+        height: grid.getBoundingClientRect().height,
+        bottom: (grid.closest('section[aria-labelledby="roster-heading"]')?.lastElementChild ?? grid).getBoundingClientRect().bottom,
+        mainScrollHeight: document.querySelector('main').scrollHeight,
+        mainHeight: document.querySelector('main').clientHeight
+      }));
+    }
+    const tall = await geometry();
+    assert.ok(Math.abs(tall.bottom - (1600 - 24)) <= 2, `${path}: table leaves unused page height ${JSON.stringify(tall)}`);
+    assert.ok(tall.mainScrollHeight <= tall.mainHeight + 2, `${path}: desktop page scrolls unnecessarily`);
+    await page.setViewportSize({ width: 1440, height: 1200 });
+    await page.waitForTimeout(100);
+    const short = await geometry();
+    assert.ok(Math.abs(tall.height - short.height - 400) <= 2, `${path}: table does not resize with viewport`);
+    await page.setViewportSize({ width: 1024, height: 600 });
+    await page.waitForTimeout(100);
+    assert.ok((await geometry()).height >= 350, `${path}: short-screen table collapses`);
+  }
+  await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto(new URL('/submissions', base).href);
   await page.locator('.MuiDataGrid-row').first().waitFor();
   await page.getByRole('button', { name: 'Go to next page' }).click();
@@ -212,8 +245,24 @@ try {
   await page.getByRole('button', { name: '1 not started', exact: true }).click();
   await page.getByText('No students match these filters.', { exact: true }).waitFor();
   assert.ok(page.url().includes('attention=missing') && page.url().includes('assignment=strings'));
+  await page.getByRole('button', { name: 'Reset filters', exact: true }).click();
+  await page.getByRole('grid', { name: 'Class roster' }).waitFor();
+  assert.equal(new URL(page.url()).search, '');
+  await page.setViewportSize({ width: 1440, height: 1600 });
+  await page.waitForTimeout(100);
+  const expandedHeight = await page.getByRole('grid').evaluate((grid) => grid.getBoundingClientRect().height);
+  await page.getByRole('button', { name: 'Hide summaries' }).click();
+  await page.getByRole('button', { name: '1 not started', exact: true }).waitFor({ state: 'hidden' });
+  const collapsedHeight = await page.getByRole('grid').evaluate((grid) => grid.getBoundingClientRect().height);
+  assert.ok(collapsedHeight > expandedHeight + 50, 'Hiding summaries does not give space to the roster');
+  if (screenshotDir) await page.screenshot({ path: join(screenshotDir, 'class.png'), fullPage: true });
+  await page.getByRole('button', { name: 'Show summaries' }).click();
+  await page.getByRole('button', { name: '1 not started', exact: true }).waitFor();
+  await page.goto(new URL('/submissions', base).href);
+  await page.locator('.MuiDataGrid-row').first().waitFor();
+  if (screenshotDir) await page.screenshot({ path: join(screenshotDir, 'submissions.png'), fullPage: true });
   assert.deepEqual(errors, [], 'Browser errors or missing fixtures');
-  console.log(`UI browser checks passed (${checks} grid layouts, paging, navigation, dialog labels, attention badges, search, attention filters, contextual scores and confirmed retries)`);
+  console.log(`UI browser checks passed (${checks} grid layouts, full-height panels, viewport resizing, summary toggles, filter reset, paging, navigation, dialog labels, attention badges, search, attention filters, contextual scores and confirmed retries)`);
 } finally {
   await browser?.close();
   await server.close();

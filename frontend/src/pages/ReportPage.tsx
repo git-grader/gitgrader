@@ -9,6 +9,7 @@ import { ApiProblem, fetchBlob } from '../api/client';
 import { queryKeys } from '../api/queryKeys';
 import { QueryErrorNotice } from '../components/QueryErrorNotice';
 import { PageHeader } from '../components/PageHeader';
+import { tablePageSx, tablePanelSx } from '../components/pageLayout';
 import { Alert, Box, Typography, CircularProgress, Button, Paper, Stack } from '@mui/material';
 import { DataGrid } from '@mui/x-data-grid';
 import { useIsNarrow } from '../components/responsiveColumns';
@@ -159,7 +160,7 @@ export function ReportPage() {
   };
 
   return (
-    <Box sx={{ display: 'flex', flexDirection: 'column', flex: '1 1 0', minHeight: 0, gap: 3, minWidth: 0 }}>
+    <Box sx={tablePageSx}>
       <PageHeader title="Course Report" />
 
       <Paper variant="outlined" sx={{ p: { xs: 2, sm: 3 } }}>
@@ -205,7 +206,7 @@ export function ReportPage() {
           <Typography>No enrolled students are included in this course report.</Typography>
         </Paper>
       ) : (
-        <Box sx={{ height: { xs: 520, md: 600 }, flexShrink: 0, width: '100%', minWidth: 0, overflow: 'hidden' }}>
+        <Box sx={tablePanelSx}>
           <DataGrid
             getRowId={(row: StudentRow) => row.studentId}
             rows={data.students}

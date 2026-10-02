@@ -9,6 +9,7 @@ import { queryKeys } from '../api/queryKeys';
 import { QueryErrorNotice } from '../components/QueryErrorNotice';
 import { MutationErrorAlert, problemFieldErrors } from '../components/MutationErrorAlert';
 import { PageHeader } from '../components/PageHeader';
+import { tablePageSx, tablePanelSx } from '../components/pageLayout';
 import { useIsNarrow } from '../components/responsiveColumns';
 import { DataGrid } from '@mui/x-data-grid';
 import type { GridColDef, GridRenderCellParams } from '@mui/x-data-grid';
@@ -181,7 +182,7 @@ export function AdminRuntimesPage() {
   };
 
   return (
-    <Box sx={{ display: 'flex', flexDirection: 'column', flex: '1 1 0', minHeight: 0, gap: 3, minWidth: 0 }}>
+    <Box sx={tablePageSx}>
       <PageHeader title="Runtimes" actions={isAdmin ? (
           <Button variant="contained" onClick={() => setOpen(true)}>New Runtime</Button>
         ) : (
@@ -191,7 +192,7 @@ export function AdminRuntimesPage() {
       {runtimes.length === 0 ? (
         <Alert severity="info">No runtimes configured. At least one runtime is required to publish assignments.</Alert>
       ) : (
-        <Box component="section" aria-label="Runtime results" sx={{ flex: '1 1 0', minHeight: 520, width: '100%', minWidth: 0, overflowX: 'auto' }}>
+        <Box component="section" aria-label="Runtime results" sx={tablePanelSx}>
           <DataGrid
             rows={runtimes}
             columns={isNarrow ? [narrowColumn] : wideColumns}

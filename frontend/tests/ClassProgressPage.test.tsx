@@ -179,3 +179,43 @@ it('scopes follow-up from an assignment summary chip', async () => {
   expect(screen.queryByText('Ada Lovelace')).not.toBeInTheDocument();
   expect(screen.getByRole('combobox', { name: 'Assignment attention scope' })).toHaveTextContent('String utilities');
 });
+
+it('restores the full roster after resetting combined filters', async () => {
+  renderClassPage();
+  const user = userEvent.setup();
+  await screen.findByText('Ada Lovelace');
+  expect(screen.getByRole('button', { name: 'Reset filters' })).toBeDisabled();
+  await user.type(screen.getByRole('textbox', { name: 'Search students' }), 'Ada');
+  await user.click(screen.getByRole('combobox', { name: 'Progress' }));
+  await user.click(screen.getByRole('option', { name: 'In progress' }));
+  await user.click(screen.getByRole('combobox', { name: 'Enrollment' }));
+  await user.click(screen.getByRole('option', { name: 'Active' }));
+  await user.click(screen.getByRole('button', { name: /^1 failed$/ }));
+  expect(screen.queryByText('Grace Hopper')).not.toBeInTheDocument();
+  await user.click(screen.getByRole('button', { name: 'Reset filters' }));
+  expect(screen.getByText('Grace Hopper')).toBeInTheDocument();
+  expect(screen.getByText('Ada Lovelace')).toBeInTheDocument();
+  expect(screen.getByRole('textbox', { name: 'Search students' })).toHaveValue('');
+  expect(screen.getByRole('combobox', { name: 'Progress' })).toHaveTextContent('All progress');
+  expect(screen.getByRole('combobox', { name: 'Enrollment' })).toHaveTextContent('All enrollments');
+  expect(screen.getByRole('combobox', { name: 'Attention' })).toHaveTextContent('All students');
+  expect(screen.getByRole('combobox', { name: 'Assignment attention scope' })).toHaveTextContent('All assignments');
+  expect(screen.getByRole('button', { name: 'Reset filters' })).toBeDisabled();
+});
+
+it('can hide and restore summaries without losing roster filters', async () => {
+  renderClassPage();
+  const user = userEvent.setup();
+  await user.click(await screen.findByRole('button', { name: /^1 failed$/ }));
+  const hide = screen.getByRole('button', { name: 'Hide summaries' });
+  expect(hide).toHaveAttribute('aria-expanded', 'true');
+  await user.click(hide);
+  const show = screen.getByRole('button', { name: 'Show summaries' });
+  expect(show).toHaveAttribute('aria-expanded', 'false');
+  await waitFor(() => expect(screen.queryByRole('button', { name: /^1 failed$/ })).not.toBeInTheDocument());
+  expect(screen.getByText('Ada Lovelace')).toBeInTheDocument();
+  expect(screen.queryByText('Grace Hopper')).not.toBeInTheDocument();
+  await user.click(show);
+  expect(await screen.findByRole('button', { name: /^1 failed$/ })).toBeInTheDocument();
+  expect(screen.getByRole('combobox', { name: 'Attention' })).toHaveTextContent('Latest failed');
+});

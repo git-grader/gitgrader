@@ -7,6 +7,7 @@ import { api, getAllPages } from '../api';
 import { queryKeys } from '../api/queryKeys';
 import { QueryErrorNotice } from '../components/QueryErrorNotice';
 import { PageHeader } from '../components/PageHeader';
+import { tablePageSx, tablePanelSx } from '../components/pageLayout';
 import { Box, Link, Typography, CircularProgress, Button, TextField, FormControl, InputLabel, Select, MenuItem } from '@mui/material';
 import { DataGrid } from '@mui/x-data-grid';
 import { StudentStatusChip } from '../components/StudentStatusChip';
@@ -162,7 +163,7 @@ export function StudentsPage() {
   };
 
   return (
-    <Box sx={{ display: 'flex', flexDirection: 'column', flex: '1 1 0', minHeight: 0, gap: 2 }}>
+    <Box sx={tablePageSx}>
       <PageHeader title="Students" />
       <Box sx={{ display: 'flex', gap: 1.5, flexWrap: 'wrap', alignItems: 'center' }}>
         <TextField
@@ -187,7 +188,7 @@ export function StudentsPage() {
           </Select>
         </FormControl>
       </Box>
-      <Box component="section" aria-label="Student results" sx={{ flex: '1 1 0', minHeight: 520, width: '100%', minWidth: 0 }}>
+      <Box component="section" aria-label="Student results" sx={tablePanelSx}>
         <DataGrid
           rows={students}
           columns={isNarrow ? [narrowColumn] : wideColumns}

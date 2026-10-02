@@ -30,8 +30,12 @@ set `PLAYWRIGHT_CHROMIUM_EXECUTABLE` to its executable path.
 The checks start and stop their own local Vite server and use synthetic API
 responses; no backend, production session, or credentials are needed. They cover
 light and dark layouts at 320, 390, 768, 1024, and 1440 pixels, grid visibility,
-pagination, navigation with shared cached course choices, prefilled dialog labels,
+full-height panels and viewport resizing, pagination, navigation with shared cached
+course choices, prefilled dialog labels,
 class attention badges, and public result and registration confirmation layouts.
 
 Instructor feature checks also exercise searchable runtime choices, class
 attention filters, exact-submission grading results, and confirmed grading retries.
+
+Class roster checks cover hiding assignment summaries and resetting combined filters.
+Set `UI_BROWSER_SCREENSHOT_DIR` to a directory to save review screenshots.
