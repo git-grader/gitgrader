@@ -75,7 +75,7 @@ export function RegistrationSuccessPage() {
       <BrandMark />
       <Paper variant="outlined" sx={{ p: { xs: 2, sm: 4 }, width: '100%' }}>
         <Typography variant="h4" component="h1" sx={{ overflowWrap: 'anywhere', mb: 2 }}>Registration Successful</Typography>
-        <Typography component="p" sx={{ mb: 1 }}>
+        <Typography component="p" sx={{ mb: 1, overflowWrap: 'anywhere' }}>
           Welcome, {result.fullName}. Your student username is {result.studentUsername} and your SSH key fingerprint is {result.keyFingerprint}.
         </Typography>
         {/* May a self-registration push yet? That is decided by the deployment's
@@ -95,7 +95,7 @@ export function RegistrationSuccessPage() {
             yet when this page renders. Listing them here meant an empty list under a
             heading promising assignments; the address they will appear at is knowable
             now, and is what the student actually needs. */}
-        <Typography component="p" sx={{ mb: 1 }}>
+        <Typography component="p" sx={{ mb: 1, overflowWrap: 'anywhere' }}>
           One repository is being prepared for each assignment. Clone the one you have been set with:
         </Typography>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>

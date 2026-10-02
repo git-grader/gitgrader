@@ -1,18 +1,20 @@
 // Copyright the GitGrader contributors.
 // SPDX-License-Identifier: Apache-2.0
 
-import { useNavigate, useSearchParams } from 'react-router';
-import { useQuery } from '@tanstack/react-query';
-import { api } from '../api';
+import { Link as RouterLink, useNavigate, useSearchParams } from 'react-router';
+import { useState } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { api, getAllPages } from '../api';
 import { queryKeys } from '../api/queryKeys';
 import { QueryErrorNotice } from '../components/QueryErrorNotice';
+import { MutationErrorAlert } from '../components/MutationErrorAlert';
 import { PageHeader } from '../components/PageHeader';
-import { Box, Chip, Typography, CircularProgress, Select, MenuItem, InputLabel, FormControl } from '@mui/material';
+import { Box, Link, Chip, Typography, CircularProgress, Select, MenuItem, InputLabel, FormControl, Alert, Button, Dialog, DialogTitle, DialogContent, DialogActions } from '@mui/material';
 import { DataGrid } from '@mui/x-data-grid';
 import type { GridColDef, GridRenderCellParams } from '@mui/x-data-grid';
 import { SubmissionStatusChip } from '../components/SubmissionStatusChip';
 import { useIsNarrow } from '../components/responsiveColumns';
-import { useServerPagination, CHOICE_PAGE_SIZE } from '../components/useServerPagination';
+import { useServerPagination } from '../components/useServerPagination';
 
 import type { Submission } from '../api';
 
@@ -20,30 +22,68 @@ export function SubmissionsPage() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const selectedCourseId = searchParams.get('courseId') || '';
+  const queryClient = useQueryClient();
+  const [retryTarget, setRetryTarget] = useState<Submission | null>(null);
+  const retry = useMutation({
+    mutationFn: (submissionId: string) => api.regradeSubmission(submissionId),
+    onSuccess: () => {
+      setRetryTarget(null);
+      void queryClient.invalidateQueries({ queryKey: queryKeys.submissions.all });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.dashboard });
+      void queryClient.invalidateQueries({ queryKey: ['report'] });
+    }
+  });
+  const selectedStudentId = searchParams.get('studentId') ?? '';
+  const selectedAssignmentId = searchParams.get('assignmentId') ?? '';
   const selectedStatus = searchParams.get('status') || '';
 
   const { data: courses, isError: coursesFailed, refetch: refetchCourses } = useQuery({
     queryKey: queryKeys.courses.choices,
-    queryFn: () => api.getCourses({ size: CHOICE_PAGE_SIZE })
+    queryFn: () => getAllPages(api.getCourses, {}, (course) => course.id)
   });
 
   const { paginationModel, setPaginationModel, sortModel, setSortModel, params } = useServerPagination();
   const submissionParams = {
     ...params,
     ...(selectedCourseId ? { courseId: selectedCourseId } : {}),
-    ...(selectedStatus ? { status: selectedStatus } : {})
+    ...(selectedStatus ? { status: selectedStatus } : {}),
+    ...(selectedStudentId ? { studentId: selectedStudentId } : {}),
+    ...(selectedAssignmentId ? { assignmentId: selectedAssignmentId } : {})
   };
-  const { data, isLoading, isError, refetch } = useQuery({
-    queryKey: queryKeys.submissions.list(selectedCourseId, params.page, params.size, selectedStatus, params.sort),
+  const { data, isLoading, isFetching, isError, refetch } = useQuery({
+    queryKey: queryKeys.submissions.list(selectedCourseId, params.page, params.size, selectedStatus, params.sort, selectedStudentId, selectedAssignmentId),
     queryFn: () => api.getSubmissions(submissionParams),
     placeholderData: (previous) => previous
   });
 
   const isNarrow = useIsNarrow();
+  function clearScope(field: string) {
+    const next = new URLSearchParams(searchParams);
+    next.delete(field);
+    setSearchParams(next);
+    setPaginationModel({ ...paginationModel, page: 0 });
+  }
+  const infrastructureView = selectedStatus === 'INFRASTRUCTURE_ERROR';
+  const runtimeCounts = new Map<string, number>();
+  if (infrastructureView) {
+    for (const row of data?.content ?? []) {
+      const digest = row.runtimeImageDigest ?? '';
+      runtimeCounts.set(digest, (runtimeCounts.get(digest) ?? 0) + 1);
+    }
+  }
+
+
 
   const wideColumns: GridColDef[] = [
     { field: 'studentUsername', headerName: 'Student', width: 150, valueGetter: (_value, row: Submission) => row.studentUsername ?? 'Unknown student' },
-    { field: 'shortCommitSha', headerName: 'Commit', width: 110, sortable: false },
+    {
+      field: 'shortCommitSha', headerName: 'Commit', width: 110, sortable: false,
+      renderCell: (params: GridRenderCellParams<Submission>) => (
+        <Link component={RouterLink} to={`/submissions/${encodeURIComponent(params.row.id)}`} tabIndex={params.hasFocus ? 0 : -1}>
+          {params.row.shortCommitSha}
+        </Link>
+      )
+    },
     {
       field: 'status',
       headerName: 'Status',
@@ -78,6 +118,14 @@ export function SubmissionsPage() {
     // column that used to sit here could never fill. The commit subject is data the list
     // actually has, and is what identifies an attempt to a human.
     { field: 'commitMessage', headerName: 'Commit message', flex: 1, minWidth: 200 },
+    ...(infrastructureView ? [{
+      field: 'retry', headerName: 'Recovery', width: 130, sortable: false,
+      renderCell: (params: GridRenderCellParams<Submission>) => (
+        <Button size="small" variant="outlined" disabled={retry.isPending || isFetching || params.row.status !== 'INFRASTRUCTURE_ERROR'} onClick={(event) => {
+          event.stopPropagation(); retry.reset(); setRetryTarget(params.row);
+        }}>Retry grading</Button>
+      )
+    }] : []),
     { field: 'receivedAt', headerName: 'Received At', width: 200, valueGetter: (val: string) => val ? new Date(val).toLocaleString() : '' }
   ];
 
@@ -99,7 +147,9 @@ export function SubmissionsPage() {
         <Box sx={{ py: 1, display: 'flex', flexDirection: 'column', gap: 0.5, minWidth: 0 }}>
           <Box sx={{ display: 'flex', gap: 1, alignItems: 'center', flexWrap: 'wrap' }}>
             <Typography variant="body2" sx={{ fontWeight: 600, overflowWrap: 'anywhere' }}>{row.studentUsername ?? 'Unknown student'}</Typography>
-            <Typography variant="body2" sx={{ fontFamily: 'monospace' }}>{row.shortCommitSha}</Typography>
+            <Link component={RouterLink} to={`/submissions/${encodeURIComponent(row.id)}`} tabIndex={params.hasFocus ? 0 : -1} sx={{ fontFamily: 'monospace' }}>
+              {row.shortCommitSha}
+            </Link>
             <SubmissionStatusChip status={row.status} />
             {row.late && <Chip size="small" color="warning" label="Late" />}
           </Box>
@@ -109,6 +159,9 @@ export function SubmissionsPage() {
           <Typography variant="caption" color="text.secondary">
             {new Date(row.receivedAt).toLocaleString()} · {row.signatureStatus}
           </Typography>
+          {infrastructureView && <Button size="small" variant="outlined" disabled={retry.isPending || isFetching || row.status !== 'INFRASTRUCTURE_ERROR'} onClick={(event) => {
+            event.stopPropagation(); retry.reset(); setRetryTarget(row);
+          }}>Retry grading</Button>}
         </Box>
       );
     }
@@ -141,7 +194,7 @@ export function SubmissionsPage() {
             }}
           >
             <MenuItem value=""><em>All courses</em></MenuItem>
-            {courses?.content.map(c => <MenuItem key={c.id} value={c.id}>{c.name}</MenuItem>)}
+            {courses?.map(c => <MenuItem key={c.id} value={c.id}>{c.name}</MenuItem>)}
           </Select>
         </FormControl>
         <FormControl size="small" sx={{ minWidth: { xs: '100%', sm: 180 } }}>
@@ -171,6 +224,23 @@ export function SubmissionsPage() {
         </Box>
       } />
 
+      {(selectedStudentId || selectedAssignmentId) && <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+        {selectedStudentId && <Chip label={`Student: ${data?.content.find((row) => row.studentId === selectedStudentId)?.studentUsername ?? selectedStudentId}`} onDelete={() => clearScope('studentId')} />}
+        {selectedAssignmentId && <Chip label="Assignment filter" title={selectedAssignmentId} onDelete={() => clearScope('assignmentId')} />}
+      </Box>}
+      {infrastructureView && <Alert severity="warning">
+        {data ? `${data.totalElements} ${data.totalElements === 1 ? 'submission has' : 'submissions have'} infrastructure errors in this selection.` : 'Infrastructure failures are selected.'}
+        {' '}Open a submission to inspect its recorded metadata, or retry grading after the platform problem is resolved.
+        {' '}The service does not expose detailed infrastructure logs here.
+      </Alert>}
+      {infrastructureView && runtimeCounts.size > 0 && <Box component="section" aria-label="Runtime images on this page">
+        <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>Runtime images on this page</Typography>
+        <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+          {Array.from(runtimeCounts, ([digest, count]) => <Chip key={digest} title={digest || 'No runtime image recorded'}
+            label={`${digest ? `${digest.slice(0, 14)}…${digest.slice(-7)}` : 'No runtime image recorded'}: ${count}`} variant="outlined" sx={{ maxWidth: '100%' }} />)}
+        </Box>
+      </Box>}
+      {retry.isSuccess && <Alert severity="success">Grading retry queued.</Alert>}
       {coursesFailed && (
         <QueryErrorNotice
           message="The course list could not be loaded, so submissions cannot be filtered by course."
@@ -185,8 +255,9 @@ export function SubmissionsPage() {
       ) : isError ? (
         <QueryErrorNotice message="The submissions could not be loaded." onRetry={() => void refetch()} />
       ) : (
-        <Box component="section" aria-label="Submission results" sx={{ flex: '1 1 0', minHeight: { xs: 520, md: 0 }, width: '100%', minWidth: 0 }}>
+        <Box component="section" aria-label="Submission results" sx={{ height: { xs: 520, md: 600 }, flexShrink: 0, width: '100%', minWidth: 0 }}>
           <DataGrid
+            loading={isFetching}
             rows={data?.content ?? []}
             columns={isNarrow ? [narrowColumn] : wideColumns}
             {...(isNarrow ? { getRowHeight: () => 'auto' as const } : {})}
@@ -203,6 +274,19 @@ export function SubmissionsPage() {
           />
         </Box>
       )}
+      <Dialog open={retryTarget !== null} onClose={() => { if (!retry.isPending) { setRetryTarget(null); retry.reset(); } }} fullWidth maxWidth="sm">
+        <DialogTitle>Retry grading?</DialogTitle>
+        <DialogContent>
+          <Typography sx={{ overflowWrap: 'anywhere' }}>Queue another grading run for {retryTarget?.studentUsername ?? 'this student'}, commit {retryTarget?.shortCommitSha}?</Typography>
+          <MutationErrorAlert error={retry.error} sx={{ mt: 2 }} />
+        </DialogContent>
+        <DialogActions>
+          <Button disabled={retry.isPending} onClick={() => { setRetryTarget(null); retry.reset(); }}>Cancel</Button>
+          <Button variant="contained" disabled={retry.isPending} onClick={() => { if (retryTarget) retry.mutate(retryTarget.id); }}>
+            {retry.isPending ? 'Queueing…' : 'Queue retry'}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 }

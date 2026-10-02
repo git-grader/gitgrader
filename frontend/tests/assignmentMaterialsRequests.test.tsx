@@ -61,9 +61,9 @@ test('the assignment form asks for its choices in a fixed number of requests', a
   const dialog = within(await screen.findByRole('dialog'));
   await user.click(dialog.getByRole('combobox', { name: 'Template Version' }));
 
-  // Every published version is still offered: 40 templates plus the empty choice.
+  // Every published version is still offered: 40 templates; clearing the field supplies the empty choice.
   expect(await screen.findByRole('option', { name: /Material 39/ })).toBeInTheDocument();
-  expect(screen.getAllByRole('option')).toHaveLength(materials.length + 1);
+  expect(screen.getAllByRole('option')).toHaveLength(materials.length);
 
   // Courses, assignments, the published set and the runtimes. Not one per material.
   expect(requests).toBeLessThanOrEqual(6);

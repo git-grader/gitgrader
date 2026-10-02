@@ -19,7 +19,7 @@ function Coursework({ report, courseId, classId }: {
   classId: string;
 }) {
   return (
-    <Paper variant="outlined" sx={{ p: 3, display: 'flex', flexDirection: 'column', gap: 2 }}>
+    <Paper variant="outlined" sx={{ p: { xs: 2, sm: 3 }, display: 'flex', flexDirection: 'column', gap: 2, overflowWrap: 'anywhere' }}>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 2, flexWrap: 'wrap' }}>
         <Typography variant="h6" component="h2">Coursework</Typography>
         <Button component={Link} to={`/courses/${encodeURIComponent(courseId)}/classes/${encodeURIComponent(classId)}`}>
@@ -46,6 +46,7 @@ function Coursework({ report, courseId, classId }: {
                   {submission.late && <Chip size="small" color="warning" label="Late" />}
                   <Typography variant="body2">Submitted {new Date(submission.receivedAt).toLocaleString()}</Typography>
                 </Stack>
+                <Button component={Link} to={`/submissions/${encodeURIComponent(submission.id)}?courseId=${encodeURIComponent(courseId)}&classId=${encodeURIComponent(classId)}`} sx={{ alignSelf: 'flex-start' }}>View latest submission</Button>
                 <Typography variant="body2">Commit {submission.commitSha.slice(0, 12)} · {submission.gitRef}</Typography>
                 {submission.commitMessage && <Typography variant="body2">{submission.commitMessage}</Typography>}
                 {!grading && submission.status === 'INFRASTRUCTURE_ERROR' && (
@@ -204,7 +205,7 @@ export function StudentDetailPage() {
         </Box>
       </Paper>
 
-      <Paper variant="outlined" sx={{ p: 3, display: 'flex', flexDirection: 'column', gap: 2 }}>
+      <Paper variant="outlined" sx={{ p: { xs: 2, sm: 3 }, display: 'flex', flexDirection: 'column', gap: 2, overflowWrap: 'anywhere' }}>
         <Typography variant="h6">SSH Keys</Typography>
         {sshKeys.length === 0 ? (
           <Typography variant="body2" color="text.secondary">No keys registered.</Typography>

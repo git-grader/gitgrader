@@ -118,7 +118,7 @@ export function ReportPage() {
       field: 'lastActivityAt', headerName: 'Last activity', width: 190,
       valueGetter: (value: string | null | undefined) => value ? new Date(value).toLocaleString() : 'No activity'
     },
-    ...Object.keys(data.students[0]?.assignments ?? {}).map((assignmentKey): GridColDef<StudentRow> => ({
+    ...Array.from(new Set(data.students.flatMap((student) => Object.keys(student.assignments)))).map((assignmentKey): GridColDef<StudentRow> => ({
       field: `assignment:${assignmentKey}`,
       headerName: assignmentKey,
       description: 'Best graded result, shown as percentage and points.',
@@ -205,7 +205,7 @@ export function ReportPage() {
           <Typography>No enrolled students are included in this course report.</Typography>
         </Paper>
       ) : (
-        <Box sx={{ flex: '1 1 0', minHeight: { xs: 520, md: 0 }, width: '100%', minWidth: 0, overflow: 'hidden' }}>
+        <Box sx={{ height: { xs: 520, md: 600 }, flexShrink: 0, width: '100%', minWidth: 0, overflow: 'hidden' }}>
           <DataGrid
             getRowId={(row: StudentRow) => row.studentId}
             rows={data.students}

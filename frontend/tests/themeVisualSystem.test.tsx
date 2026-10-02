@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { expect, test } from 'vitest';
+import { getContrastRatio } from '@mui/material/styles';
 import { createAppTheme } from '../src/theme';
 
 test('defines a calm operational canvas in both color modes', () => {
@@ -13,7 +14,11 @@ test('defines a calm operational canvas in both color modes', () => {
   expect(dark.palette.background.default).toBe('#0D162C');
   expect(dark.palette.background.paper).toBe('#192237');
   expect(light.palette.primary.main).toBe('#2563EB');
-  expect(light.palette.success.main).toBe('#03EA9E');
+  expect(getContrastRatio(light.palette.success.main, light.palette.background.paper)).toBeGreaterThanOrEqual(4.5);
+  expect(getContrastRatio(dark.palette.success.main, dark.palette.background.paper)).toBeGreaterThanOrEqual(4.5);
+  for (const theme of [light, dark]) {
+    expect(getContrastRatio(theme.palette.success.main, theme.palette.success.contrastText)).toBeGreaterThanOrEqual(4.5);
+  }
 });
 
 test('keeps shared operational controls compact and framed', () => {

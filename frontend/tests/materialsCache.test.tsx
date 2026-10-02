@@ -67,7 +67,7 @@ test('publishing a test suite version offers it to the assignment form', async (
   await user.click(newAssignment);
   const before = within(await screen.findByRole('dialog'));
   await user.click(before.getByRole('combobox', { name: 'Test Suite Version' }));
-  expect(screen.getAllByRole('option').map((option) => option.textContent)).toEqual(['None']);
+  expect(await screen.findByText('No matching choices')).toBeInTheDocument();
   await user.keyboard('{Escape}');
   await user.click(before.getByRole('button', { name: 'Cancel' }));
 

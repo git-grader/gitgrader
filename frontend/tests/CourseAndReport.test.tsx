@@ -157,6 +157,19 @@ describe('the course report', () => {
     expect(screen.getByText(/9\/20\/2026/)).toBeInTheDocument();
   });
 
+  it('includes assignment results belonging only to a later student', async () => {
+    renderReport({
+      courseId: 'c1', totalMandatoryAssignments: 1, totalPointsAvailable: 10,
+      students: [student(), student({
+        studentId: 's2', studentUsername: '002',
+        assignments: { strings: { percent: 78, points: 7.8 } }
+      })]
+    });
+
+    expect(await screen.findByRole('columnheader', { name: 'strings' })).toBeInTheDocument();
+    expect(screen.getByText('78% · 7.8 points')).toBeInTheDocument();
+  });
+
   it('explains an empty course report and a course with no assignment points', async () => {
     renderReport({ courseId: 'c1', totalMandatoryAssignments: 0, totalPointsAvailable: 0, students: [] });
 

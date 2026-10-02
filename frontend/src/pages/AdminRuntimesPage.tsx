@@ -15,7 +15,7 @@ import type { GridColDef, GridRenderCellParams } from '@mui/x-data-grid';
 import {
   Box, Typography, CircularProgress, Button, Dialog, DialogTitle,
   DialogContent, DialogActions, TextField, FormControl, InputLabel, Select, MenuItem,
-  FormControlLabel, Checkbox, Alert, Chip
+  FormControlLabel, Checkbox, Alert, Chip, Tooltip
 } from '@mui/material';
 
 const EMPTY_FORM: Partial<RuntimeDefinition> = { enabled: true, reportFormat: 'JUNIT_XML' };
@@ -117,9 +117,11 @@ export function AdminRuntimesPage() {
       headerName: 'Image Digest',
       width: 170,
       renderCell: (params: GridRenderCellParams<Runtime>) => (
-        <Typography component="span" sx={{ fontFamily: 'monospace', fontSize: '0.875rem' }}>
-          {shortDigest(params.row.imageDigest)}
-        </Typography>
+        <Tooltip title={params.row.imageDigest}>
+          <Typography component="span" tabIndex={params.hasFocus ? 0 : -1} sx={{ fontFamily: 'monospace', fontSize: '0.875rem' }}>
+            {shortDigest(params.row.imageDigest)}
+          </Typography>
+        </Tooltip>
       )
     },
     { field: 'reportFormat', headerName: 'Report Format', width: 150 },
@@ -167,8 +169,8 @@ export function AdminRuntimesPage() {
           <Typography variant="caption" color="text.secondary" sx={{ overflowWrap: 'anywhere' }}>
             {row.runtimeKey} · {row.image}:{row.tag}
           </Typography>
-          <Typography variant="caption" color="text.secondary" sx={{ fontFamily: 'monospace' }}>
-            {shortDigest(row.imageDigest)}
+          <Typography variant="caption" color="text.secondary" sx={{ fontFamily: 'monospace', overflowWrap: 'anywhere' }}>
+            {row.imageDigest}
           </Typography>
           <Typography variant="caption" color="text.secondary" sx={{ overflowWrap: 'anywhere' }}>
             {row.reportFormat} · {row.testCommand}

@@ -27,7 +27,7 @@ export function PageHeader({ title, description, actions }: PageHeaderProps) {
           {title}
         </Typography>
         {description && (
-          <Typography variant="body2" color="text.secondary" sx={{ maxWidth: '72ch' }}>
+          <Typography variant="body2" color="text.secondary" sx={{ maxWidth: '72ch', overflowWrap: 'anywhere' }}>
             {description}
           </Typography>
         )}

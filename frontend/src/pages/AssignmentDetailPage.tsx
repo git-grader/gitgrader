@@ -9,10 +9,11 @@ import { queryKeys } from '../api/queryKeys';
 import { QueryErrorNotice } from '../components/QueryErrorNotice';
 import { AssignmentStatusChip } from '../components/AssignmentStatusChip';
 import { MutationErrorAlert } from '../components/MutationErrorAlert';
+import { SearchableChoice } from '../components/SearchableChoice';
 import { PageHeader } from '../components/PageHeader';
 import { fromZonedInputValue, toZonedInputValue } from '../components/localDateTime';
 import type { AssignmentDefinition, AssignmentDetail } from '../api';
-import { Typography, CircularProgress, Button, Paper, Alert, Tooltip, Box, FormControl, InputLabel, Select, MenuItem, TextField, Table, TableHead, TableRow, TableCell, TableBody, TableContainer } from '@mui/material';
+import { Typography, CircularProgress, Button, Paper, Alert, Tooltip, Box, TextField, Table, TableHead, TableRow, TableCell, TableBody, TableContainer } from '@mui/material';
 import { useAssignmentMaterials } from '../hooks/useAssignmentMaterials';
 
 type Materials = ReturnType<typeof useAssignmentMaterials>;
@@ -35,11 +36,6 @@ function ConfigurationForm({ assignment, materials, isDraft, pending, onSave }: 
   }));
 
   const disabled = !isDraft || pending;
-
-  // The control is narrow on a phone and disabled once published, so its label is
-  // truncated with no way to open the list and read the rest. The tooltip carries it.
-  const selectedSuiteLabel =
-    materials.publishedSuiteVersions.find((version) => version.id === form.testSuiteVersionId)?.label ?? '';
 
   const handleSave = (event: React.SyntheticEvent) => {
     event.preventDefault();
@@ -67,55 +63,12 @@ function ConfigurationForm({ assignment, materials, isDraft, pending, onSave }: 
     <Paper component="form" onSubmit={handleSave} sx={{ p: 3, display: 'flex', flexDirection: 'column', gap: 3 }}>
       <Typography variant="h6">Configuration</Typography>
 
-      <FormControl fullWidth>
-        <InputLabel id="template-version-label">Template Version</InputLabel>
-        <Select
-          labelId="template-version-label"
-          value={form.templateVersionId || ''}
-          label="Template Version"
-          onChange={(event) => setForm({ ...form, templateVersionId: event.target.value })}
-          disabled={disabled}
-        >
-          <MenuItem value=""><em>None</em></MenuItem>
-          {materials.publishedTemplateVersions.map((version) => (
-            <MenuItem key={version.id} value={version.id}>{version.label}</MenuItem>
-          ))}
-        </Select>
-      </FormControl>
-
-      <FormControl fullWidth>
-        <InputLabel id="test-suite-version-label">Test Suite Version</InputLabel>
-        <Tooltip title={selectedSuiteLabel}>
-          <Select
-            labelId="test-suite-version-label"
-            value={form.testSuiteVersionId || ''}
-            label="Test Suite Version"
-            onChange={(event) => setForm({ ...form, testSuiteVersionId: event.target.value })}
-            disabled={disabled}
-          >
-            <MenuItem value=""><em>None</em></MenuItem>
-            {materials.publishedSuiteVersions.map((version) => (
-              <MenuItem key={version.id} value={version.id}>{version.label}</MenuItem>
-            ))}
-          </Select>
-        </Tooltip>
-      </FormControl>
-
-      <FormControl fullWidth>
-        <InputLabel id="runtime-label">Runtime</InputLabel>
-        <Select
-          labelId="runtime-label"
-          value={form.runtimeId || ''}
-          label="Runtime"
-          onChange={(event) => setForm({ ...form, runtimeId: event.target.value })}
-          disabled={disabled}
-        >
-          <MenuItem value=""><em>None</em></MenuItem>
-          {materials.runtimes.map((runtime) => (
-            <MenuItem key={runtime.id} value={runtime.id}>{runtime.displayName}</MenuItem>
-          ))}
-        </Select>
-      </FormControl>
+      <SearchableChoice label="Template Version" value={form.templateVersionId ?? ''} options={materials.publishedTemplateVersions}
+        onChange={(value) => setForm({ ...form, templateVersionId: value })} disabled={disabled} loading={materials.isLoading} />
+      <SearchableChoice label="Test Suite Version" value={form.testSuiteVersionId ?? ''} options={materials.publishedSuiteVersions}
+        onChange={(value) => setForm({ ...form, testSuiteVersionId: value })} disabled={disabled} loading={materials.isLoading} />
+      <SearchableChoice label="Runtime" value={form.runtimeId ?? ''} options={materials.runtimes.map((runtime) => ({ id: runtime.id, label: runtime.displayName }))}
+        onChange={(value) => setForm({ ...form, runtimeId: value })} disabled={disabled} loading={materials.isLoading} />
 
       <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: 2 }}>
         <TextField
@@ -271,8 +224,7 @@ export function AssignmentDetailPage() {
       <Paper sx={{ p: 3, display: 'flex', flexDirection: 'column', gap: 2 }}>
         <Typography variant="h6">Deadline Extensions</Typography>
         <Typography variant="body2" color="text.secondary">
-          Per-student replacement due dates. Granting and revoking map directly to the
-          assignment extensions endpoints.
+          Give an individual student more time without changing the deadline for the class.
         </Typography>
         {extensionsQuery.isLoading ? (
           <CircularProgress aria-label="Loading extensions" />

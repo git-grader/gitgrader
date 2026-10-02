@@ -73,6 +73,9 @@ export function DashboardPage() {
           {data.failedInfrastructureCount} grading {data.failedInfrastructureCount === 1 ? 'run' : 'runs'} could not be
           carried out. This is a platform fault rather than a student one, and the affected submissions can be graded
           again.
+          <Button component={Link} to="/submissions?status=INFRASTRUCTURE_ERROR" color="inherit" sx={{ display: 'block', mt: 1 }}>
+            Review infrastructure failures
+          </Button>
         </Alert>
       )}
 

@@ -139,7 +139,7 @@ export function AdminAuditPage() {
           <Box
             component="span"
             tabIndex={0}
-            sx={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+            sx={{ display: 'block', maxWidth: '100%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
           >
             {params.value ?? ''}
           </Box>
@@ -193,7 +193,7 @@ export function AdminAuditPage() {
           <CircularProgress aria-label="Loading audit log" />
         </Box>
       ) : (
-        <Box sx={{ flex: '1 1 0', minHeight: { xs: 520, md: 0 }, width: '100%', minWidth: 0, overflowX: 'auto' }}>
+        <Box sx={{ height: { xs: 520, md: 600 }, flexShrink: 0, width: '100%', minWidth: 0, overflowX: 'auto' }}>
           <DataGrid
             rows={data?.content ?? []}
             columns={isNarrow ? [summaryColumn] : wideColumns}

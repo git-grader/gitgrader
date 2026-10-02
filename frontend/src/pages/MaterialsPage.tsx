@@ -163,7 +163,7 @@ function TemplateVersionList({ templateId }: { templateId: string }) {
 
   return (
     <Box sx={{ mt: 2 }}>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', gap: 1, flexWrap: 'wrap', mb: 1 }}>
         <Typography variant="subtitle2">Versions</Typography>
         <Button size="small" variant="outlined" onClick={() => setUploadOpen(true)}>Upload Version</Button>
       </Box>
@@ -173,7 +173,7 @@ function TemplateVersionList({ templateId }: { templateId: string }) {
       )}
       <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
         {data?.map(v => (
-          <Paper key={v.id} variant="outlined" sx={{ p: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <Paper key={v.id} variant="outlined" sx={{ p: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 1, flexWrap: 'wrap', overflowWrap: 'anywhere' }}>
             <Box>
               <Typography variant="body2" sx={{ fontWeight: 'bold' }}>{v.versionLabel}</Typography>
               <Typography variant="caption" color="text.secondary" sx={{ fontFamily: 'monospace' }}>
@@ -244,7 +244,7 @@ function TestSuiteVersionList({ suiteId }: { suiteId: string }) {
 
   return (
     <Box sx={{ mt: 2 }}>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', gap: 1, flexWrap: 'wrap', mb: 1 }}>
         <Typography variant="subtitle2">Versions</Typography>
         <Button size="small" variant="outlined" onClick={() => setUploadOpen(true)}>Upload Version</Button>
       </Box>
@@ -253,7 +253,7 @@ function TestSuiteVersionList({ suiteId }: { suiteId: string }) {
       )}
       <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
         {data?.map(v => (
-          <Paper key={v.id} variant="outlined" sx={{ p: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <Paper key={v.id} variant="outlined" sx={{ p: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 1, flexWrap: 'wrap', overflowWrap: 'anywhere' }}>
             <Box>
               <Typography variant="body2" sx={{ fontWeight: 'bold' }}>{v.versionLabel}</Typography>
               <Typography variant="caption" color="text.secondary" sx={{ fontFamily: 'monospace' }}>
@@ -378,7 +378,7 @@ export function MaterialsPage() {
         <Alert severity="info" sx={{ mb: 3 }}>
           <strong>PUBLIC:</strong> Template content is what students receive. It is publicly visible when published.
         </Alert>
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 1, flexWrap: 'wrap', mb: 2 }}>
           <Typography variant="body2" color="text.secondary">
             Showing {filteredTemplates.length} {filteredTemplates.length === 1 ? 'template' : 'templates'}
           </Typography>
@@ -393,7 +393,7 @@ export function MaterialsPage() {
         ) : (
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
             {filteredTemplates.map(t => (
-              <Paper key={t.id} sx={{ p: 2 }}>
+              <Paper key={t.id} sx={{ p: 2, overflowWrap: 'anywhere' }}>
                 <Typography variant="h6">{t.name}</Typography>
                 <Typography color="text.secondary" gutterBottom>Key: {t.templateKey}</Typography>
                 <Typography variant="body2" gutterBottom>{t.description}</Typography>
@@ -410,7 +410,7 @@ export function MaterialsPage() {
         <Alert severity="warning" sx={{ mb: 3 }}>
           <strong>CONFIDENTIAL:</strong> Test suite content is hidden and NEVER shown to students. Keep answers secure.
         </Alert>
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 1, flexWrap: 'wrap', mb: 2 }}>
           <Typography variant="body2" color="text.secondary">
             Showing {filteredTestSuites.length} {filteredTestSuites.length === 1 ? 'test suite' : 'test suites'}
           </Typography>
@@ -425,7 +425,7 @@ export function MaterialsPage() {
         ) : (
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
             {filteredTestSuites.map(ts => (
-              <Paper key={ts.id} sx={{ p: 2 }}>
+              <Paper key={ts.id} sx={{ p: 2, overflowWrap: 'anywhere' }}>
                 <Typography variant="h6">{ts.name}</Typography>
                 <Typography color="text.secondary" gutterBottom>Key: {ts.suiteKey}</Typography>
                 <Typography variant="body2" gutterBottom>{ts.description}</Typography>

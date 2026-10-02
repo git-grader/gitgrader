@@ -129,7 +129,7 @@ function EditCourseForm({ course, open, onClose, onDeleted }: { course: CourseVi
             helperText="The zone the registration window below is stated in."
             disabled={updateMutation.isPending}
           />
-          <Box sx={{ display: 'flex', gap: 2 }}>
+          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: 'minmax(0, 1fr)', sm: 'repeat(2, minmax(0, 1fr))' }, gap: 2 }}>
             <TextField
               label="Starts On"
               type="date"
@@ -159,7 +159,7 @@ function EditCourseForm({ course, open, onClose, onDeleted }: { course: CourseVi
             }
             label="Registration Enabled"
           />
-          <Box sx={{ display: 'flex', gap: 2 }}>
+          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: 'minmax(0, 1fr)', sm: 'repeat(2, minmax(0, 1fr))' }, gap: 2 }}>
             <TextField
               label="Registration Opens At"
               type="datetime-local"

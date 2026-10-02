@@ -154,3 +154,28 @@ describe('class progress page', () => {
     expect(await screen.findByText('No students are enrolled in this class yet.')).toBeInTheDocument();
   });
 });
+
+
+it('filters attention and links directly to the matching latest attempt', async () => {
+  renderClassPage();
+  const user = userEvent.setup();
+  await screen.findByText('Ada Lovelace');
+  expect(screen.getByRole('link', { name: /45% best/ })).toHaveAttribute('href',
+    '/submissions/submission-1?courseId=course-1&classId=class-1');
+  await user.click(screen.getByRole('combobox', { name: 'Attention' }));
+  await user.click(screen.getByRole('option', { name: 'Missing work' }));
+  expect(screen.queryByText('Ada Lovelace')).not.toBeInTheDocument();
+  expect(screen.getByText('Grace Hopper')).toBeInTheDocument();
+  await user.click(screen.getByRole('combobox', { name: 'Attention' }));
+  await user.click(screen.getByRole('option', { name: 'Latest failed' }));
+  expect(screen.getByText('Ada Lovelace')).toBeInTheDocument();
+  expect(screen.queryByText('Grace Hopper')).not.toBeInTheDocument();
+});
+
+it('scopes follow-up from an assignment summary chip', async () => {
+  renderClassPage();
+  await userEvent.setup().click(await screen.findByRole('button', { name: '1 not started' }));
+  expect(screen.getByText('Grace Hopper')).toBeInTheDocument();
+  expect(screen.queryByText('Ada Lovelace')).not.toBeInTheDocument();
+  expect(screen.getByRole('combobox', { name: 'Assignment attention scope' })).toHaveTextContent('String utilities');
+});

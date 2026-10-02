@@ -9,6 +9,7 @@ import { api, getAllPages } from '../api';
 import { queryKeys } from '../api/queryKeys';
 import { QueryErrorNotice } from '../components/QueryErrorNotice';
 import { MutationErrorAlert, problemFieldErrors } from '../components/MutationErrorAlert';
+import { SearchableChoice } from '../components/SearchableChoice';
 import { PageHeader } from '../components/PageHeader';
 import { fromZonedInputValue } from '../components/localDateTime';
 import { numberInputValue, parseNumberInput } from '../components/numberInput';
@@ -332,53 +333,12 @@ export function AssignmentsPage() {
             </Box>
 
             <Typography variant="subtitle2" component="h3" gutterBottom sx={{ mt: 2 }}>Materials &amp; Environment (Optional)</Typography>
-            <FormControl fullWidth>
-              <InputLabel id="new-template-version-label">Template Version</InputLabel>
-              <Select
-                labelId="new-template-version-label"
-                value={form.templateVersionId ?? ''}
-                label="Template Version"
-                onChange={e => setForm({ ...form, templateVersionId: e.target.value })}
-                disabled={createMutation.isPending || materials.isLoading}
-              >
-                <MenuItem value=""><em>None</em></MenuItem>
-                {materials.publishedTemplateVersions.map(tv => (
-                  <MenuItem key={tv.id} value={tv.id}>{tv.label}</MenuItem>
-                ))}
-              </Select>
-            </FormControl>
-
-            <FormControl fullWidth>
-              <InputLabel id="new-test-suite-version-label">Test Suite Version</InputLabel>
-              <Select
-                labelId="new-test-suite-version-label"
-                value={form.testSuiteVersionId ?? ''}
-                label="Test Suite Version"
-                onChange={e => setForm({ ...form, testSuiteVersionId: e.target.value })}
-                disabled={createMutation.isPending || materials.isLoading}
-              >
-                <MenuItem value=""><em>None</em></MenuItem>
-                {materials.publishedSuiteVersions.map(sv => (
-                  <MenuItem key={sv.id} value={sv.id}>{sv.label}</MenuItem>
-                ))}
-              </Select>
-            </FormControl>
-
-            <FormControl fullWidth>
-              <InputLabel id="new-runtime-label">Runtime</InputLabel>
-              <Select
-                labelId="new-runtime-label"
-                value={form.runtimeId ?? ''}
-                label="Runtime"
-                onChange={e => setForm({ ...form, runtimeId: e.target.value })}
-                disabled={createMutation.isPending || materials.isLoading}
-              >
-                <MenuItem value=""><em>None</em></MenuItem>
-                {materials.runtimes.map(rt => (
-                  <MenuItem key={rt.id} value={rt.id}>{rt.displayName}</MenuItem>
-                ))}
-              </Select>
-            </FormControl>
+            <SearchableChoice label="Template Version" value={form.templateVersionId ?? ''} options={materials.publishedTemplateVersions}
+              onChange={(value) => setForm({ ...form, templateVersionId: value })} disabled={createMutation.isPending} loading={materials.isLoading} />
+            <SearchableChoice label="Test Suite Version" value={form.testSuiteVersionId ?? ''} options={materials.publishedSuiteVersions}
+              onChange={(value) => setForm({ ...form, testSuiteVersionId: value })} disabled={createMutation.isPending} loading={materials.isLoading} />
+            <SearchableChoice label="Runtime" value={form.runtimeId ?? ''} options={materials.runtimes.map((runtime) => ({ id: runtime.id, label: runtime.displayName }))}
+              onChange={(value) => setForm({ ...form, runtimeId: value })} disabled={createMutation.isPending} loading={materials.isLoading} />
 
           </DialogContent>
           <DialogActions>

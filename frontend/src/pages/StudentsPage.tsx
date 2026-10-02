@@ -2,12 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { useNavigate } from 'react-router';
+import { Link as RouterLink, useNavigate } from 'react-router';
 import { api, getAllPages } from '../api';
 import { queryKeys } from '../api/queryKeys';
 import { QueryErrorNotice } from '../components/QueryErrorNotice';
 import { PageHeader } from '../components/PageHeader';
-import { Box, Typography, CircularProgress, Button, TextField, FormControl, InputLabel, Select, MenuItem } from '@mui/material';
+import { Box, Link, Typography, CircularProgress, Button, TextField, FormControl, InputLabel, Select, MenuItem } from '@mui/material';
 import { DataGrid } from '@mui/x-data-grid';
 import { StudentStatusChip } from '../components/StudentStatusChip';
 import { useIsNarrow } from '../components/responsiveColumns';
@@ -65,7 +65,14 @@ export function StudentsPage() {
   }
 
   const wideColumns: GridColDef[] = [
-    { field: 'studentUsername', headerName: 'Student ID / Username', width: 190 },
+    {
+      field: 'studentUsername', headerName: 'Student ID / Username', width: 190,
+      renderCell: (params: GridRenderCellParams<StudentSummary>) => (
+        <Link component={RouterLink} to={`/students/${encodeURIComponent(params.row.id)}`} tabIndex={params.hasFocus ? 0 : -1}>
+          {params.row.studentUsername}
+        </Link>
+      )
+    },
     { field: 'firstName', headerName: 'First Name', width: 150 },
     { field: 'lastName', headerName: 'Last Name', width: 150 },
     { field: 'email', headerName: 'Email', flex: 1, minWidth: 220 },
@@ -141,7 +148,9 @@ export function StudentsPage() {
       return (
         <Box sx={{ py: 1, display: 'flex', flexDirection: 'column', gap: 0.5, minWidth: 0 }}>
           <Box sx={{ display: 'flex', gap: 1, alignItems: 'center', flexWrap: 'wrap' }}>
-            <Typography variant="body2">{row.firstName} {row.lastName}</Typography>
+            <Link component={RouterLink} to={`/students/${encodeURIComponent(row.id)}`} tabIndex={params.hasFocus ? 0 : -1} sx={{ overflowWrap: 'anywhere' }}>
+              {row.firstName} {row.lastName}
+            </Link>
             <StudentStatusChip status={row.status} />
           </Box>
           <Typography variant="caption" color="text.secondary" sx={{ overflowWrap: 'anywhere' }}>

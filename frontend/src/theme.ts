@@ -49,8 +49,8 @@ export const createAppTheme = (mode: "light" | "dark") => {
         main: mode === "light" ? "#B45309" : "#F59E0B",
       },
       success: {
-        main: mintRamp[500],
-        contrastText: inkRamp[950],
+        main: mode === "light" ? mintRamp[800] : mintRamp[500],
+        contrastText: mode === "light" ? "#FFFFFF" : inkRamp[950],
       },
       background: {
         default: mode === "light" ? "#F8FAFC" : inkRamp[950],
@@ -132,6 +132,15 @@ export const createAppTheme = (mode: "light" | "dark") => {
         styleOverrides: {
           root: {
             backgroundImage: "none",
+          },
+        },
+      },
+      MuiDialogContent: {
+        styleOverrides: {
+          root: {
+            // MUI removes top padding after a title; outlined labels then extend
+            // above the scrolling content and are clipped when a field is filled.
+            "&.MuiDialogContent-root": { paddingTop: 16 },
           },
         },
       },

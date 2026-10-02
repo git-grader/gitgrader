@@ -19,7 +19,8 @@ describe('brand theme', () => {
   it('reserves verification mint for success rather than secondary actions', () => {
     const theme = createAppTheme('light');
 
-    expect(theme.palette.success.main).toBe('#03EA9E');
+    expect(theme.palette.success.main).toBe('#047654');
+    expect(createAppTheme('dark').palette.success.main).toBe('#03EA9E');
     expect(theme.palette.secondary.main).not.toBe('#03EA9E');
   });
 });

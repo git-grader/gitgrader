@@ -5,6 +5,7 @@ import { afterAll, afterEach, beforeAll, expect, test } from 'vitest';
 import { http, HttpResponse } from 'msw';
 import { fireEvent, screen } from '@testing-library/react';
 import { Route, Routes } from 'react-router';
+import { SubmissionGrading } from '../src/components/SubmissionGrading';
 import { SubmissionDetailPage } from '../src/pages/SubmissionDetailPage';
 import { renderWithProviders, server } from './harness';
 
@@ -78,4 +79,48 @@ test('reports a failed load and can be retried', async () => {
   fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
 
   expect(await screen.findByRole('heading', { name: 'Submission' })).toBeInTheDocument();
+});
+
+function gradingReport(submissionId = 's1') {
+  return {
+    courseId: 'c1', classId: 'cl1', studentId: 'st1', studentUsername: 'alice', fullName: 'Alice', status: 'SELF_REGISTERED',
+    assignments: [{ assignmentId: 'a1', assignmentKey: 'strings', title: 'Strings', bestPercent: 0, bestPoints: 0,
+      latestSubmission: { ...SUBMISSION, id: submissionId },
+      latestGrading: { attempt: 2, status: 'COMPLETED', testsPassed: 0, testsTotal: 2, scorePercent: 0,
+        pointsAwarded: 0, passed: false, finishedAt: null,
+        tests: [
+          { visibility: 'PUBLIC', publicName: 'Public check', outcome: 'FAILED', durationMs: 0, studentMessage: 'Try another input' },
+          { visibility: 'HIDDEN', publicName: 'Private name', outcome: 'FAILED', studentMessage: 'Private details' }
+        ]
+      }
+    }]
+  };
+}
+
+test('shows zero scores and public test details without disclosing hidden details', async () => {
+  server.use(http.get('/api/v1/reports/courses/c1/classes/cl1/students/st1', () => HttpResponse.json(gradingReport())));
+  renderWithProviders(<SubmissionGrading submission={SUBMISSION} classId="cl1" />);
+  expect(await screen.findByText('Score: 0%')).toBeInTheDocument();
+  expect(screen.getByText('0 points')).toBeInTheDocument();
+  expect(screen.getByText('0 of 2 tests passed')).toBeInTheDocument();
+  expect(screen.getByText('Try another input')).toBeInTheDocument();
+  expect(screen.getByText(/Hidden test/)).toBeInTheDocument();
+  expect(screen.queryByText(/Private name|Private details/)).not.toBeInTheDocument();
+});
+
+test("never attributes a newer attempt's results to an older submission", async () => {
+  server.use(http.get('/api/v1/reports/courses/c1/classes/cl1/students/st1', () => HttpResponse.json(gradingReport('newer'))));
+  renderWithProviders(<SubmissionGrading submission={SUBMISSION} classId="cl1" />);
+  expect(await screen.findByText(/not the latest attempt/)).toBeInTheDocument();
+  expect(screen.queryByText('Score: 0%')).not.toBeInTheDocument();
+});
+
+test('distinguishes infrastructure failure from a graded zero', async () => {
+  const report = gradingReport();
+  server.use(http.get('/api/v1/reports/courses/c1/classes/cl1/students/st1', () => HttpResponse.json({
+    ...report, assignments: report.assignments.map((assignment) => ({ ...assignment, latestGrading: null }))
+  })));
+  renderWithProviders(<SubmissionGrading submission={{ ...SUBMISSION, status: 'INFRASTRUCTURE_ERROR' }} classId="cl1" />);
+  expect(await screen.findByText(/Grading could not finish/)).toBeInTheDocument();
+  expect(screen.queryByText('Score: 0%')).not.toBeInTheDocument();
 });

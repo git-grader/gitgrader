@@ -1,10 +1,10 @@
 // Copyright the GitGrader contributors.
 // SPDX-License-Identifier: Apache-2.0
 
-import { useMemo, useState } from 'react';
-import { Link, useParams } from 'react-router';
+import { useState } from 'react';
+import { Link as RouterLink, useParams, useSearchParams } from 'react-router';
 import { useQuery } from '@tanstack/react-query';
-import { Alert, Box, Button, Chip, CircularProgress, MenuItem, Paper, Stack, TextField, Typography } from '@mui/material';
+import { Alert, Box, Button, Chip, CircularProgress, Link, MenuItem, Paper, Stack, TextField, Typography } from '@mui/material';
 import FileDownloadOutlinedIcon from '@mui/icons-material/FileDownloadOutlined';
 import { DataGrid } from '@mui/x-data-grid';
 import type { GridColDef } from '@mui/x-data-grid';
@@ -31,6 +31,15 @@ function isInactive(lastActivityAt: string | null | undefined): boolean {
 
 export function ClassProgressPage() {
   const { courseId = '', classId = '' } = useParams<{ courseId: string; classId: string }>();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const attention = searchParams.get('attention') ?? 'all';
+  const assignmentKey = searchParams.get('assignment') ?? '';
+  function filterAttention(value: string, assignment = assignmentKey) {
+    const next = new URLSearchParams(searchParams);
+    if (value === 'all') next.delete('attention'); else next.set('attention', value);
+    if (assignment) next.set('assignment', assignment); else next.delete('assignment');
+    setSearchParams(next);
+  }
   const [search, setSearch] = useState('');
   const [progress, setProgress] = useState<ProgressFilter>('all');
   const [enrollment, setEnrollment] = useState('ALL');
@@ -68,7 +77,7 @@ export function ClassProgressPage() {
     }
   }
 
-  const students = useMemo(() => {
+  const students = (() => {
     const report = query.data;
     if (!report) return [];
     const normalizedSearch = search.trim().toLocaleLowerCase();
@@ -77,9 +86,15 @@ export function ClassProgressPage() {
         `${student.fullName} ${student.studentUsername}`.toLocaleLowerCase().includes(normalizedSearch);
       const matchesProgress = progress === 'all' || progressState(student, report.totalMandatoryAssignments) === progress;
       const matchesEnrollment = enrollment === 'ALL' || student.enrollmentStatus === enrollment;
-      return matchesSearch && matchesProgress && matchesEnrollment;
+      const results = assignmentKey ? [student.assignments[assignmentKey]] : Object.values(student.assignments);
+      const matchesAttention = attention === 'all' ||
+        (attention === 'missing' && (assignmentKey ? !student.assignments[assignmentKey]?.latestSubmission : student.notStarted > 0)) ||
+        (attention === 'failed' && results.some((result) => result?.latestSubmission?.status === 'FAILED')) ||
+        (attention === 'infrastructure' && results.some((result) => result?.latestSubmission?.status === 'INFRASTRUCTURE_ERROR')) ||
+        (attention === 'inactive' && isInactive(student.lastActivityAt));
+      return matchesSearch && matchesProgress && matchesEnrollment && matchesAttention;
     });
-  }, [query.data, search, progress, enrollment]);
+  })();
 
   if (query.isLoading) return <Box sx={{ p: 4 }}><CircularProgress aria-label="Loading class progress" /></Box>;
   if (query.isError || !query.data) {
@@ -91,7 +106,7 @@ export function ClassProgressPage() {
     {
       field: 'studentUsername', headerName: 'Student ID / Username', width: 190,
       renderCell: ({ row }) => (
-        <Link to={`/students/${encodeURIComponent(row.studentId)}?courseId=${encodeURIComponent(courseId)}&classId=${encodeURIComponent(classId)}`}>
+        <Link component={RouterLink} to={`/students/${encodeURIComponent(row.studentId)}?courseId=${encodeURIComponent(courseId)}&classId=${encodeURIComponent(classId)}`}>
           {row.studentUsername}
         </Link>
       )
@@ -124,7 +139,11 @@ export function ClassProgressPage() {
         const latestLabel = latest == null
           ? result.latestGrading?.status.toLocaleLowerCase() ?? 'ungraded'
           : `${latest.toFixed(0)}%`;
-        return `${result.bestPercent.toFixed(0)}% best · latest ${latestLabel}`;
+        return (
+          <Link component={RouterLink} to={`/submissions/${encodeURIComponent(result.latestSubmission.id)}?courseId=${encodeURIComponent(courseId)}&classId=${encodeURIComponent(classId)}`}>
+            {`${result.bestPercent.toFixed(0)}% best · latest ${latestLabel}`}
+          </Link>
+        );
       }
     })),
     { field: 'submissionCount', headerName: 'Submissions', width: 120 },
@@ -137,12 +156,14 @@ export function ClassProgressPage() {
       renderCell: ({ row }) => {
         const states = Object.values(row.assignments);
         const hasFailure = states.some((item) => item.latestSubmission?.status === 'FAILED');
+        const infrastructure = states.some((item) => item.latestSubmission?.status === 'INFRASTRUCTURE_ERROR');
         const missing = row.notStarted > 0;
         const inactive = isInactive(row.lastActivityAt);
         return (
           <Stack direction="row" spacing={0.5} useFlexGap sx={{ flexWrap: 'wrap' }}>
             {missing && <Chip size="small" color="warning" label="Missing work" />}
             {hasFailure && <Chip size="small" color="error" label="Latest failed" />}
+            {infrastructure && <Chip size="small" color="warning" label="Platform error" />}
             {inactive && <Chip size="small" variant="outlined" label="Inactive*" />}
           </Stack>
         );
@@ -158,7 +179,7 @@ export function ClassProgressPage() {
     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
       <PageHeader title={report.className} description={`Class ${report.classKey}`} actions={
         <>
-          <Button component={Link} to={`/courses/${encodeURIComponent(courseId)}`}>
+          <Button component={RouterLink} to={`/courses/${encodeURIComponent(courseId)}`}>
             Back to course
           </Button>
         <Button
@@ -208,9 +229,9 @@ export function ClassProgressPage() {
                   </Box>
                   <Stack direction="row" spacing={1} useFlexGap sx={{ flexWrap: 'wrap' }}>
                     <Chip size="small" label={`${assignment.passedCount} passed`} color="success" variant="outlined" />
-                    <Chip size="small" label={`${assignment.failedCount} failed`} color="error" variant="outlined" />
-                    <Chip size="small" label={`${assignment.infrastructureErrorCount} infrastructure errors`} color="warning" variant="outlined" />
-                    <Chip size="small" label={`${assignment.notStartedCount} not started`} />
+                    <Chip size="small" label={`${assignment.failedCount} failed`} color="error" variant="outlined" onClick={() => filterAttention('failed', assignment.assignmentKey)} />
+                    <Chip size="small" label={`${assignment.infrastructureErrorCount} infrastructure errors`} color="warning" variant="outlined" onClick={() => filterAttention('infrastructure', assignment.assignmentKey)} />
+                    <Chip size="small" label={`${assignment.notStartedCount} not started`} onClick={() => filterAttention('missing', assignment.assignmentKey)} />
                   </Stack>
                 </Box>
               </Paper>
@@ -224,7 +245,7 @@ export function ClassProgressPage() {
           <Typography id="roster-heading" variant="h6" component="h2">Students</Typography>
           <Typography color="text.secondary">{students.length} of {report.students.length} students</Typography>
         </Box>
-        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} sx={{ mb: 2 }}>
+        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} useFlexGap sx={{ mb: 2, flexWrap: 'wrap' }}>
           <TextField
             label="Search students"
             value={search}
@@ -244,6 +265,17 @@ export function ClassProgressPage() {
             <MenuItem value="WITHDRAWN">Withdrawn</MenuItem>
             <MenuItem value="ARCHIVED">Archived</MenuItem>
           </TextField>
+          <TextField select label="Attention" value={attention} onChange={(event) => filterAttention(event.target.value)} size="small" sx={{ width: { xs: '100%', sm: 'auto' }, minWidth: { sm: 180 } }}>
+            <MenuItem value="all">All students</MenuItem>
+            <MenuItem value="missing">Missing work</MenuItem>
+            <MenuItem value="failed">Latest failed</MenuItem>
+            <MenuItem value="infrastructure">Infrastructure errors</MenuItem>
+            <MenuItem value="inactive">Inactive</MenuItem>
+          </TextField>
+          <TextField select label="Assignment attention scope" value={assignmentKey} onChange={(event) => filterAttention(attention, event.target.value)} size="small" sx={{ width: { xs: '100%', sm: 'auto' }, minWidth: { sm: 200 } }}>
+            <MenuItem value="">All assignments</MenuItem>
+            {report.assignments.map((assignment) => <MenuItem key={assignment.assignmentId} value={assignment.assignmentKey}>{assignment.title}</MenuItem>)}
+          </TextField>
         </Stack>
         {report.students.length === 0 ? (
           <Paper variant="outlined" sx={{ p: 4, textAlign: 'center' }}>
@@ -252,15 +284,15 @@ export function ClassProgressPage() {
         ) : students.length === 0 ? (
           <Typography color="text.secondary">No students match these filters.</Typography>
         ) : (
-          <Box sx={{ width: '100%', overflowX: 'auto' }}>
+          <Box sx={{ height: { xs: 520, md: 600 }, flexShrink: 0, width: '100%', minWidth: 0 }}>
             <DataGrid
               aria-label="Class roster"
-              autoHeight
+              getRowHeight={() => 'auto'}
               rows={students}
               columns={columns}
               getRowId={(row) => row.studentId}
               disableRowSelectionOnClick
-              sx={{ minWidth: 720, '& .MuiDataGrid-cell': { alignItems: 'center' } }}
+              sx={{ minWidth: 0, '& .MuiDataGrid-cell': { display: 'flex', alignItems: 'center', py: 1 } }}
             />
           </Box>
         )}
