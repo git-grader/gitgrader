@@ -99,7 +99,10 @@ class DockerGradingRunnerConfigTest {
 		HostConfig hostConfig = hostConfigCaptor.getValue();
 
 		assertThat(hostConfig.getReadonlyRootfs()).isTrue();
-		assertThat(hostConfig.getAutoRemove()).isTrue();
+		// Auto-remove is off on purpose: it deletes the container the moment it
+		// exits, and this runner still has to read its logs and wait on it after
+		// that. The runner removes the container itself on every path instead.
+		assertThat(hostConfig.getAutoRemove()).isFalse();
 		assertThat(hostConfig.getTmpFs()).containsEntry("/tmp", "size=" + DataSize.ofMegabytes(64).toBytes());
 		assertThat(hostConfig.getMemory()).isEqualTo(1024L * 1024 * 256);
 		// Equal to the memory limit, so the sandbox has no swap. Docker reads an unset
@@ -165,12 +168,12 @@ class DockerGradingRunnerConfigTest {
 		assertThat(binds[1].getVolume().getPath()).isEqualTo("/gitgrader-shim");
 		assertThat(binds[1].getAccessMode()).isEqualTo(AccessMode.rw);
 
-		ArgumentCaptor<List<String>> envCaptor = ArgumentCaptor.forClass(List.class);
+		ArgumentCaptor<List<String>> envCaptor = ArgumentCaptor.captor();
 		verify(this.cmd).withEnv(envCaptor.capture());
 		assertThat(envCaptor.getValue()).containsExactlyInAnyOrder("FOO=BAR",
 				"SHIM_SOCKET=/gitgrader-shim/runner.sock");
 
-		ArgumentCaptor<List<String>> cmdCaptor = ArgumentCaptor.forClass(List.class);
+		ArgumentCaptor<List<String>> cmdCaptor = ArgumentCaptor.captor();
 		verify(this.cmd).withCmd(cmdCaptor.capture());
 		assertThat(cmdCaptor.getValue()).isEqualTo(List.of("sh", "-c", "node /opt/gitgrader-shim/server.js"));
 	}
@@ -186,7 +189,7 @@ class DockerGradingRunnerConfigTest {
 				"node /opt/gitgrader-shim/server.js");
 		shim().createSandbox(shimmed, SOCKET_DIR);
 
-		ArgumentCaptor<List<String>> cmdCaptor = ArgumentCaptor.forClass(List.class);
+		ArgumentCaptor<List<String>> cmdCaptor = ArgumentCaptor.captor();
 		verify(this.cmd).withCmd(cmdCaptor.capture());
 		assertThat(cmdCaptor.getValue())
 			.isEqualTo(List.of("sh", "-c", "npm ci --ignore-scripts && node /opt/gitgrader-shim/server.js"));
@@ -203,7 +206,7 @@ class DockerGradingRunnerConfigTest {
 				Map.of("HIDDEN_TESTS", "/opt/hidden-tests", "FOO", "BAR"), "node-ipc", null);
 		shim().createSandbox(shimmed, SOCKET_DIR);
 
-		ArgumentCaptor<List<String>> envCaptor = ArgumentCaptor.forClass(List.class);
+		ArgumentCaptor<List<String>> envCaptor = ArgumentCaptor.captor();
 		verify(this.cmd).withEnv(envCaptor.capture());
 		assertThat(envCaptor.getValue()).containsExactlyInAnyOrder("FOO=BAR",
 				"SHIM_SOCKET=/gitgrader-shim/runner.sock");
@@ -229,7 +232,7 @@ class DockerGradingRunnerConfigTest {
 		assertThat(binds[1].getVolume().getPath()).isEqualTo("/gitgrader-shim");
 		assertThat(binds[1].getAccessMode()).isEqualTo(AccessMode.rw);
 
-		ArgumentCaptor<List<String>> cmdCaptor = ArgumentCaptor.forClass(List.class);
+		ArgumentCaptor<List<String>> cmdCaptor = ArgumentCaptor.captor();
 		verify(this.cmd).withCmd(cmdCaptor.capture());
 		assertThat(cmdCaptor.getValue()).isEqualTo(List.of("sh", "-c", "npm test"));
 	}

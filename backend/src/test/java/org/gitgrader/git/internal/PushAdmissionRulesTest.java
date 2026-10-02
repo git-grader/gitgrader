@@ -21,6 +21,8 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
+import java.time.Instant;
+import java.time.ZoneOffset;
 import java.util.Set;
 import java.util.UUID;
 
@@ -277,8 +279,7 @@ class PushAdmissionRulesTest {
 		Files.writeString(this.workspace.resolve(fileName), content, StandardCharsets.UTF_8);
 		this.git.add().addFilepattern(fileName).call();
 		PersonIdent when = new PersonIdent("Max Muster", "max@example.org",
-				java.util.Date.from(java.time.Instant.parse("2026-03-01T10:00:00Z").plus(ahead)),
-				java.util.TimeZone.getTimeZone("UTC"));
+				Instant.parse("2026-03-01T10:00:00Z").plus(ahead), ZoneOffset.UTC);
 		return this.git.commit()
 			.setMessage("Add " + fileName)
 			.setSign(Boolean.FALSE)

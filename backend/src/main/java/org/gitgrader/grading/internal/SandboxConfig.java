@@ -56,7 +56,18 @@ final class SandboxConfig {
 	 */
 	static HostConfig baseHostConfig(GradingProperties.Docker docker, GradingExecutionRequest request) {
 		HostConfig hostConfig = HostConfig.newHostConfig()
-			.withAutoRemove(true)
+			// Deliberately not auto-remove. A grading round is a handful of seconds long
+			// and asks the engine about its container after the process inside it has
+			// already gone: the log stream is attached, the container is waited on, and a
+			// sandbox that outlives its limit is killed. Auto-remove deletes the
+			// container the moment it exits, so every one of those calls races a
+			// deletion and loses it some of the time - Docker answering 404 (already
+			// reaped) or 409 (being reaped). That turned roughly one grading run in
+			// seven into an infrastructure failure: the run had finished, produced a
+			// report, and lost it to a container that no longer existed. The runner
+			// removes both halves on every path instead, and already tolerates a
+			// container Docker took first.
+			.withAutoRemove(false)
 			.withReadonlyRootfs(docker.readOnlyRootFilesystem())
 			.withTmpFs(Map.of("/tmp", "size=" + docker.tmpfsSize().toBytes()))
 			.withMemory(request.memoryLimitBytes())

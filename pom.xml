@@ -4,187 +4,185 @@
   SPDX-License-Identifier: Apache-2.0
 -->
 <project xmlns="http://maven.apache.org/POM/4.0.0"
-		 xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-		 xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
-	<modelVersion>4.0.0</modelVersion>
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
 
-	<groupId>org.gitgrader</groupId>
-	<artifactId>gitgrader-parent</artifactId>
-	<version>0.1.0-SNAPSHOT</version>
-	<packaging>pom</packaging>
+  <groupId>org.gitgrader</groupId>
+  <artifactId>gitgrader-parent</artifactId>
+  <version>0.1.0-SNAPSHOT</version>
+  <packaging>pom</packaging>
 
-	<name>GitGrader</name>
-	<description>Self-hostable platform for automated grading of programming assignments submitted over Git.</description>
-	<url>https://github.com/git-grader/gitgrader</url>
-	<inceptionYear>2026</inceptionYear>
+  <name>GitGrader</name>
+  <description>Self-hostable platform for automated grading of programming assignments submitted over Git.</description>
 
-	<licenses>
-		<license>
-			<name>Apache License, Version 2.0</name>
-			<url>https://www.apache.org/licenses/LICENSE-2.0.txt</url>
-			<distribution>repo</distribution>
-		</license>
-	</licenses>
+  <modules>
+    <module>backend</module>
+  </modules>
 
-	<organization>
-		<name>The GitGrader Project</name>
-		<url>https://github.com/git-grader</url>
-	</organization>
+  <properties>
+    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
+    <java.version>25</java.version>
+    <maven.compiler.release>25</maven.compiler.release>
 
-	<developers>
-		<developer>
-			<id>gitgrader</id>
-			<name>The GitGrader contributors</name>
-			<url>https://github.com/git-grader/gitgrader/graphs/contributors</url>
-		</developer>
-	</developers>
+    <!-- Minimum tool versions enforced by maven-enforcer-plugin. -->
+    <minimum.maven.version>3.9.0</minimum.maven.version>
 
-	<scm>
-		<connection>scm:git:https://github.com/git-grader/gitgrader.git</connection>
-		<developerConnection>scm:git:git@github.com:git-grader/gitgrader.git</developerConnection>
-		<url>https://github.com/git-grader/gitgrader</url>
-		<tag>HEAD</tag>
-	</scm>
+    <!--
+      The aggregator itself is not a Spring Boot application. Boot goals are
+      skipped here and re-enabled in the backend module, so that root-level
+      `./mvnw spring-boot:run` and `./mvnw spring-boot:build-image` work.
+    -->
+    <spring-boot.run.skip>true</spring-boot.run.skip>
+    <spring-boot.repackage.skip>true</spring-boot.repackage.skip>
+    <spring-boot.build-image.skip>true</spring-boot.build-image.skip>
+    <spring-boot.aot.skip>true</spring-boot.aot.skip>
 
-	<issueManagement>
-		<system>GitHub Issues</system>
-		<url>https://github.com/git-grader/gitgrader/issues</url>
-	</issueManagement>
+    <!-- Quality tooling is configured in the backend module. -->
+    <config.directory>${maven.multiModuleProjectDirectory}/config</config.directory>
+  </properties>
 
-	<modules>
-		<module>backend</module>
-	</modules>
+  <build>
+    <pluginManagement>
+      <plugins>
+        <plugin>
+          <groupId>org.apache.maven.plugins</groupId>
+          <artifactId>maven-enforcer-plugin</artifactId>
+          <version>3.6.3</version>
+        </plugin>
+        <!--
+          Default lifecycle plugins are pinned so that an aggregator build is
+          reproducible instead of drifting with the local Maven distribution.
+        -->
+        <plugin>
+          <groupId>org.apache.maven.plugins</groupId>
+          <artifactId>maven-clean-plugin</artifactId>
+          <version>3.5.0</version>
+        </plugin>
+        <plugin>
+          <groupId>org.apache.maven.plugins</groupId>
+          <artifactId>maven-install-plugin</artifactId>
+          <version>3.2.0</version>
+        </plugin>
+        <plugin>
+          <groupId>org.apache.maven.plugins</groupId>
+          <artifactId>maven-deploy-plugin</artifactId>
+          <version>3.2.0</version>
+        </plugin>
+        <plugin>
+          <groupId>org.apache.maven.plugins</groupId>
+          <artifactId>maven-site-plugin</artifactId>
+          <version>3.22.0</version>
+        </plugin>
+      </plugins>
+    </pluginManagement>
+    <plugins>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-enforcer-plugin</artifactId>
+        <executions>
+          <execution>
+            <id>enforce-build-environment</id>
+            <goals>
+              <goal>enforce</goal>
+            </goals>
+            <configuration>
+              <rules>
+                <requireMavenVersion>
+                  <version>[${minimum.maven.version},)</version>
+                </requireMavenVersion>
+                <requireJavaVersion>
+                  <version>[${java.version},)</version>
+                </requireJavaVersion>
+                <banDuplicatePomDependencyVersions></banDuplicatePomDependencyVersions>
+              </rules>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+    </plugins>
+  </build>
+  <url>https://github.com/git-grader/gitgrader</url>
+  <inceptionYear>2026</inceptionYear>
+  <organization>
+    <name>The GitGrader Project</name>
+    <url>https://github.com/git-grader</url>
+  </organization>
+  <licenses>
+    <license>
+      <name>Apache License, Version 2.0</name>
+      <url>https://www.apache.org/licenses/LICENSE-2.0.txt</url>
+      <distribution>repo</distribution>
+    </license>
+  </licenses>
 
-	<properties>
-		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-		<project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
-		<java.version>25</java.version>
-		<maven.compiler.release>25</maven.compiler.release>
+  <developers>
+    <developer>
+      <id>gitgrader</id>
+      <name>The GitGrader contributors</name>
+      <url>https://github.com/git-grader/gitgrader/graphs/contributors</url>
+    </developer>
+  </developers>
 
-		<!-- Minimum tool versions enforced by maven-enforcer-plugin. -->
-		<minimum.maven.version>3.9.0</minimum.maven.version>
+  <scm>
+    <connection>scm:git:https://github.com/git-grader/gitgrader.git</connection>
+    <developerConnection>scm:git:git@github.com:git-grader/gitgrader.git</developerConnection>
+    <url>https://github.com/git-grader/gitgrader</url>
+    <tag>HEAD</tag>
+  </scm>
+  <issueManagement>
+    <system>GitHub Issues</system>
+    <url>https://github.com/git-grader/gitgrader/issues</url>
+  </issueManagement>
 
-		<!--
-		  The aggregator itself is not a Spring Boot application. Boot goals are
-		  skipped here and re-enabled in the backend module, so that root-level
-		  `./mvnw spring-boot:run` and `./mvnw spring-boot:build-image` work.
-		-->
-		<spring-boot.run.skip>true</spring-boot.run.skip>
-		<spring-boot.repackage.skip>true</spring-boot.repackage.skip>
-		<spring-boot.build-image.skip>true</spring-boot.build-image.skip>
-		<spring-boot.aot.skip>true</spring-boot.aot.skip>
-
-		<!-- Quality tooling is configured in the backend module. -->
-		<config.directory>${maven.multiModuleProjectDirectory}/config</config.directory>
-	</properties>
-
-	<build>
-		<pluginManagement>
-			<plugins>
-				<plugin>
-					<groupId>org.apache.maven.plugins</groupId>
-					<artifactId>maven-enforcer-plugin</artifactId>
-					<version>3.6.3</version>
-				</plugin>
-				<!--
-				  Default lifecycle plugins are pinned so that an aggregator build is
-				  reproducible instead of drifting with the local Maven distribution.
-				-->
-				<plugin>
-					<groupId>org.apache.maven.plugins</groupId>
-					<artifactId>maven-clean-plugin</artifactId>
-					<version>3.5.0</version>
-				</plugin>
-				<plugin>
-					<groupId>org.apache.maven.plugins</groupId>
-					<artifactId>maven-install-plugin</artifactId>
-					<version>3.2.0</version>
-				</plugin>
-				<plugin>
-					<groupId>org.apache.maven.plugins</groupId>
-					<artifactId>maven-deploy-plugin</artifactId>
-					<version>3.2.0</version>
-				</plugin>
-				<plugin>
-					<groupId>org.apache.maven.plugins</groupId>
-					<artifactId>maven-site-plugin</artifactId>
-					<version>3.22.0</version>
-				</plugin>
-			</plugins>
-		</pluginManagement>
-		<plugins>
-			<plugin>
-				<groupId>org.apache.maven.plugins</groupId>
-				<artifactId>maven-enforcer-plugin</artifactId>
-				<executions>
-					<execution>
-						<id>enforce-build-environment</id>
-						<goals>
-							<goal>enforce</goal>
-						</goals>
-						<configuration>
-							<rules>
-								<requireMavenVersion>
-									<version>[${minimum.maven.version},)</version>
-								</requireMavenVersion>
-								<requireJavaVersion>
-									<version>[${java.version},)</version>
-								</requireJavaVersion>
-								<banDuplicatePomDependencyVersions />
-							</rules>
-						</configuration>
-					</execution>
-				</executions>
-			</plugin>
-		</plugins>
-	</build>
-	<profiles>
-		<!-- ============ License headers outside the Java sources ============ -->
-		<profile>
-			<id>license</id>
-			<build>
-				<plugins>
-					<plugin>
-						<groupId>com.mycila</groupId>
-						<artifactId>license-maven-plugin</artifactId>
-						<version>5.1.2</version>
-						<configuration>
-							<!--
-							  These files carry the two-line SPDX form rather than the full Apache
-							  notice the Java sources use, so the gate is that a header is present
-							  rather than that it is byte-identical to the Java one.
-							-->
-							<skipExistingHeaders>true</skipExistingHeaders>
-							<mapping>
-								<ts>DOUBLESLASH_STYLE</ts>
-								<tsx>DOUBLESLASH_STYLE</tsx>
-							</mapping>
-							<licenseSets>
-								<licenseSet>
-									<header>${config.directory}/license/header-spdx.txt</header>
-									<includes>
-										<include>scripts/*.sh</include>
-										<include>deployment/**/*.sh</include>
-										<include>frontend/src/**/*.ts</include>
-										<include>frontend/src/**/*.tsx</include>
-										<include>frontend/tests/**/*.ts</include>
-										<include>frontend/tests/**/*.tsx</include>
-									</includes>
-								</licenseSet>
-							</licenseSets>
-						</configuration>
-						<executions>
-							<execution>
-								<id>license-check</id>
-								<phase>validate</phase>
-								<goals>
-									<goal>check</goal>
-								</goals>
-							</execution>
-						</executions>
-					</plugin>
-				</plugins>
-			</build>
-		</profile>
-	</profiles>
+  <profiles>
+    <!-- ============ License headers outside the Java sources ============ -->
+    <profile>
+      <id>license</id>
+      <build>
+        <plugins>
+          <plugin>
+            <groupId>com.mycila</groupId>
+            <artifactId>license-maven-plugin</artifactId>
+            <version>5.1.2</version>
+            <configuration>
+              <!--
+                These files carry the two-line SPDX form rather than the full Apache
+                notice the Java sources use, so the gate is that a header is present
+                rather than that it is byte-identical to the Java one.
+              -->
+              <skipExistingHeaders>true</skipExistingHeaders>
+              <mapping>
+                <ts>DOUBLESLASH_STYLE</ts>
+                <tsx>DOUBLESLASH_STYLE</tsx>
+              </mapping>
+              <licenseSets>
+                <licenseSet>
+                  <header>${config.directory}/license/header-spdx.txt</header>
+                  <includes>
+                    <include>scripts/*.sh</include>
+                    <include>deployment/**/*.sh</include>
+                    <include>frontend/src/**/*.ts</include>
+                    <include>frontend/src/**/*.tsx</include>
+                    <include>frontend/tests/**/*.ts</include>
+                    <include>frontend/tests/**/*.tsx</include>
+                  </includes>
+                </licenseSet>
+              </licenseSets>
+            </configuration>
+            <executions>
+              <execution>
+                <id>license-check</id>
+                <goals>
+                  <goal>check</goal>
+                </goals>
+                <phase>validate</phase>
+              </execution>
+            </executions>
+          </plugin>
+        </plugins>
+      </build>
+    </profile>
+  </profiles>
 </project>

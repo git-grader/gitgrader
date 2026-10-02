@@ -9,10 +9,10 @@
   <modelVersion>4.0.0</modelVersion>
 
   <!--
-	  Inherits from spring-boot-starter-parent so that the `native` profile,
-	  the resource filtering conventions and the Boot plugin management are
-	  available exactly as upstream defines them.
-	-->
+    Inherits from spring-boot-starter-parent so that the `native` profile,
+    the resource filtering conventions and the Boot plugin management are
+    available exactly as upstream defines them.
+  -->
   <parent>
     <groupId>org.springframework.boot</groupId>
     <artifactId>spring-boot-starter-parent</artifactId>
@@ -51,48 +51,48 @@
     <git-commit-id-maven-plugin.version>10.0.1</git-commit-id-maven-plugin.version>
 
     <!-- Ahead of the version Spring Boot manages: 5.4.2 accepts an unbounded number of
-		     HTTP/1.1 headers (CVE-2026-54399) and an oversized HPACK block before the
-		     HTTP/2 settings limit applies (CVE-2026-54428), either of which exhausts
-		     memory. This is the transport docker-java speaks to the engine over, so the
-		     reach is the runner. Fixed in 5.4.3; drop this once Boot manages it. -->
+         HTTP/1.1 headers (CVE-2026-54399) and an oversized HPACK block before the
+         HTTP/2 settings limit applies (CVE-2026-54428), either of which exhausts
+         memory. This is the transport docker-java speaks to the engine over, so the
+         reach is the runner. Fixed in 5.4.3; drop this once Boot manages it. -->
     <httpclient5.version>5.6.4</httpclient5.version>
     <httpcore5.version>5.4.4</httpcore5.version>
     <jacoco-maven-plugin.version>0.8.15</jacoco-maven-plugin.version>
     <jacoco.branch.coverage>0.45</jacoco.branch.coverage>
 
     <!--
-		  Coverage floor, for a run of the unit tests alone. Without a Docker engine the
-		  integration tests skip - deliberately, so that a contributor without one still
-		  gets a green `./mvnw verify`, which CONTRIBUTING.md promises - and they are
-		  worth about twenty points of line coverage. A floor set for a run that includes
-		  them would turn that promise into a build failing on a coverage ratio, with
-		  nothing anywhere to connect it to Docker. The `ci-coverage` profile below
-		  raises it where the integration tests are guaranteed to have run.
-		-->
+      Coverage floor, for a run of the unit tests alone. Without a Docker engine the
+      integration tests skip - deliberately, so that a contributor without one still
+      gets a green `./mvnw verify`, which CONTRIBUTING.md promises - and they are
+      worth about twenty points of line coverage. A floor set for a run that includes
+      them would turn that promise into a build failing on a coverage ratio, with
+      nothing anywhere to connect it to Docker. The `ci-coverage` profile below
+      raises it where the integration tests are guaranteed to have run.
+    -->
     <jacoco.line.coverage>0.55</jacoco.line.coverage>
     <!--
- 		  Ahead of the versions Spring Boot manages: 2.21.5 for the Jackson 2 line
- 		  (jackson-2-bom.version) and 3.1.5 for Jackson 3 (jackson-bom.version).
- 		  Both lines ship jackson-core and jackson-databind, and both are affected:
+       Ahead of the versions Spring Boot manages: 2.21.5 for the Jackson 2 line
+       (jackson-2-bom.version) and 3.1.5 for Jackson 3 (jackson-bom.version).
+       Both lines ship jackson-core and jackson-databind, and both are affected:
 
- 		  - CVE-2026-89407 (high): denial of service via catastrophic backtracking in
- 		    a regular expression, reachable on any parse of attacker-supplied JSON.
- 		  - CVE-2026-89425 (high): unbounded StringBuilder growth on a malformed token,
- 		    exhausting heap on the same path.
- 		  - CVE-2026-91776 (high): a second DoS in the parser, fixed only alongside
- 		    the two above.
- 		  - CVE-2026-91777 (high): forward-reference completion for @JsonIdentityInfo
- 		    object ids.
+       - CVE-2026-89407 (high): denial of service via catastrophic backtracking in
+         a regular expression, reachable on any parse of attacker-supplied JSON.
+       - CVE-2026-89425 (high): unbounded StringBuilder growth on a malformed token,
+         exhausting heap on the same path.
+       - CVE-2026-91776 (high): a second DoS in the parser, fixed only alongside
+         the two above.
+       - CVE-2026-91777 (high): forward-reference completion for @JsonIdentityInfo
+         object ids.
 
- 		  Jackson 3 is the one Boot itself serializes with; Jackson 2 is reached
- 		  through Apache POI, which still uses the 2.x packages. A build of ours that
- 		  unpacks an uploaded xlsx parses untrusted XML and JSON with it, so leaving
- 		  2.x behind would only move the same finding to another coordinate.
+       Jackson 3 is the one Boot itself serializes with; Jackson 2 is reached
+       through Apache POI, which still uses the 2.x packages. A build of ours that
+       unpacks an uploaded xlsx parses untrusted XML and JSON with it, so leaving
+       2.x behind would only move the same finding to another coordinate.
 
- 		  2.21.7 and 3.1.7 are the fixed releases on each line; the 2.22.x / 3.2.x
- 		  branches carry the same fixes but are minor bumps we do not need. Drop these
- 		  once Boot manages 2.21.7 and 3.1.7 itself.
- 	-->
+       2.21.7 and 3.1.7 are the fixed releases on each line; the 2.22.x / 3.2.x
+       branches carry the same fixes but are minor bumps we do not need. Drop these
+       once Boot manages 2.21.7 and 3.1.7 itself.
+   -->
     <jackson-2-bom.version>2.21.7</jackson-2-bom.version>
     <jackson-bom.version>3.1.7</jackson-bom.version>
 
@@ -104,8 +104,8 @@
     <maven-pmd-plugin.version>3.28.0</maven-pmd-plugin.version>
     <maven.compiler.release>25</maven.compiler.release>
     <!-- At or above the floor jsdom 30 sets (^22.22.2 || ^24.15.0 || >=26.0.0);
-		     below it every build prints an EBADENGINE warning for a toolchain this
-		     project pins itself, so the warning is ours to fix, not npm's to report. -->
+         below it every build prints an EBADENGINE warning for a toolchain this
+         project pins itself, so the warning is ours to fix, not npm's to report. -->
     <node.version>v24.18.1</node.version>
     <npm.version>11.16.0</npm.version>
     <pmd.skip>${skipQuality}</pmd.skip>
@@ -113,10 +113,10 @@
     <poi.version>5.5.1</poi.version>
 
     <!-- Ahead of the version Spring Boot manages: 42.7.11 silently downgrades a
-		     channelBinding=require connection from SCRAM-SHA-256-PLUS to plain
-		     SCRAM-SHA-256, losing the man-in-the-middle protection that setting exists
-		     to give (CVE-2026-54291, fixed in 42.7.12). Drop this once the managed
-		     version reaches it. -->
+         channelBinding=require connection from SCRAM-SHA-256-PLUS to plain
+         SCRAM-SHA-256, losing the man-in-the-middle protection that setting exists
+         to give (CVE-2026-54291, fixed in 42.7.12). Drop this once the managed
+         version reaches it. -->
     <postgresql.version>42.7.13</postgresql.version>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 
@@ -141,11 +141,11 @@
     <taikai.version>1.67.0</taikai.version>
 
     <!-- Ahead of the version Spring Boot manages. 11.0.24 is the servlet container
-		     every request is served by, and the dependency check fails the build on it:
-		     CVE-2026-65905 and CVE-2026-65637 (9.8), CVE-2026-65182 and CVE-2026-68525
-		     (9.1), CVE-2026-65183, CVE-2026-66422 and CVE-2026-68569 (8.1), CVE-2026-65927
-		     and CVE-2026-68763 (7.5), all fixed in 11.0.25, which carries no known
-		     vulnerability. Drop this once the managed version reaches 11.0.25. -->
+         every request is served by, and the dependency check fails the build on it:
+         CVE-2026-65905 and CVE-2026-65637 (9.8), CVE-2026-65182 and CVE-2026-68525
+         (9.1), CVE-2026-65183, CVE-2026-66422 and CVE-2026-68569 (8.1), CVE-2026-65927
+         and CVE-2026-68763 (7.5), all fixed in 11.0.25, which carries no known
+         vulnerability. Drop this once the managed version reaches 11.0.25. -->
     <tomcat.version>11.0.25</tomcat.version>
   </properties>
 
@@ -222,7 +222,6 @@
       </dependency>
     </dependencies>
   </dependencyManagement>
-
   <dependencies>
     <!-- ==================== Web / API ==================== -->
     <dependency>
@@ -368,9 +367,9 @@
     </dependency>
     <dependency>
       <!--
-			  Boot 4.x split test auto-configuration into per-technology modules, so
-			  spring-boot-starter-test no longer brings @WebMvcTest / @AutoConfigureMockMvc.
-			-->
+        Boot 4.x split test auto-configuration into per-technology modules, so
+        spring-boot-starter-test no longer brings @WebMvcTest / @AutoConfigureMockMvc.
+      -->
       <groupId>org.springframework.boot</groupId>
       <artifactId>spring-boot-webmvc-test</artifactId>
       <scope>test</scope>
@@ -505,6 +504,14 @@
         <groupId>io.github.git-commit-id</groupId>
         <artifactId>git-commit-id-maven-plugin</artifactId>
         <version>${git-commit-id-maven-plugin.version}</version>
+        <configuration>
+          <dotGitDirectory>${maven.multiModuleProjectDirectory}/.git</dotGitDirectory>
+          <generateGitPropertiesFile>true</generateGitPropertiesFile>
+          <generateGitPropertiesFilename>${project.build.outputDirectory}/git.properties</generateGitPropertiesFilename>
+          <abbrevLength>7</abbrevLength>
+          <failOnNoGitDirectory>false</failOnNoGitDirectory>
+          <failOnUnableToExtractRepoInfo>false</failOnUnableToExtractRepoInfo>
+        </configuration>
         <executions>
           <execution>
             <id>revision</id>
@@ -514,14 +521,6 @@
             <phase>initialize</phase>
           </execution>
         </executions>
-        <configuration>
-          <dotGitDirectory>${maven.multiModuleProjectDirectory}/.git</dotGitDirectory>
-          <generateGitPropertiesFile>true</generateGitPropertiesFile>
-          <generateGitPropertiesFilename>${project.build.outputDirectory}/git.properties</generateGitPropertiesFilename>
-          <abbrevLength>7</abbrevLength>
-          <failOnNoGitDirectory>false</failOnNoGitDirectory>
-          <failOnUnableToExtractRepoInfo>false</failOnUnableToExtractRepoInfo>
-        </configuration>
       </plugin>
 
       <!-- ============ Checkstyle: semantic rules only ============ -->
@@ -571,6 +570,12 @@
           <minimumTokens>120</minimumTokens>
           <includeTests>false</includeTests>
           <analysisCache>true</analysisCache>
+          <!--
+            The report is the only consumer of Source XRefs, and there are none
+            to link to: nothing in this build runs the XRef goal, so the plugin
+            warned that they were disabled on every build before disabling them.
+          -->
+          <linkXRef>false</linkXRef>
         </configuration>
         <dependencies>
           <dependency>
@@ -641,11 +646,11 @@
         <configuration>
           <failOnUnsupportedJava>false</failOnUnsupportedJava>
           <!--
-					  Signatures naming a class that is not on this module's classpath are
-					  skipped rather than failing the build. Signatures naming a class that
-					  IS present must still resolve down to the member, so a typo in one of
-					  our own entries is reported instead of silently disabling the ban.
-					-->
+            Signatures naming a class that is not on this module's classpath are
+            skipped rather than failing the build. Signatures naming a class that
+            IS present must still resolve down to the member, so a typo in one of
+            our own entries is reported instead of silently disabling the ban.
+          -->
           <ignoreSignaturesOfMissingClasses>true</ignoreSignaturesOfMissingClasses>
           <bundledSignatures>
             <!-- Locale/charset dependent APIs make grading non-deterministic. -->
@@ -695,14 +700,14 @@
             </goals>
           </execution>
           <!--
-					  The integration tests are the most realistic thing the suite has, and
-					  their coverage was written to a second file that nothing ever read: the
-					  report and the gate below both defaulted to the unit data alone. So the
-					  push admission hook, the grading queue and the SSH server - all of them
-					  driven end to end by a Testcontainers IT - were published as 0% covered,
-					  and the gate they had to clear was one they contributed nothing to.
-					  Merging first makes both reports describe the same run.
-					-->
+            The integration tests are the most realistic thing the suite has, and
+            their coverage was written to a second file that nothing ever read: the
+            report and the gate below both defaulted to the unit data alone. So the
+            push admission hook, the grading queue and the SSH server - all of them
+            driven end to end by a Testcontainers IT - were published as 0% covered,
+            and the gate they had to clear was one they contributed nothing to.
+            Merging first makes both reports describe the same run.
+          -->
           <execution>
             <id>jacoco-merge</id>
             <goals>
@@ -765,9 +770,9 @@
 
       <!-- ============ Unit vs integration test split ============ -->
       <!--
-			  Resolves dependency paths into properties so that the Mockito agent below can
-			  be named without hard-coding a path into the local repository.
-			-->
+        Resolves dependency paths into properties so that the Mockito agent below can
+        be named without hard-coding a path into the local repository.
+      -->
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-dependency-plugin</artifactId>
@@ -785,17 +790,22 @@
         <artifactId>maven-surefire-plugin</artifactId>
         <configuration>
           <!--
-					  `@{argLine}` is a late replacement, so JaCoCo's agent, which is added
-					  to that property during the build, is kept rather than overwritten.
+            `@{argLine}` is a late replacement, so JaCoCo's agent, which is added
+            to that property during the build, is kept rather than overwritten.
 
-					  Mockito is passed as an explicit agent because otherwise it attaches
-					  one to its own JVM at runtime, which the JDK already warns about and
-					  will refuse outright in a future release. Native access is granted for
-					  the same reason: JNA, reached through docker-java, calls a restricted
-					  method that is currently a warning and is set to become an error.
-					-->
+            Mockito is passed as an explicit agent because otherwise it attaches
+            one to its own JVM at runtime, which the JDK already warns about and
+            will refuse outright in a future release. Native access is granted for the
+          same reason: JNA, reached through docker-java, calls a restricted
+          method that is currently a warning and is set to become an error.
+
+          Byte Buddy injects Mockito's mock classes through sun.misc.Unsafe,
+          which the JDK now reports and says it will remove. That is the only
+          way it can define classes for the inline mock maker, so the access
+          is granted rather than left to be reported on every build.
+        -->
           <argLine>@{argLine} -javaagent:${org.mockito:mockito-core:jar}
-            --enable-native-access=ALL-UNNAMED</argLine>
+            --enable-native-access=ALL-UNNAMED --sun-misc-unsafe-memory-access=allow</argLine>
           <excludes>
             <exclude>**/*IT.java</exclude>
             <exclude>**/*IntegrationTest.java</exclude>
@@ -806,13 +816,19 @@
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-failsafe-plugin</artifactId>
         <!--
-				  No execution is declared: spring-boot-starter-parent already binds
-				  integration-test and verify. Declaring another one made the goals run a
-				  second time, which Failsafe skipped as already executed but which still
-				  reported two executions of everything.
-				-->
+          No execution is declared: spring-boot-starter-parent already binds
+          integration-test and verify. Declaring another one made the goals run a
+          second time, which Failsafe skipped as already executed but which still
+          reported two executions of everything.
+
+          The arguments are the ones Surefire gets, and for the same reasons. They
+          were missing here, so every warning the flags exist to silence still
+          printed from the integration-test JVM, which is where Mockito first met
+          a real Docker daemon.
+        -->
         <configuration>
-          <argLine>@{argLine} --enable-native-access=ALL-UNNAMED</argLine>
+          <argLine>@{argLine} -javaagent:${org.mockito:mockito-core:jar}
+            --enable-native-access=ALL-UNNAMED --sun-misc-unsafe-memory-access=allow</argLine>
           <includes>
             <include>**/*IT.java</include>
             <include>**/*IntegrationTest.java</include>
@@ -834,6 +850,24 @@
           <includeLicenseText>false</includeLicenseText>
         </configuration>
         <executions>
+          <!--
+            Spring Boot's parent already binds a BOM to generate-resources. It is
+            kept, because it is what puts application.cdx.json inside the jar, but
+            it attached a Maven artifact under the same coordinates as the one below
+            and every build reported the second one replacing the first. Only one of
+            them should own the attachment, and the one published as a build
+            artifact is this project's own.
+          -->
+          <execution>
+            <id>default</id>
+            <goals>
+              <goal>makeAggregateBom</goal>
+            </goals>
+            <phase>generate-resources</phase>
+            <configuration>
+              <skipAttach>true</skipAttach>
+            </configuration>
+          </execution>
           <execution>
             <id>generate-sbom</id>
             <goals>
@@ -851,9 +885,9 @@
         <configuration>
           <image>
             <!-- Named through the plugin's own user property so a release can
-						     override it on the command line. Hard-coding the name here
-						     silently wins over -Dspring-boot.build-image.imageName, which
-						     makes a tagged build publish the snapshot name instead. -->
+                 override it on the command line. Hard-coding the name here
+                 silently wins over -Dspring-boot.build-image.imageName, which
+                 makes a tagged build publish the snapshot name instead. -->
             <name>${spring-boot.build-image.imageName}</name>
             <env>
               <BP_JVM_VERSION>${java.version}</BP_JVM_VERSION>
@@ -878,7 +912,6 @@
       </plugin>
     </plugins>
   </build>
-
   <licenses>
     <license>
       <name>Apache License, Version 2.0</name>
@@ -890,12 +923,12 @@
   <profiles>
     <!-- ============ Coverage floor where every test runs ============ -->
     <!--
-		  Activated by the CI environment variable, which is the same signal
-		  DockerAvailableCondition uses to enable the integration tests rather than skip
-		  them. Wherever that condition guarantees they ran, this guarantees their
-		  coverage is demanded: the suite reaches about 80% line and 64% branch, so a
-		  floor set here catches a lost test instead of tolerating a twenty-point fall.
-		-->
+      Activated by the CI environment variable, which is the same signal
+      DockerAvailableCondition uses to enable the integration tests rather than skip
+      them. Wherever that condition guarantees they ran, this guarantees their
+      coverage is demanded: the suite reaches about 80% line and 64% branch, so a
+      floor set here catches a lost test instead of tolerating a twenty-point fall.
+    -->
     <profile>
       <id>ci-coverage</id>
       <activation>
@@ -1021,10 +1054,10 @@
               </formats>
               <nvdApiKey>${env.NVD_API_KEY}</nvdApiKey>
               <!-- NIST throttles the shared address ranges CI runners come from, and
-							     answers 503 rather than 429 when it does, which the plugin treats as
-							     fatal and which fails the build with nothing wrong in the code. Backing
-							     off and retrying rides out the throttle; keeping the downloaded feed
-							     valid for a day means most runs do not ask for it at all. -->
+                   answers 503 rather than 429 when it does, which the plugin treats as
+                   fatal and which fails the build with nothing wrong in the code. Backing
+                   off and retrying rides out the throttle; keeping the downloaded feed
+                   valid for a day means most runs do not ask for it at all. -->
               <nvdApiDelay>4000</nvdApiDelay>
               <nvdMaxRetryCount>15</nvdMaxRetryCount>
               <nvdValidForHours>24</nvdValidForHours>

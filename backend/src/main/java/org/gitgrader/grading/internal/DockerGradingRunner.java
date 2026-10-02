@@ -58,6 +58,29 @@ class DockerGradingRunner implements GradingRunner {
 	/** Bounded so a stuck log stream delays one run rather than hanging the worker. */
 	private static final Duration LOG_DRAIN_TIMEOUT = Duration.ofSeconds(10);
 
+	/**
+	 * Why a wait on a container ended, which is not the same question as whether the
+	 * container finished.
+	 */
+	private enum Verdict {
+
+		/** The container ran and the wait reported its exit. */
+		FINISHED,
+
+		/** The container used the whole budget it was given. */
+		TIMED_OUT,
+
+		/** The wait ended on its own, well inside the budget. */
+		ENDED_EARLY
+
+	}
+
+	/**
+	 * Recorded when the engine stopped reporting a sandbox that had not used its budget.
+	 */
+	private static final String LOST_SANDBOX_DETAIL = "The engine stopped reporting the sandbox before it ran "
+			+ "for as long as it was allowed to, so this run was cut short rather than finished";
+
 	private static final Logger logger = LoggerFactory.getLogger(DockerGradingRunner.class);
 
 	private final DockerClient dockerClient;
@@ -101,17 +124,27 @@ class DockerGradingRunner implements GradingRunner {
 
 				this.dockerClient.startContainerCmd(containerId).exec();
 
+				// Attached after the sandbox starts, never before. A followed log request
+				// on a container the engine is not yet running is closed at once with
+				// nothing in it, so subscribing first loses the whole report rather than
+				// closing a race. Nothing is missed by subscribing late, because the log
+				// belongs to the container and outlives the process that wrote it: this
+				// runner does not auto-remove, so the log is still there to be read.
 				ResultCallback<Frame> logStream = logStream(containerId, callback);
 				try (logStream) {
 					this.dockerClient.waitContainerCmd(containerId).exec(waitCallback);
-					boolean completed = waitCallback.awaitCompletion(request.timeout().toMillis(),
-							TimeUnit.MILLISECONDS);
+					Verdict verdict = awaitVerdict(request.timeout(), waitCallback);
 
-					if (!completed) {
-						this.dockerClient.killContainerCmd(containerId).exec();
+					if (verdict == Verdict.TIMED_OUT) {
+						killContainer(containerId);
 						drain(callback, containerId);
 						return new GradingResult(-1, callback.getStdout(), callback.getStderr(),
 								this.clock.millis() - start, true, false, null);
+					}
+
+					if (verdict == Verdict.ENDED_EARLY) {
+						return new GradingResult(-1, callback.getStdout(), callback.getStderr(),
+								this.clock.millis() - start, false, true, LOST_SANDBOX_DETAIL);
 					}
 
 					if (!drain(callback, containerId)) {
@@ -121,14 +154,9 @@ class DockerGradingRunner implements GradingRunner {
 										+ "so the test report would have been incomplete");
 					}
 
-					// Taken from the wait result rather than by inspecting the container.
-					// Containers are created with auto-remove, so Docker deletes them the
-					// moment they exit and a following inspect loses that race and
-					// answers
-					// 404. That surfaced as an infrastructure failure, which would tell a
-					// student their submission broke the grader when it had in fact been
-					// graded. The wait already carries the code, and needs nothing to
-					// exist.
+					// Taken from the wait result rather than by inspecting the container,
+					// so nothing here depends on the container still existing. The wait
+					// already carries the code and needs nothing to be left behind.
 					Integer exitCode = waitCallback.awaitStatusCode();
 					return new GradingResult((exitCode != null) ? exitCode : -1, callback.getStdout(),
 							callback.getStderr(), this.clock.millis() - start, false, false, null);
@@ -216,21 +244,29 @@ class DockerGradingRunner implements GradingRunner {
 			this.dockerClient.startContainerCmd(sandboxId).exec();
 			this.dockerClient.startContainerCmd(suiteId).exec();
 
+			// Attached after both containers start, for the same reason as the
+			// single-container path: a followed log request on a container that is not
+			// running yet comes back empty and closed.
 			ResultCallback<Frame> sandboxStream = logStream(sandboxId, sandboxLogs);
 			ResultCallback<Frame> suiteStream = logStream(suiteId, suiteLogs);
 			try (sandboxStream; suiteStream) {
 				this.dockerClient.waitContainerCmd(suiteId).exec(suiteWait);
-				boolean completed = suiteWait.awaitCompletion(request.timeout().toMillis(), TimeUnit.MILLISECONDS);
+				Verdict verdict = awaitVerdict(request.timeout(), suiteWait);
 
-				if (!completed) {
+				if (verdict == Verdict.TIMED_OUT) {
 					// The bound is the suite's own run; once both are stopped the report
 					// arrives in full, which is all a timeout is allowed to keep from the
 					// student.
-					this.dockerClient.killContainerCmd(suiteId).exec();
-					this.dockerClient.killContainerCmd(sandboxId).exec();
+					killContainer(suiteId);
+					killContainer(sandboxId);
 					drain(suiteLogs, suiteId);
 					return new GradingResult(-1, suiteLogs.getStdout(), suiteLogs.getStderr(),
 							this.clock.millis() - start, true, false, null);
+				}
+
+				if (verdict == Verdict.ENDED_EARLY) {
+					return new GradingResult(-1, suiteLogs.getStdout(), suiteLogs.getStderr(),
+							this.clock.millis() - start, false, true, LOST_SANDBOX_DETAIL);
 				}
 
 				if (!drain(suiteLogs, suiteId)) {
@@ -269,7 +305,52 @@ class DockerGradingRunner implements GradingRunner {
 	}
 
 	/**
-	 * Removes a container, tolerating the races auto-remove creates.
+	 * Waits for a container and works out why the wait ended.
+	 *
+	 * <p>
+	 * {@code awaitCompletion} answers false for two unrelated things: a budget that ran
+	 * out, and a callback the engine tore down early. A container reaped out from under
+	 * an open wait is the second, and reading it as the first made a run that finished in
+	 * a second look like one that ran to its limit - so it was killed (on a container
+	 * that no longer existed, which threw), reported as an infrastructure failure, and
+	 * its report thrown away. Only a wait that genuinely spent its whole budget is a
+	 * timeout; anything else that did not finish is reported for what it is.
+	 * @param budget how long the container was allowed to run
+	 * @param waitCallback the wait being awaited
+	 * @return why the wait ended
+	 * @throws InterruptedException when the worker is interrupted mid-wait
+	 */
+	private Verdict awaitVerdict(Duration budget, WaitContainerResultCallback waitCallback)
+			throws InterruptedException {
+		long startedAt = this.clock.millis();
+		if (waitCallback.awaitCompletion(budget.toMillis(), TimeUnit.MILLISECONDS)) {
+			return Verdict.FINISHED;
+		}
+		return (this.clock.millis() - startedAt >= budget.toMillis()) ? Verdict.TIMED_OUT : Verdict.ENDED_EARLY;
+	}
+
+	/**
+	 * Kills a container, treating one that has already gone as the outcome wanted.
+	 *
+	 * <p>
+	 * A sandbox that exited a moment before the kill landed is stopped, which is all the
+	 * kill was for. Docker says so as 404 (already reaped) and 409 (being reaped), and
+	 * letting either escape turned a timeout into an infrastructure failure carrying no
+	 * output at all - a student told the platform had broken over code that merely took
+	 * too long, with the partial report that proved it thrown away.
+	 * @param containerId the container to kill
+	 */
+	private void killContainer(String containerId) {
+		try {
+			this.dockerClient.killContainerCmd(containerId).exec();
+		}
+		catch (NotFoundException | ConflictException alreadyGone) {
+			logger.debug("Container {} had already stopped when the sandbox was killed", containerId);
+		}
+	}
+
+	/**
+	 * Removes a container, tolerating the races the engine creates.
 	 * @param containerId the container to remove, or {@code null} when none was created
 	 */
 	private void removeContainer(String containerId) {
@@ -280,16 +361,13 @@ class DockerGradingRunner implements GradingRunner {
 			this.dockerClient.removeContainerCmd(containerId).withForce(true).exec();
 		}
 		catch (NotFoundException | ConflictException expected) {
-			// Containers are created with auto-remove, so Docker is usually already
-			// removing this one by the time we ask: the answer is 404 if it finished and
-			// 409 if it is still going. Both mean the container is gone or going, which
-			// is
-			// what was wanted. Logged as a warning with a stack trace, this printed one
-			// on
-			// every successful run and taught an operator to ignore the warnings from
-			// this
-			// class.
-			logger.debug("Container {} was already being removed by Docker", containerId);
+			// Grading containers are removed explicitly rather than by auto-remove, so
+			// this is now the rare case rather than the common one: the engine had
+			// already taken this one (404), or still had it in hand (409). Both mean
+			// the container is gone or going, which is what was wanted. Logged as a
+			// warning with a stack trace, this used to print on every successful run
+			// and taught an operator to ignore the warnings from this class.
+			logger.debug("Container {} was already gone or going by the time it was removed", containerId);
 		}
 		catch (RuntimeException ex) {
 			logger.warn("Failed to remove container {}", containerId, ex);

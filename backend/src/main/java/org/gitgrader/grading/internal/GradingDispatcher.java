@@ -157,8 +157,8 @@ public class GradingDispatcher implements SmartLifecycle {
 	 * anything still executing is returned to the queue with its attempt refunded.
 	 *
 	 * <p>
-	 * The abandoned container is left to Docker, which removes it on exit because every
-	 * sandbox is created with auto-remove.
+	 * The abandoned container is removed by the runner's own cleanup path, which forces
+	 * removal and tolerates a container the engine has already taken.
 	 */
 	@Override
 	public void stop() {
