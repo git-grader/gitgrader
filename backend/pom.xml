@@ -70,6 +70,32 @@
 		  raises it where the integration tests are guaranteed to have run.
 		-->
     <jacoco.line.coverage>0.55</jacoco.line.coverage>
+    <!--
+ 		  Ahead of the versions Spring Boot manages: 2.21.5 for the Jackson 2 line
+ 		  (jackson-2-bom.version) and 3.1.5 for Jackson 3 (jackson-bom.version).
+ 		  Both lines ship jackson-core and jackson-databind, and both are affected:
+
+ 		  - CVE-2026-89407 (high): denial of service via catastrophic backtracking in
+ 		    a regular expression, reachable on any parse of attacker-supplied JSON.
+ 		  - CVE-2026-89425 (high): unbounded StringBuilder growth on a malformed token,
+ 		    exhausting heap on the same path.
+ 		  - CVE-2026-91776 (high): a second DoS in the parser, fixed only alongside
+ 		    the two above.
+ 		  - CVE-2026-91777 (high): forward-reference completion for @JsonIdentityInfo
+ 		    object ids.
+
+ 		  Jackson 3 is the one Boot itself serializes with; Jackson 2 is reached
+ 		  through Apache POI, which still uses the 2.x packages. A build of ours that
+ 		  unpacks an uploaded xlsx parses untrusted XML and JSON with it, so leaving
+ 		  2.x behind would only move the same finding to another coordinate.
+
+ 		  2.21.7 and 3.1.7 are the fixed releases on each line; the 2.22.x / 3.2.x
+ 		  branches carry the same fixes but are minor bumps we do not need. Drop these
+ 		  once Boot manages 2.21.7 and 3.1.7 itself.
+ 	-->
+    <jackson-2-bom.version>2.21.7</jackson-2-bom.version>
+    <jackson-bom.version>3.1.7</jackson-bom.version>
+
     <java.version>25</java.version>
     <jgit.version>7.8.0.202609011348-r</jgit.version>
     <license-maven-plugin.version>5.1.2</license-maven-plugin.version>
