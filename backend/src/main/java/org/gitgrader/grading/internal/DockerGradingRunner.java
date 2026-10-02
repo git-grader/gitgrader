@@ -81,6 +81,14 @@ class DockerGradingRunner implements GradingRunner {
 	private static final String LOST_SANDBOX_DETAIL = "The engine stopped reporting the sandbox before it ran "
 			+ "for as long as it was allowed to, so this run was cut short rather than finished";
 
+	/**
+	 * Recorded when the budget ran out and neither container said anything about it. The
+	 * run reached its limit with the sandbox still serving and the suite still waiting,
+	 * which is what an over-running submission looks like from here.
+	 */
+	private static final String TIMEOUT_SILENT_DETAIL = "The submission ran for the whole time it was allowed and "
+			+ "never finished, and neither container reported a reason";
+
 	private static final Logger logger = LoggerFactory.getLogger(DockerGradingRunner.class);
 
 	private final DockerClient dockerClient;
@@ -260,13 +268,15 @@ class DockerGradingRunner implements GradingRunner {
 					killContainer(suiteId);
 					killContainer(sandboxId);
 					drain(suiteLogs, suiteId);
+					drain(sandboxLogs, sandboxId);
 					return new GradingResult(-1, suiteLogs.getStdout(), suiteLogs.getStderr(),
-							this.clock.millis() - start, true, false, null);
+							this.clock.millis() - start, true, false, timeoutDetail(suiteLogs, sandboxLogs));
 				}
 
 				if (verdict == Verdict.ENDED_EARLY) {
+					drain(sandboxLogs, sandboxId);
 					return new GradingResult(-1, suiteLogs.getStdout(), suiteLogs.getStderr(),
-							this.clock.millis() - start, false, true, LOST_SANDBOX_DETAIL);
+							this.clock.millis() - start, false, true, lostSandboxDetail(suiteLogs, sandboxLogs));
 				}
 
 				if (!drain(suiteLogs, suiteId)) {
@@ -297,6 +307,56 @@ class DockerGradingRunner implements GradingRunner {
 			.withStdErr(true)
 			.withFollowStream(true)
 			.exec(callback);
+	}
+
+	/**
+	 * Explains a timeout using whatever the two containers managed to say.
+	 *
+	 * <p>
+	 * A run that spent its whole budget has usually told us why and the runner was too
+	 * slow to read it. The shim reports an unresolvable submission (several modules and
+	 * no {@code SOLUTION_PATH}) and an over-running call on stderr and then keeps
+	 * running, so both messages are sitting in the captured output of a container that
+	 * was then killed. Reporting them turns a run that told us nothing into one that
+	 * names the file to fix, and it costs only text the runner already holds.
+	 * @param suiteLogs what the suite reported before it was stopped
+	 * @param sandboxLogs what the sandbox reported before it was stopped
+	 * @return the detail to record, or null when neither side explained itself
+	 */
+	private static String timeoutDetail(LogCaptureCallback suiteLogs, LogCaptureCallback sandboxLogs) {
+		String detail = firstNonBlank(sandboxLogs.getStderr(), suiteLogs.getStderr());
+		if (detail == null) {
+			// Nothing was said, and the distinction still matters to whoever reads the
+			// row: the budget ran out with the sandbox still serving, or it had already
+			// gone. Only the first is a slow submission.
+			return sandboxLogs.getStdout().isBlank() ? TIMEOUT_SILENT_DETAIL : null;
+		}
+		return detail;
+	}
+
+	/**
+	 * Explains a wait that ended while the sandbox was still supposed to be running.
+	 * @param suiteLogs what the suite reported
+	 * @param sandboxLogs what the sandbox reported
+	 * @return the detail to record, always naming the lost sandbox
+	 */
+	private static String lostSandboxDetail(LogCaptureCallback suiteLogs, LogCaptureCallback sandboxLogs) {
+		String said = firstNonBlank(sandboxLogs.getStderr(), suiteLogs.getStderr());
+		return (said == null) ? LOST_SANDBOX_DETAIL : LOST_SANDBOX_DETAIL + ": " + said;
+	}
+
+	/**
+	 * Returns the first of the given texts that carries anything.
+	 * @param candidates the texts to consider, in order of preference
+	 * @return the first non-blank candidate, or null when all are blank
+	 */
+	private static String firstNonBlank(String... candidates) {
+		for (String candidate : candidates) {
+			if (candidate != null && !candidate.isBlank()) {
+				return candidate.strip();
+			}
+		}
+		return null;
 	}
 
 	private GradingResult interrupted(long start) {

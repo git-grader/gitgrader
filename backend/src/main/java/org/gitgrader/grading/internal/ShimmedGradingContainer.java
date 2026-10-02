@@ -20,6 +20,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.attribute.PosixFilePermissions;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -66,6 +67,41 @@ final class ShimmedGradingContainer {
 
 	/** Environment variable that names the socket for the shim server and its client. */
 	private static final String SHIM_SOCKET_ENV = "SHIM_SOCKET";
+
+	/**
+	 * Environment variable that bounds the suite's wait for the sandbox's socket.
+	 */
+	private static final String SHIM_CONNECT_TIMEOUT_ENV = "SHIM_CONNECT_TIMEOUT_MS";
+
+	/**
+	 * Environment variable that bounds one call from the suite into the submission.
+	 */
+	private static final String SHIM_CALL_TIMEOUT_ENV = "SHIM_CALL_TIMEOUT_MS";
+
+	/**
+	 * Ceiling on the connect deadline.
+	 *
+	 * <p>
+	 * A Unix socket either exists or does not, so once the sandbox has booted, connecting
+	 * is instant. The deadline only has to outlast node starting; anything longer means
+	 * the socket is never going to arrive, and waiting out the whole run budget to learn
+	 * that is what made a dead sandbox indistinguishable from a slow one.
+	 */
+	private static final Duration MAX_CONNECT_TIMEOUT = Duration.ofSeconds(5);
+
+	/**
+	 * Share of the run budget the suite may spend waiting for a socket that is never
+	 * going to arrive. Dividing rather than fixing keeps the deadline inside a short
+	 * budget, where a flat five seconds would be most of it.
+	 */
+	private static final int CONNECT_BUDGET_DIVISOR = 4;
+
+	/**
+	 * Share of the run budget one call into the submission may take. Half leaves the
+	 * suite time to report the failing call and finish the rest of the tests, rather than
+	 * being torn down with the report half-written.
+	 */
+	private static final int CALL_BUDGET_DIVISOR = 2;
 
 	/** The sandbox must not be handed the very tests it never mounts. */
 	private static final String HIDDEN_TESTS_ENV = "HIDDEN_TESTS";
@@ -178,6 +214,7 @@ final class ShimmedGradingContainer {
 			}
 		});
 		env.add(SHIM_SOCKET_ENV + "=" + SHIM_SOCKET_PATH);
+		shimDeadlines(env, request);
 
 		String commandStr = shimCommand(request);
 		String installCommand = request.installCommand();
@@ -212,6 +249,7 @@ final class ShimmedGradingContainer {
 		List<String> env = new ArrayList<>();
 		request.environment().forEach((k, v) -> env.add(k + "=" + v));
 		env.add(SHIM_SOCKET_ENV + "=" + SHIM_SOCKET_PATH);
+		shimDeadlines(env, request);
 
 		return this.dockerClient.createContainerCmd(request.runtimeImageDigest())
 			.withHostConfig(hostConfig)
@@ -219,6 +257,33 @@ final class ShimmedGradingContainer {
 			.withWorkingDir("/workspace")
 			.withEnv(env)
 			.withCmd(List.of("sh", "-c", request.testCommand()));
+	}
+
+	/**
+	 * Gives the shim's internal deadlines a budget they can actually finish inside.
+	 *
+	 * <p>
+	 * Both sides of the protocol carry their own 30s defaults, which is exactly what
+	 * these assignments allow a whole run to take. A submission that never returns
+	 * therefore never trips the shim's per-call guard: the runner kills both containers
+	 * at the same instant the guard would have fired, so the suite is torn down mid-test
+	 * and the run is reported as a bare timeout with nothing in {@code failureDetail}.
+	 * The same tie loses every diagnosis when the sandbox will not start at all - the
+	 * suite retries the socket for its whole 30s and is killed before it can say why.
+	 *
+	 * <p>
+	 * Both deadlines are derived from the run's own budget so the shim's diagnosis always
+	 * wins the race against the runner's kill: a call that hangs is cut loose with a
+	 * fraction of the budget still unspent, and a sandbox that never opens its socket is
+	 * reported as such instead of occupying a worker for the full budget.
+	 * @param env the environment being built for a container
+	 * @param request the graded request, which carries the run's budget
+	 */
+	private static void shimDeadlines(List<String> env, GradingExecutionRequest request) {
+		long budgetMillis = request.timeout().toMillis();
+		long connectMillis = Math.min(MAX_CONNECT_TIMEOUT.toMillis(), budgetMillis / CONNECT_BUDGET_DIVISOR);
+		env.add(SHIM_CONNECT_TIMEOUT_ENV + "=" + connectMillis);
+		env.add(SHIM_CALL_TIMEOUT_ENV + "=" + (budgetMillis / CALL_BUDGET_DIVISOR));
 	}
 
 	/**

@@ -315,6 +315,38 @@ class DockerGradingRunnerExecutionTest {
 	}
 
 	@Test
+	@DisplayName("reports why the sandbox could not serve when a shimmed round times out")
+	void shimmedRoundTimeoutReportsTheSandboxsOwnComplaint() throws Exception {
+		stubTwoContainerLifecycle();
+		// The sandbox cannot choose between two modules and says so on stderr, then
+		// serves nothing; the suite waits on a socket that will never arrive. The runner
+		// has to surface the sandbox's words, because that complaint is the only thing
+		// naming the file to fix.
+		stubLogStreams("1..1\n", "",
+				"ShimStartupError: Could not choose the submitted solution: /workspace/src holds 2 modules "
+						+ "(scripts-data.js, scripts.js).");
+		neverCompletesTwoContainerWait();
+
+		GradingResult result = this.runner.execute(shimmedRequest(50));
+
+		assertThat(result.timedOut()).isTrue();
+		assertThat(result.failureDetail()).contains("holds 2 modules").contains("scripts-data.js");
+	}
+
+	@Test
+	@DisplayName("says so when a timed-out shimmed round explained nothing")
+	void shimmedRoundTimeoutSaysWhenNothingWasReported() throws Exception {
+		stubTwoContainerLifecycle();
+		stubLogStreams("1..1\n", "", "");
+		neverCompletesTwoContainerWait();
+
+		GradingResult result = this.runner.execute(shimmedRequest(50));
+
+		assertThat(result.timedOut()).isTrue();
+		assertThat(result.failureDetail()).isNotBlank().contains("never finished");
+	}
+
+	@Test
 	@DisplayName("removes both containers when a shimmed round fails to start")
 	void shimmedRoundRemovesBothContainersWhenStartFails() {
 		stubTwoContainerLifecycle();
@@ -380,9 +412,44 @@ class DockerGradingRunnerExecutionTest {
 	 * @param sandboxStdout what the sandbox wrote to standard output
 	 */
 	private void streamTwoContainerLogs(String suiteStdout, String sandboxStdout) {
+		streamTwoContainerLogs(suiteStdout, sandboxStdout, null);
+	}
+
+	/**
+	 * Stubs both halves of a shimmed round's output at once, letting the sandbox say
+	 * something on its error stream the way a submission it cannot load does.
+	 * @param suiteStdout what the suite wrote to standard output
+	 * @param sandboxStdout what the sandbox wrote to standard output
+	 * @param sandboxStderr what the sandbox wrote to standard error
+	 */
+	private void stubLogStreams(String suiteStdout, String sandboxStdout, String sandboxStderr) {
+		streamTwoContainerLogs(suiteStdout, sandboxStdout, sandboxStderr);
+	}
+
+	/**
+	 * Stubs a suite that never finishes on its own, which is what the runner has to kill:
+	 * the wait hands back the callback and nothing ever completes it.
+	 */
+	private void neverCompletesTwoContainerWait() {
+		WaitContainerCmd waitCmd = mock(WaitContainerCmd.class);
+		when(waitCmd.exec(any())).thenAnswer((invocation) -> invocation.getArgument(0));
+		when(this.dockerClient.waitContainerCmd(SUITE_ID)).thenReturn(waitCmd);
+	}
+
+	/**
+	 * Delivers each half of a shimmed round's output, the sandbox's complaint optionally
+	 * on its error stream rather than its output one.
+	 * @param suiteStdout what the suite wrote to standard output
+	 * @param sandboxStdout what the sandbox wrote to standard output
+	 * @param sandboxStderr what the sandbox wrote to standard error, or null for none
+	 */
+	private void streamTwoContainerLogs(String suiteStdout, String sandboxStdout, String sandboxStderr) {
 		stubLogStreamFor(SANDBOX_ID, (callback) -> {
 			if (!sandboxStdout.isEmpty()) {
 				callback.onNext(frame(StreamType.STDOUT, sandboxStdout));
+			}
+			if (sandboxStderr != null && !sandboxStderr.isEmpty()) {
+				callback.onNext(frame(StreamType.STDERR, sandboxStderr));
 			}
 			callback.onComplete();
 		});

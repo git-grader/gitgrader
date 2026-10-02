@@ -40,6 +40,7 @@ import org.springframework.util.unit.DataSize;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.mockito.ArgumentMatchers.any;
@@ -170,12 +171,28 @@ class DockerGradingRunnerConfigTest {
 
 		ArgumentCaptor<List<String>> envCaptor = ArgumentCaptor.captor();
 		verify(this.cmd).withEnv(envCaptor.capture());
-		assertThat(envCaptor.getValue()).containsExactlyInAnyOrder("FOO=BAR",
-				"SHIM_SOCKET=/gitgrader-shim/runner.sock");
+		assertThat(envCaptor.getValue()).contains("FOO=BAR", "SHIM_SOCKET=/gitgrader-shim/runner.sock",
+				"SHIM_CONNECT_TIMEOUT_MS=5000", "SHIM_CALL_TIMEOUT_MS=15000");
 
 		ArgumentCaptor<List<String>> cmdCaptor = ArgumentCaptor.captor();
 		verify(this.cmd).withCmd(cmdCaptor.capture());
 		assertThat(cmdCaptor.getValue()).isEqualTo(List.of("sh", "-c", "node /opt/gitgrader-shim/server.js"));
+	}
+
+	@Test
+	@DisplayName("keeps the shim's own deadlines inside the run budget on both sides")
+	void shimDeadlinesStayInsideTheRunBudget() {
+		// Left at their thirty second defaults these tie with the budget a short
+		// assignment allows, so a submission that will not load is torn down in the same
+		// instant its complaint would have been reported.
+		shim().createSandbox(this.request, SOCKET_DIR);
+		shim().createSuite(this.request, SOCKET_DIR);
+
+		ArgumentCaptor<List<String>> envCaptor = ArgumentCaptor.forClass(List.class);
+		verify(this.cmd, times(2)).withEnv(envCaptor.capture());
+		for (List<String> env : envCaptor.getAllValues()) {
+			assertThat(env).contains("SHIM_CONNECT_TIMEOUT_MS=5000", "SHIM_CALL_TIMEOUT_MS=15000");
+		}
 	}
 
 	@Test
@@ -208,8 +225,8 @@ class DockerGradingRunnerConfigTest {
 
 		ArgumentCaptor<List<String>> envCaptor = ArgumentCaptor.captor();
 		verify(this.cmd).withEnv(envCaptor.capture());
-		assertThat(envCaptor.getValue()).containsExactlyInAnyOrder("FOO=BAR",
-				"SHIM_SOCKET=/gitgrader-shim/runner.sock");
+		assertThat(envCaptor.getValue()).contains("FOO=BAR", "SHIM_SOCKET=/gitgrader-shim/runner.sock")
+			.doesNotContain("HIDDEN_TESTS=/opt/hidden-tests");
 	}
 
 	@Test
