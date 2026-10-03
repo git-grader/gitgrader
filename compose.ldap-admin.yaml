@@ -2,7 +2,7 @@
 # normal install; start it only while directory maintenance is required.
 services:
   ldap-account-manager:
-    image: ghcr.io/ldapaccountmanager/lam:9.6
+    image: ghcr.io/ldapaccountmanager/lam:9.7
     restart: "no"
     depends_on:
       openldap:
