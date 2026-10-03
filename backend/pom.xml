@@ -33,7 +33,7 @@
     <bouncycastle.version>1.86</bouncycastle.version>
     <bucket4j.version>8.10.1</bucket4j.version>
     <checkstyle.skip>${skipQuality}</checkstyle.skip>
-    <checkstyle.version>14.1.0</checkstyle.version>
+    <checkstyle.version>14.3.0</checkstyle.version>
 
     <!-- Shared quality configuration lives at the repository root. -->
     <config.directory>${project.basedir}/../config</config.directory>
