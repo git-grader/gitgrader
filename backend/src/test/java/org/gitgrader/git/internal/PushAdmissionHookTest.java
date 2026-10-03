@@ -44,6 +44,7 @@ import org.gitgrader.identity.StudentDirectory;
 import org.gitgrader.identity.StudentStatus;
 import org.gitgrader.identity.StudentView;
 import org.gitgrader.security.ResultTokenService;
+import org.gitgrader.security.StudentResultsOverviewTokenService;
 import org.gitgrader.submissions.NewSubmission;
 import org.gitgrader.submissions.SubmissionService;
 import org.junit.jupiter.api.BeforeEach;
@@ -158,8 +159,9 @@ class PushAdmissionHookTest {
 			.thenReturn(new RepositoryRecord(ASSIGNMENT_ID, STUDENT_ID, "course/assignment/student", CLOCK));
 
 		PushAdmissionHook hook = new PushAdmissionHook(this.assignmentCatalog, this.submissionService,
-				mock(ResultTokenService.class), mock(GitRepositoryService.class), mock(PushFeedbackWriter.class),
-				appProperties, gitProperties(), this.signatureVerifier, this.students, CLOCK);
+				mock(ResultTokenService.class), mock(StudentResultsOverviewTokenService.class),
+				mock(GitRepositoryService.class), mock(PushFeedbackWriter.class), appProperties, gitProperties(),
+				this.signatureVerifier, this.students, CLOCK);
 		hook.install(session, this.pack);
 
 		ArgumentCaptor<PreReceiveHook> captor = ArgumentCaptor.forClass(PreReceiveHook.class);

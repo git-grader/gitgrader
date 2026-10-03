@@ -147,6 +147,9 @@ export function StudentDetailPage() {
       void queryClient.invalidateQueries({ queryKey: queryKeys.students.detail(id) });
     }
   });
+  const resetOverviewMutation = useMutation({
+    mutationFn: () => api.revokeStudentResultsOverview(id)
+  });
 
   if (query.isLoading || !student && !query.isError) return <CircularProgress aria-label="Loading student" />;
   if (query.isError || !student) return <QueryErrorNotice message="The student could not be loaded." onRetry={() => void query.refetch()} />;
@@ -180,6 +183,27 @@ export function StudentDetailPage() {
               Restore
             </Button>
           </Box>
+      </Paper>
+      <Paper component="section" aria-label="Results link" variant="outlined" sx={{ p: 2, display: 'flex', flexDirection: 'column', gap: 1.5 }}>
+        <Typography variant="h6">Results link</Typography>
+        <Typography variant="body2" color="text.secondary">
+          The student has one long-lived link to their results overview. Resetting it stops the
+          link you already shared from working; a new one is issued the next time the student pushes.
+        </Typography>
+        <MutationErrorAlert error={resetOverviewMutation.error} />
+        {resetOverviewMutation.isSuccess && (
+          <Alert severity="success" role="status">The results link was reset. The student receives a new link on their next push.</Alert>
+        )}
+        <Box sx={{ display: 'flex', justifyContent: 'flex-end' }}>
+          <Button
+            variant="outlined"
+            color="warning"
+            disabled={resetOverviewMutation.isPending}
+            onClick={() => { if (window.confirm('Reset this student\'s results link? The current link stops working immediately.')) resetOverviewMutation.mutate(); }}
+          >
+            {resetOverviewMutation.isPending ? 'Resetting…' : 'Reset results link'}
+          </Button>
+        </Box>
       </Paper>
       {courseId && classId && (
         courseworkQuery.isLoading ? (

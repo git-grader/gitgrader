@@ -142,6 +142,46 @@ export const PublicResultSchema = z.object({
 });
 export type PublicResult = z.infer<typeof PublicResultSchema>;
 
+export const PublicResultsOverviewSchema = z.object({
+  studentDisplayName: z.string(),
+  generatedAt: z.string(),
+  courses: z.array(
+    z.object({
+      courseId: z.string(),
+      courseName: z.string(),
+      classes: z.array(
+        z.object({
+          classId: z.string().nullish(),
+          className: z.string().nullish(),
+          assignments: z.array(
+            z.object({
+              assignmentId: z.string(),
+              assignmentKey: z.string(),
+              title: z.string(),
+              latest: z
+                .object({
+                  submissionId: z.string(),
+                  shortCommitSha: z.string(),
+                  receivedAt: z.string(),
+                  late: z.boolean(),
+                  submissionStatus: z.string(),
+                  gradingStatus: z.string().nullish(),
+                  testsPassed: z.number().nullish(),
+                  testsTotal: z.number().nullish(),
+                  scorePercent: z.number().nullish(),
+                  passed: z.boolean().nullish(),
+                  resultUrl: z.string(),
+                })
+                .nullish(),
+            }),
+          ),
+        }),
+      ),
+    }),
+  ),
+});
+export type PublicResultsOverview = z.infer<typeof PublicResultsOverviewSchema>;
+
 export const MeSchema = z.object({
   username: z.string(),
   displayName: z.string(),
@@ -735,6 +775,16 @@ export const api = {
       `/api/v1/results/${encodeURIComponent(token)}`,
       PublicResultSchema,
     ),
+  getResultsOverview: (token: string) =>
+    readJson(
+      `/api/v1/results/overview/${encodeURIComponent(token)}`,
+      PublicResultsOverviewSchema,
+    ),
+  getOverviewSubmission: (token: string, submissionId: string) =>
+    readJson(
+      `/api/v1/results/overview/${encodeURIComponent(token)}/submissions/${encodeURIComponent(submissionId)}`,
+      PublicResultSchema,
+    ),
   getMe: () => readJson("/api/v1/me", MeSchema),
   // Spring Security's logout filter, configured in WebSecurityConfig, listens at
   // /logout rather than under /api. This previously pointed at /api/v1/auth/logout,
@@ -757,6 +807,13 @@ export const api = {
       `/api/v1/students/${id}/status`,
       { status, reason },
       StudentStatusResponseSchema,
+    ),
+  revokeStudentResultsOverview: (id: string) =>
+    sendJson(
+      "POST",
+      `/api/v1/students/${id}/results-overview/revoke`,
+      {},
+      z.unknown(),
     ),
   archiveStudent: (id: string) =>
     sendJson(

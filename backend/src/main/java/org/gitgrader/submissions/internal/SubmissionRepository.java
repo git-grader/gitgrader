@@ -157,6 +157,22 @@ public interface SubmissionRepository extends JpaRepository<Submission, UUID>, J
 			@Param("assignmentIds") Collection<UUID> assignmentIds);
 
 	/**
+	 * Loads the minimal assessment facts for one student's assignments in a course.
+	 * @param courseId course identifier
+	 * @param studentId student identifier
+	 * @param assignmentIds assignments included in the report
+	 * @return matching assessment facts
+	 */
+	@Query("""
+			SELECT new org.gitgrader.submissions.SubmissionAssessmentView(
+				s.id, s.studentId, s.assignmentId, s.status, s.commitSha, s.gitRef, s.commitMessage, s.receivedAt, s.late)
+			FROM Submission s
+			WHERE s.courseId = :courseId AND s.studentId = :studentId AND s.assignmentId IN :assignmentIds
+			""")
+	List<SubmissionAssessmentView> findAssessmentsForStudent(@Param("courseId") UUID courseId,
+			@Param("studentId") UUID studentId, @Param("assignmentIds") Collection<UUID> assignmentIds);
+
+	/**
 	 * Counts submissions in a course grouped by status.
 	 *
 	 * <p>

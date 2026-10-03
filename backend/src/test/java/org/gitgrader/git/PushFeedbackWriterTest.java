@@ -55,16 +55,18 @@ class PushFeedbackWriterTest {
 		String output = this.writer.renderText(graded(10, 10, "100.0"));
 
 		assertThat(output).contains("Signature: Verified");
-		assertThat(output).contains("Detailed result:");
+		assertThat(output).contains("Detailed result for this submission:");
 		assertThat(output).contains("https://grader.example.org/result/");
+		assertThat(output).contains("Results overview");
+		assertThat(output).contains("https://grader.example.org/results/overview/");
 	}
 
 	@Test
 	@DisplayName("offers only the result link while grading is still running")
 	void pendingRunOffersOnlyTheLink() {
 		PushFeedback feedback = new PushFeedback("GitGrader", "Max Muster", "Assignment 01", "8f31c20", "Verified",
-				PushOutcome.ACCEPTED_PENDING, null, null, null, "https://grader.example.org/result/abc", List.of(),
-				null);
+				PushOutcome.ACCEPTED_PENDING, null, null, null, "https://grader.example.org/result/abc",
+				"https://grader.example.org/results/overview/ov1", List.of(), null);
 
 		String output = this.writer.renderText(feedback);
 
@@ -80,8 +82,8 @@ class PushFeedbackWriterTest {
 		// An infrastructure failure must never read like a failed attempt. Students
 		// reasonably panic when a submission screen looks like a rejection.
 		PushFeedback feedback = new PushFeedback("GitGrader", "Max Muster", "Assignment 01", "8f31c20", "Verified",
-				PushOutcome.INFRASTRUCTURE_ERROR, null, null, null, "https://grader.example.org/result/abc", List.of(),
-				null);
+				PushOutcome.INFRASTRUCTURE_ERROR, null, null, null, "https://grader.example.org/result/abc", null,
+				List.of(), null);
 
 		String output = this.writer.renderText(feedback);
 
@@ -94,7 +96,7 @@ class PushFeedbackWriterTest {
 	@DisplayName("explains a rejection instead of failing silently")
 	void rejectionCarriesItsReason() {
 		PushFeedback feedback = new PushFeedback("GitGrader", "Max Muster", "Assignment 01", "8f31c20", "Unverified",
-				PushOutcome.REJECTED, null, null, null, null, List.of(),
+				PushOutcome.REJECTED, null, null, null, null, null, List.of(),
 				"Commit 8f31c20 is not signed. Configure SSH commit signing and push again.");
 
 		String output = this.writer.renderText(feedback);
@@ -135,7 +137,7 @@ class PushFeedbackWriterTest {
 	@DisplayName("leads with the configured product name, never a hard-coded one")
 	void usesTheConfiguredProductName() {
 		PushFeedback feedback = new PushFeedback("Coursework Checker", "Max Muster", "Assignment 01", "8f31c20",
-				"Verified", PushOutcome.GRADED, 7, 10, "70.0", null, List.of(), null);
+				"Verified", PushOutcome.GRADED, 7, 10, "70.0", null, null, List.of(), null);
 
 		assertThat(this.writer.render(feedback).getFirst()).isEqualTo("Coursework Checker");
 	}
@@ -146,7 +148,8 @@ class PushFeedbackWriterTest {
 
 	private static PushFeedback graded(int passed, int total, String percent, List<String> hints) {
 		return new PushFeedback("GitGrader", "Max Muster", "Assignment 01", "8f31c20", "Verified", PushOutcome.GRADED,
-				passed, total, percent, "https://grader.example.org/result/abc123", hints, null);
+				passed, total, percent, "https://grader.example.org/result/abc123",
+				"https://grader.example.org/results/overview/abc123", hints, null);
 	}
 
 }

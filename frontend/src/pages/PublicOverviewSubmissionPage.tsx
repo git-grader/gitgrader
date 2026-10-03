@@ -2,21 +2,24 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { useEffect } from 'react';
-import { useParams } from 'react-router';
+import { useParams, Link as RouterLink } from 'react-router';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '../api';
 import { queryKeys } from '../api/queryKeys';
 import { ApiProblem } from '../api/client';
 import { BrandMark } from '../components/BrandMark';
 import { PublicResultPanel } from '../components/PublicResultPanel';
-import { Box, CircularProgress, Alert } from '@mui/material';
+import { Box, CircularProgress, Alert, Button } from '@mui/material';
 
-export function PublicResultPage() {
-  const { token } = useParams<{ token: string }>();
+/**
+ * One submission's detailed report, reached from the public results overview.
+ *
+ * The overview token stays in the address, so the scoped detail endpoint can verify that
+ * the submission belongs to the same student before returning the redacted report.
+ */
+export function PublicOverviewSubmissionPage() {
+  const { token, submissionId } = useParams<{ token: string; submissionId: string }>();
 
-  // The referrer policy is declared in index.html as well, because the token is in this
-  // page's address and a policy applied only once React has mounted arrives after the
-  // document and its first subresources have already been requested.
   useEffect(() => {
     const robots = document.createElement('meta');
     robots.name = 'robots';
@@ -28,18 +31,13 @@ export function PublicResultPage() {
   }, []);
 
   const { data, isLoading, error } = useQuery({
-    queryKey: queryKeys.result(token ?? ''),
-    queryFn: () => api.getResult(token ?? ''),
-    // Without a token there is nothing to ask for, and asking anyway requested the
-    // collection rather than a result.
-    enabled: !!token,
-    // A token that does not resolve will not start resolving. Retrying left a student
-    // who followed a stale link staring at a loading state for eight seconds before
-    // being told the link was invalid.
+    queryKey: queryKeys.overviewSubmission(token ?? '', submissionId ?? ''),
+    queryFn: () => api.getOverviewSubmission(token ?? '', submissionId ?? ''),
+    enabled: !!token && !!submissionId,
     retry: false
   });
 
-  if (!token) {
+  if (!token || !submissionId) {
     return <Box component="main" sx={{ minHeight: '100vh', p: { xs: 2, sm: 4 }, maxWidth: 1200, mx: 'auto', bgcolor: 'background.default' }}><BrandMark /><Alert severity="error">This result link is incomplete.</Alert></Box>;
   }
 
@@ -54,9 +52,6 @@ export function PublicResultPage() {
     );
   }
 
-  // A link that was revoked and a service that is down are different answers, and
-  // reporting both as an invalid token sent students to ask for a replacement link that
-  // would have worked perfectly well a minute later.
   if (error) {
     const missing = error instanceof ApiProblem && error.status === 404;
     return (
@@ -64,13 +59,27 @@ export function PublicResultPage() {
         <BrandMark />
         <Alert severity="error">
           {missing
-            ? 'Result not found. This link may have been revoked or may never have been valid - ask your instructor for a new one.'
+            ? 'Result not found. This report may have been removed, or it does not belong to this results link.'
             : 'The result could not be loaded right now. Reload the page in a moment; the link itself is probably fine.'}
         </Alert>
+        <Button component={RouterLink} to={`/results/overview/${encodeURIComponent(token)}`} sx={{ mt: 2 }}>
+          Back to all results
+        </Button>
       </Box>
     );
   }
-  if (!data) return <Box component="main" sx={{ minHeight: '100vh', p: { xs: 2, sm: 4 }, maxWidth: 1200, mx: 'auto', bgcolor: 'background.default' }}><BrandMark /><Alert severity="error">Result not found or invalid token.</Alert></Box>;
+  if (!data) {
+    return <Box component="main" sx={{ minHeight: '100vh', p: { xs: 2, sm: 4 }, maxWidth: 1200, mx: 'auto', bgcolor: 'background.default' }}><BrandMark /><Alert severity="error">Result not found or invalid token.</Alert></Box>;
+  }
 
-  return <PublicResultPanel result={data} />;
+  return (
+    <>
+      <PublicResultPanel result={data} />
+      <Box sx={{ maxWidth: 1200, mx: 'auto', px: { xs: 2, sm: 3, md: 4 }, pb: 4 }}>
+        <Button component={RouterLink} to={`/results/overview/${encodeURIComponent(token)}`}>
+          Back to all results
+        </Button>
+      </Box>
+    </>
+  );
 }

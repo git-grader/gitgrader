@@ -140,4 +140,14 @@ public interface SubmissionService {
 	 */
 	List<SubmissionAssessmentView> findAssessments(UUID courseId, Collection<UUID> assignmentIds);
 
+	/**
+	 * Lists the minimal assessment facts for one student's assignments in a course.
+	 * @param courseId course identifier
+	 * @param studentId student identifier
+	 * @param assignmentIds assignments included in the report
+	 * @return matching assessment facts
+	 */
+	List<SubmissionAssessmentView> findAssessmentsForStudent(UUID courseId, UUID studentId,
+			Collection<UUID> assignmentIds);
+
 }

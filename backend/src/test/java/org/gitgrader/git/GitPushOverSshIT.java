@@ -28,6 +28,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import org.gitgrader.assignments.AssignmentAdministration;
 import org.gitgrader.assignments.AssignmentDefinition;
@@ -62,13 +64,18 @@ import org.testcontainers.postgresql.PostgreSQLContainer;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
+import org.springframework.test.web.servlet.MockMvc;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assumptions.assumeThat;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 /**
  * End-to-end proof that the Git SSH endpoint accepts real pushes.
@@ -88,6 +95,7 @@ import static org.assertj.core.api.Assumptions.assumeThat;
  * carries a result URL.
  */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
+@AutoConfigureMockMvc
 @ActiveProfiles("test")
 @Testcontainers
 @EnabledIfDockerAvailable
@@ -109,8 +117,14 @@ class GitPushOverSshIT {
 
 	private static final String STUDENT_NUMBER = "s1000042";
 
+	/** Pulls the token out of the stable overview URL printed in the push output. */
+	private static final Pattern OVERVIEW_URL = Pattern.compile("/results/overview/([A-Za-z0-9_-]+)");
+
 	@TempDir
 	private Path scratch;
+
+	@Autowired
+	private MockMvc mockMvc;
 
 	@Autowired
 	private CourseAdministration courses;
@@ -183,6 +197,9 @@ class GitPushOverSshIT {
 		this.sshKeys.register(student.id(), "test key", publicKey, SshKeyOrigin.REGISTRATION, null);
 
 		AssignmentView assignment = seedAssignment();
+		// Enrol so the stable overview also exercises course/class grouping, not just
+		// the scoped detail lookup.
+		this.courses.enroll(student.id(), assignment.courseId(), null);
 		this.repositoryPath = org.gitgrader.git.internal.GitRepositoryService.repositoryPathFor("course-e2e",
 				"assignment-01", STUDENT_NUMBER);
 		this.repositoryService.provision(assignment.id(), student.id(), this.repositoryPath,
@@ -237,6 +254,38 @@ class GitPushOverSshIT {
 			.untilAsserted(() -> assertThat(this.gradingRuns.findFirstBySubmissionIdOrderByAttemptDesc(recorded.id()))
 				.as("an accepted push must queue a grading run")
 				.isPresent());
+
+		// END TO END: the stable overview URL printed by the push must actually resolve
+		// over HTTP, without any login, and list this student's assignment and latest
+		// attempt. This is the whole feature in one flow: real SSH push -> token issued
+		// in the hook -> URL in the feedback -> public endpoint -> real query.
+		assertThat(signed.output()).contains("/results/overview/");
+		String overviewToken = overviewToken(signed.output());
+		assertThat(overviewToken).as("the push output must carry an overview token").isNotBlank();
+
+		this.mockMvc.perform(get("/api/v1/results/overview/{token}", overviewToken))
+			.andExpect(status().isOk())
+			.andExpect(jsonPath("$.studentDisplayName").value("Max Muster"))
+			.andExpect(jsonPath("$.courses[0].courseName").value("End to end course"))
+			.andExpect(jsonPath("$.courses[0].classes[0].assignments[0].assignmentKey").value("assignment-01"))
+			.andExpect(jsonPath("$.courses[0].classes[0].assignments[0].title").value("Assignment 01"))
+			.andExpect(jsonPath("$.courses[0].classes[0].assignments[0].latest.submissionId")
+				.value(recorded.id().toString()));
+
+		// The scoped detail link is the only way to the full report, and it must open
+		// this student's submission.
+		this.mockMvc.perform(get("/api/v1/results/overview/{token}/submissions/{id}", overviewToken, recorded.id()))
+			.andExpect(status().isOk())
+			.andExpect(jsonPath("$.assignmentTitle").value("Assignment 01"));
+
+		// A wrong token is indistinguishable from a revoked or expired one.
+		this.mockMvc.perform(get("/api/v1/results/overview/{token}", "not-a-real-token"))
+			.andExpect(status().isNotFound());
+	}
+
+	private static String overviewToken(String pushOutput) {
+		Matcher matcher = OVERVIEW_URL.matcher(pushOutput);
+		return matcher.find() ? matcher.group(1) : "";
 	}
 
 	private void clearDataDirectory() throws IOException {

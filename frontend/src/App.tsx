@@ -15,6 +15,8 @@ import { MetaProvider } from './components/MetaProvider';
 import { RegistrationPage } from './pages/RegistrationPage';
 import { RegistrationSuccessPage } from './pages/RegistrationSuccessPage';
 import { PublicResultPage } from './pages/PublicResultPage';
+import { PublicResultsOverviewPage } from './pages/PublicResultsOverviewPage';
+import { PublicOverviewSubmissionPage } from './pages/PublicOverviewSubmissionPage';
 import { DeadlinesPage } from './pages/DeadlinesPage';
 import { DashboardPage } from './pages/DashboardPage';
 import { StudentsPage } from './pages/StudentsPage';
@@ -150,6 +152,14 @@ const router = createBrowserRouter([
       {
         path: 'result/:token',
         element: <PublicResultPage />
+      },
+      {
+        path: 'results/overview/:token',
+        element: <PublicResultsOverviewPage />
+      },
+      {
+        path: 'results/overview/:token/submissions/:submissionId',
+        element: <PublicOverviewSubmissionPage />
       },
       {
         path: 'login',

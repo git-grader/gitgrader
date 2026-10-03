@@ -123,13 +123,22 @@ public class PushFeedbackWriter {
 	}
 
 	private void appendResultLink(List<String> lines, PushFeedback feedback) {
-		if (feedback.resultUrl() == null) {
+		if (feedback.overviewUrl() == null && feedback.resultUrl() == null) {
 			return;
 		}
 		lines.add("");
 		lines.add("-".repeat(RULE_WIDTH));
-		lines.add("Detailed result:");
-		lines.add(feedback.resultUrl());
+		if (feedback.overviewUrl() != null) {
+			lines.add("Results overview (all graded work):");
+			lines.add(feedback.overviewUrl());
+			if (feedback.resultUrl() != null) {
+				lines.add("");
+			}
+		}
+		if (feedback.resultUrl() != null) {
+			lines.add("Detailed result for this submission:");
+			lines.add(feedback.resultUrl());
+		}
 	}
 
 }

@@ -21,6 +21,9 @@ export const queryKeys = {
   dashboardCourses: ["dashboard", "course-summaries"] as const,
   availability: ["availability"] as const,
   result: (token: string) => ["result", token] as const,
+  resultsOverview: (token: string) => ["results-overview", token] as const,
+  overviewSubmission: (token: string, submissionId: string) =>
+    ["results-overview", token, "submissions", submissionId] as const,
 
   courses: {
     all: ["courses"] as const,

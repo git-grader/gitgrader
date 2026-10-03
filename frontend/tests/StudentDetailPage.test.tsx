@@ -1,7 +1,7 @@
 // Copyright the GitGrader contributors.
 // SPDX-License-Identifier: Apache-2.0
 
-import { afterAll, afterEach, beforeAll, expect, test } from 'vitest';
+import { afterAll, afterEach, beforeAll, expect, test, vi } from 'vitest';
 import { http, HttpResponse } from 'msw';
 import { fireEvent, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
@@ -83,6 +83,25 @@ test('shows the field the server rejected the update on', async () => {
   expect(await screen.findByText('The update was rejected.')).toBeInTheDocument();
   expect(screen.getByText('That student username is already registered')).toBeInTheDocument();
   expect(screen.getByRole('button', { name: 'Save' })).toBeEnabled();
+});
+
+test('resets the results-overview link after confirmation', async () => {
+  stubStudent();
+  let reset = false;
+  server.use(http.post('/api/v1/students/s1/results-overview/revoke', () => {
+    reset = true;
+    return new HttpResponse(null, { status: 204 });
+  }));
+  const confirm = vi.spyOn(window, 'confirm').mockReturnValue(true);
+  renderDetail();
+
+  await screen.findByRole('heading', { name: 'Edit Student' });
+  await userEvent.click(screen.getByRole('button', { name: 'Reset results link' }));
+
+  await waitFor(() => { expect(reset).toBe(true); });
+  expect(await screen.findByText(/results link was reset/i)).toBeInTheDocument();
+  expect(confirm).toHaveBeenCalledWith(expect.stringContaining('stops working'));
+  confirm.mockRestore();
 });
 
 test('shows read-only latest coursework while preserving best score and hiding hidden-test internals', async () => {

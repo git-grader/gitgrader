@@ -19,6 +19,7 @@ package org.gitgrader.configuration;
 import java.net.URI;
 import java.time.Duration;
 import java.time.ZoneId;
+import java.util.UUID;
 
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
@@ -94,6 +95,25 @@ public record AppProperties(
 	 */
 	public String resultUrl(String token) {
 		return baseUrl() + "/result/" + token;
+	}
+
+	/**
+	 * Builds an absolute, publicly reachable link to a student results overview.
+	 * @param token the plain overview token handed to the student
+	 * @return absolute overview URL
+	 */
+	public String resultOverviewUrl(String token) {
+		return baseUrl() + "/results/overview/" + token;
+	}
+
+	/**
+	 * Builds an absolute link to one submission's detailed report within an overview.
+	 * @param token the plain overview token handed to the student
+	 * @param submissionId the submission to open
+	 * @return absolute scoped result URL
+	 */
+	public String resultOverviewSubmissionUrl(String token, UUID submissionId) {
+		return resultOverviewUrl(token) + "/submissions/" + submissionId;
 	}
 
 	/**

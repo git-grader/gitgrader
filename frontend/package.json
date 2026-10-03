@@ -11,7 +11,7 @@
     "test:ci": "vitest run --coverage",
     "test:shim": "node --test \"../deployment/runtimes/node-shim/**/*.test.js\"",
     "typecheck": "node node_modules/typescript7/bin/tsc --noEmit",
-    "test:browser": "node tests/browser/ui-smoke.mjs"
+    "test:browser": "node tests/browser/ui-smoke.mjs && node tests/browser/forms-smoke.mjs"
   },
   "dependencies": {
     "@emotion/react": "^11.14.0",

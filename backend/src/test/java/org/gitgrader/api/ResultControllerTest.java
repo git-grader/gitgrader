@@ -17,7 +17,10 @@
 package org.gitgrader.api;
 
 import java.math.BigDecimal;
+import java.net.URI;
+import java.time.Duration;
 import java.time.Instant;
+import java.time.ZoneId;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -25,6 +28,7 @@ import java.util.UUID;
 import org.gitgrader.assignments.AssignmentCatalog;
 import org.gitgrader.assignments.AssignmentStatus;
 import org.gitgrader.assignments.AssignmentView;
+import org.gitgrader.configuration.AppProperties;
 import org.gitgrader.courses.CourseCatalog;
 import org.gitgrader.courses.CourseStatus;
 import org.gitgrader.courses.CourseView;
@@ -33,8 +37,11 @@ import org.gitgrader.grading.GradingResultQuery;
 import org.gitgrader.grading.StudentGradingResult;
 import org.gitgrader.grading.StudentTestResultView;
 import org.gitgrader.grading.TestOutcome;
+import org.gitgrader.reports.StudentResultsOverview;
+import org.gitgrader.reports.StudentResultsOverviewQuery;
 import org.gitgrader.security.RateLimiter;
 import org.gitgrader.security.ResultTokenService;
+import org.gitgrader.security.StudentResultsOverviewTokenService;
 import org.gitgrader.submissions.SignatureVerdict;
 import org.gitgrader.submissions.SubmissionService;
 import org.gitgrader.submissions.SubmissionStatus;
@@ -52,6 +59,7 @@ import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.not;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -72,7 +80,15 @@ class ResultControllerTest {
 
 	private static final UUID ASSIGNMENT = UUID.fromString("00000000-0000-0000-0000-0000000000a1");
 
+	private static final UUID STUDENT = UUID.fromString("00000000-0000-0000-0000-0000000000a2");
+
+	private static final UUID CLASS_ID = UUID.fromString("00000000-0000-0000-0000-0000000000d1");
+
 	private ResultTokenService tokens;
+
+	private StudentResultsOverviewTokenService overviewTokens;
+
+	private StudentResultsOverviewQuery overviewQuery;
 
 	private GradingResultQuery gradingResults;
 
@@ -81,6 +97,8 @@ class ResultControllerTest {
 	@BeforeEach
 	void setUp() {
 		this.tokens = mock(ResultTokenService.class);
+		this.overviewTokens = mock(StudentResultsOverviewTokenService.class);
+		this.overviewQuery = mock(StudentResultsOverviewQuery.class);
 		this.gradingResults = mock(GradingResultQuery.class);
 		SubmissionService submissions = mock(SubmissionService.class);
 		AssignmentCatalog assignments = mock(AssignmentCatalog.class);
@@ -91,8 +109,8 @@ class ResultControllerTest {
 		when(assignments.findAssignment(ASSIGNMENT)).thenReturn(Optional.of(assignment()));
 		when(courses.findCourse(COURSE)).thenReturn(Optional.of(course()));
 		this.mockMvc = MockMvcBuilders
-			.standaloneSetup(new ResultController(this.tokens, submissions, assignments, courses, this.gradingResults,
-					rateLimiter))
+			.standaloneSetup(new ResultController(this.tokens, this.overviewTokens, this.overviewQuery, submissions,
+					assignments, courses, this.gradingResults, rateLimiter, appProperties()))
 			.build();
 	}
 
@@ -157,6 +175,90 @@ class ResultControllerTest {
 			.andExpect(header().string("Cache-Control", containsString("no-store")));
 	}
 
+	@Test
+	@DisplayName("lists the last attempt per assignment with a scoped report link")
+	void overviewListsAttempts() throws Exception {
+		when(this.overviewTokens.resolve("ov-token")).thenReturn(Optional.of(STUDENT));
+		when(this.overviewQuery.forStudent(STUDENT)).thenReturn(Optional.of(overview()));
+
+		this.mockMvc.perform(get("/api/v1/results/overview/ov-token"))
+			.andExpect(status().isOk())
+			.andExpect(jsonPath("$.studentDisplayName").value("Max Muster"))
+			.andExpect(jsonPath("$.courses[0].courseName").value("Example Programming"))
+			.andExpect(jsonPath("$.courses[0].classes[0].className").value("Class A"))
+			.andExpect(jsonPath("$.courses[0].classes[0].assignments[0].assignmentKey").value("assignment-01"))
+			.andExpect(
+					jsonPath("$.courses[0].classes[0].assignments[0].latest.submissionId").value(SUBMISSION.toString()))
+			.andExpect(jsonPath("$.courses[0].classes[0].assignments[0].latest.shortCommitSha").value("454d5a6"))
+			.andExpect(jsonPath("$.courses[0].classes[0].assignments[0].latest.resultUrl")
+				.value(containsString("/results/overview/ov-token/submissions/" + SUBMISSION)))
+			.andExpect(jsonPath("$.courses[0].classes[0].assignments[1].latest").doesNotExist())
+			.andExpect(header().string("Cache-Control", containsString("no-store")));
+	}
+
+	@Test
+	@DisplayName("answers an unusable overview link the same way whatever is wrong with it")
+	void overviewUnknownTokenIsNotFound() throws Exception {
+		when(this.overviewTokens.resolve("nonsense")).thenReturn(Optional.empty());
+
+		this.mockMvc.perform(get("/api/v1/results/overview/nonsense")).andExpect(status().isNotFound());
+	}
+
+	@Test
+	@DisplayName("404s when the token no longer maps to a reportable student")
+	void overviewMissingStudentIsNotFound() throws Exception {
+		when(this.overviewTokens.resolve("ov-token")).thenReturn(Optional.of(STUDENT));
+		when(this.overviewQuery.forStudent(STUDENT)).thenReturn(Optional.empty());
+
+		this.mockMvc.perform(get("/api/v1/results/overview/ov-token")).andExpect(status().isNotFound());
+	}
+
+	@Test
+	@DisplayName("opens the owner's submission through the overview link, still redacted")
+	void scopedSubmissionOpensOwnSubmission() throws Exception {
+		when(this.overviewTokens.resolve("ov-token")).thenReturn(Optional.of(STUDENT));
+		when(this.gradingResults.findLatestForSubmission(SUBMISSION)).thenReturn(Optional.of(result()));
+
+		this.mockMvc.perform(get("/api/v1/results/overview/ov-token/submissions/" + SUBMISSION))
+			.andExpect(status().isOk())
+			.andExpect(jsonPath("$.assignmentTitle").value("String utilities"))
+			.andExpect(jsonPath("$.tests[1].public").value(false))
+			.andExpect(content().string(not(containsString("h07 slugify strips diacritics"))));
+	}
+
+	@Test
+	@DisplayName("refuses to open another student's submission through an overview link")
+	void scopedSubmissionForOtherStudentIsNotFound() throws Exception {
+		when(this.overviewTokens.resolve("ov-token")).thenReturn(Optional.of(UUID.randomUUID()));
+
+		this.mockMvc.perform(get("/api/v1/results/overview/ov-token/submissions/" + SUBMISSION))
+			.andExpect(status().isNotFound());
+	}
+
+	@Test
+	@DisplayName("refuses a scoped submission link carrying an unknown token")
+	void scopedSubmissionUnknownTokenIsNotFound() throws Exception {
+		when(this.overviewTokens.resolve("nonsense")).thenReturn(Optional.empty());
+
+		this.mockMvc.perform(get("/api/v1/results/overview/nonsense/submissions/" + SUBMISSION))
+			.andExpect(status().isNotFound());
+	}
+
+	private static StudentResultsOverview overview() {
+		StudentResultsOverview.LatestAttempt latest = new StudentResultsOverview.LatestAttempt(SUBMISSION, "454d5a6",
+				Instant.parse("2026-07-30T12:00:00Z"), false, SubmissionStatus.PASSED.name(),
+				GradingRunStatus.COMPLETED.name(), 1, 2, new BigDecimal("50.0"), true);
+		StudentResultsOverview.AssignmentResult withAttempt = new StudentResultsOverview.AssignmentResult(ASSIGNMENT,
+				"assignment-01", "String utilities", latest);
+		StudentResultsOverview.AssignmentResult withoutAttempt = new StudentResultsOverview.AssignmentResult(
+				UUID.randomUUID(), "assignment-02", "Collections", null);
+		StudentResultsOverview.ClassGroup classGroup = new StudentResultsOverview.ClassGroup(CLASS_ID, "Class A",
+				List.of(withAttempt, withoutAttempt));
+		StudentResultsOverview.CourseGroup courseGroup = new StudentResultsOverview.CourseGroup(COURSE,
+				"Example Programming", List.of(classGroup));
+		return new StudentResultsOverview("Max Muster", Instant.parse("2026-07-30T12:00:00Z"), List.of(courseGroup));
+	}
+
 	private static StudentGradingResult result() {
 		return new StudentGradingResult(GradingRunStatus.COMPLETED, 1, 2, new BigDecimal("50.0"), false,
 				List.of(new StudentTestResultView("PUBLIC", null, "truncate keeps short text", TestOutcome.PASSED, 3L,
@@ -166,8 +268,8 @@ class ResultControllerTest {
 	}
 
 	private static SubmissionView submission() {
-		return new SubmissionView(SUBMISSION, UUID.randomUUID(), "course/assignment/s1", UUID.randomUUID(), COURSE,
-				ASSIGNMENT, "454d5a635fd9ce1eefa9abae955213a94af592ac", "454d5a6", "refs/heads/main", null,
+		return new SubmissionView(SUBMISSION, UUID.randomUUID(), "course/assignment/s1", STUDENT, COURSE, ASSIGNMENT,
+				"454d5a635fd9ce1eefa9abae955213a94af592ac", "454d5a6", "refs/heads/main", null,
 				Instant.parse("2026-07-30T12:00:00Z"), SignatureVerdict.VERIFIED, "SHA256:abc", SubmissionStatus.FAILED,
 				false, null, null, null);
 	}
@@ -181,6 +283,13 @@ class ResultControllerTest {
 	private static CourseView course() {
 		return new CourseView(COURSE, "example-programming", "Example Programming", null, null, null, null, "UTC",
 				CourseStatus.ACTIVE, null, null, true);
+	}
+
+	private static AppProperties appProperties() {
+		return new AppProperties("GitGrader", URI.create("https://localhost"), "support@example.org",
+				"Example Organization", URI.create("https://docs.example.org"), ZoneId.of("UTC"), "/data",
+				new AppProperties.Registration(true, false, 5),
+				new AppProperties.ResultTokens(256, Duration.ofDays(180), 8));
 	}
 
 }

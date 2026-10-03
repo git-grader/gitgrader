@@ -43,6 +43,7 @@ import org.gitgrader.identity.StudentDirectory;
 import org.gitgrader.identity.StudentStatus;
 import org.gitgrader.identity.StudentView;
 import org.gitgrader.security.ResultTokenService;
+import org.gitgrader.security.StudentResultsOverviewTokenService;
 import org.gitgrader.submissions.NewSubmission;
 import org.gitgrader.submissions.SignatureVerdict;
 import org.gitgrader.submissions.SubmissionRefusedException;
@@ -79,6 +80,8 @@ public class PushAdmissionHook {
 
 	private final ResultTokenService resultTokens;
 
+	private final StudentResultsOverviewTokenService overviewTokens;
+
 	private final GitRepositoryService repositoryService;
 
 	private final PushFeedbackWriter feedbackWriter;
@@ -94,12 +97,14 @@ public class PushAdmissionHook {
 	private final Clock clock;
 
 	public PushAdmissionHook(AssignmentCatalog assignmentCatalog, SubmissionService submissionService,
-			ResultTokenService resultTokens, GitRepositoryService repositoryService, PushFeedbackWriter feedbackWriter,
-			AppProperties appProperties, GitProperties gitProperties, CommitSignatureVerifier signatureVerifier,
-			StudentDirectory students, Clock clock) {
+			ResultTokenService resultTokens, StudentResultsOverviewTokenService overviewTokens,
+			GitRepositoryService repositoryService, PushFeedbackWriter feedbackWriter, AppProperties appProperties,
+			GitProperties gitProperties, CommitSignatureVerifier signatureVerifier, StudentDirectory students,
+			Clock clock) {
 		this.assignmentCatalog = assignmentCatalog;
 		this.submissionService = submissionService;
 		this.resultTokens = resultTokens;
+		this.overviewTokens = overviewTokens;
 		this.repositoryService = repositoryService;
 		this.feedbackWriter = feedbackWriter;
 		this.appProperties = appProperties;
@@ -251,10 +256,12 @@ public class PushAdmissionHook {
 
 		this.repositoryService.recordPush(repository);
 		String token = this.resultTokens.issue(submission.id());
+		String overviewToken = this.overviewTokens.issueForStudent(student.studentId());
 
 		PushFeedback feedback = new PushFeedback(this.appProperties.name(), student.displayName(), assignment.title(),
 				submission.shortCommitSha(), recorded.badge(), PushFeedback.PushOutcome.ACCEPTED_PENDING, null, null,
-				null, this.appProperties.resultUrl(token), List.of(), null);
+				null, this.appProperties.resultUrl(token), this.appProperties.resultOverviewUrl(overviewToken),
+				List.of(), null);
 
 		pack.sendMessage("");
 		this.feedbackWriter.render(feedback).forEach(pack::sendMessage);

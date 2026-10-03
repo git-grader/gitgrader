@@ -305,6 +305,14 @@ public class DefaultSubmissionService implements SubmissionService {
 		return assignmentIds.isEmpty() ? List.of() : this.repository.findAssessments(courseId, assignmentIds);
 	}
 
+	@Override
+	@Transactional(readOnly = true)
+	public List<SubmissionAssessmentView> findAssessmentsForStudent(UUID courseId, UUID studentId,
+			Collection<UUID> assignmentIds) {
+		return assignmentIds.isEmpty() ? List.of()
+				: this.repository.findAssessmentsForStudent(courseId, studentId, assignmentIds);
+	}
+
 	private static SubmissionView toView(Submission submission) {
 		return new SubmissionView(submission.id(), submission.repositoryId(), submission.repositoryPath(),
 				submission.studentId(), submission.courseId(), submission.assignmentId(), submission.commitSha(),

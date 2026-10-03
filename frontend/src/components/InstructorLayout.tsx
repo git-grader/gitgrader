@@ -209,8 +209,14 @@ export function InstructorLayout() {
         }}
         sx={{
           position: 'absolute',
-          width: 1,
-          height: 1,
+          // Numeric width/height are treated as percentages by the MUI sx sizing
+          // transform, so `1` became a full-viewport box that pushed the page 32px
+          // wider than the screen. Pin the hidden link to the origin and size it in
+          // explicit pixels; it only grows when focused.
+          left: 0,
+          top: 0,
+          width: '1px',
+          height: '1px',
           overflow: 'hidden',
           clip: 'rect(0 0 0 0)',
           whiteSpace: 'nowrap',

@@ -37,13 +37,14 @@ import org.jspecify.annotations.Nullable;
  * @param testsPassed number of tests passed, when grading already finished
  * @param testsTotal number of tests executed, when grading already finished
  * @param scorePercent formatted score such as {@code 70.0}, when grading already finished
- * @param resultUrl absolute, unguessable link to the full result
+ * @param resultUrl absolute, unguessable link to the full result for this submission
+ * @param overviewUrl absolute, unguessable link to the results overview for this student
  * @param hints didactic hints, safe for a student to read
  * @param rejectionReason why the push was refused, when it was
  */
 public record PushFeedback(String productName, String studentName, String assignmentTitle, String shortCommitSha,
 		String signatureBadge, PushOutcome outcome, @Nullable Integer testsPassed, @Nullable Integer testsTotal,
-		@Nullable String scorePercent, @Nullable String resultUrl, List<String> hints,
+		@Nullable String scorePercent, @Nullable String resultUrl, @Nullable String overviewUrl, List<String> hints,
 		@Nullable String rejectionReason) {
 
 	public PushFeedback {
