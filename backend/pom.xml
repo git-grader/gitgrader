@@ -29,7 +29,7 @@
   <description>GitGrader application: Git SSH endpoint, grading engine, REST API and packaged web UI.</description>
 
   <properties>
-    <archunit.version>1.5.0</archunit.version>
+    <archunit.version>1.5.1</archunit.version>
     <bouncycastle.version>1.86</bouncycastle.version>
     <bucket4j.version>8.10.1</bucket4j.version>
     <checkstyle.skip>${skipQuality}</checkstyle.skip>
