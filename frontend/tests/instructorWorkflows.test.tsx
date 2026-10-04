@@ -27,7 +27,7 @@ const course = { id: 'c1', courseKey: 'course', name: 'Course One', timezone: 'E
 const students = ['ada', 'grace'].map((name, i) => ({ id: `st${i}`, studentUsername: name, firstName: name, lastName: 'Student', email: `${name}@example.org`, status: 'SELF_REGISTERED' }));
 const materials = { isLoading: false, isError: false, publishedTemplateVersions: [{ id: 'tv1', label: 'Template' }], publishedSuiteVersions: [{ id: 'sv1', label: 'Suite' }], runtimes: [{ id: 'rt1', runtimeKey: 'node', displayName: 'Node', image: 'node', tag: '24', imageDigest: 'digest', testCommand: 'test', reportFormat: 'TAP', enabled: true, createdAt: '', updatedAt: '' }] };
 
-beforeAll(() => server.listen({ onUnhandledRequest: 'error' }));
+beforeAll(() => server.listen({ onUnhandledFrame: 'error' }));
 beforeEach(() => { localStorage.clear(); });
 afterEach(() => { server.resetHandlers(); vi.restoreAllMocks(); });
 afterAll(() => server.close());

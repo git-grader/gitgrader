@@ -9,7 +9,7 @@ import { queryKeys } from '../src/api/queryKeys';
 import { SubmissionsPage } from '../src/pages/SubmissionsPage';
 import { createTestQueryClient, page, renderWithProviders, server } from './harness';
 
-beforeAll(() => { server.listen({ onUnhandledRequest: 'error' }); });
+beforeAll(() => { server.listen({ onUnhandledFrame: 'error' }); });
 afterEach(() => { server.resetHandlers(); });
 afterAll(() => { server.close(); });
 

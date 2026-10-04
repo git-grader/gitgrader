@@ -8,7 +8,7 @@ import userEvent from '@testing-library/user-event';
 import { AssignmentsPage } from '../src/pages/AssignmentsPage';
 import { page, renderWithProviders, server } from './harness';
 
-beforeAll(() => { server.listen({ onUnhandledRequest: 'error' }); });
+beforeAll(() => { server.listen({ onUnhandledFrame: 'error' }); });
 afterEach(() => { server.resetHandlers(); });
 afterAll(() => { server.close(); });
 

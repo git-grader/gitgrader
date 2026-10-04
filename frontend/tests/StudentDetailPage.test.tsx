@@ -9,7 +9,7 @@ import { Route, Routes } from 'react-router';
 import { StudentDetailPage } from '../src/pages/StudentDetailPage';
 import { renderWithProviders, server } from './harness';
 
-beforeAll(() => { server.listen({ onUnhandledRequest: 'error' }); });
+beforeAll(() => { server.listen({ onUnhandledFrame: 'error' }); });
 afterEach(() => { server.resetHandlers(); });
 afterAll(() => { server.close(); });
 
