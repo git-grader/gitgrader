@@ -9,7 +9,7 @@ import { SubmissionGrading } from '../src/components/SubmissionGrading';
 import { SubmissionDetailPage } from '../src/pages/SubmissionDetailPage';
 import { renderWithProviders, server } from './harness';
 
-beforeAll(() => { server.listen({ onUnhandledRequest: 'error' }); });
+beforeAll(() => { server.listen({ onUnhandledFrame: 'error' }); });
 afterEach(() => { server.resetHandlers(); });
 afterAll(() => { server.close(); });
 

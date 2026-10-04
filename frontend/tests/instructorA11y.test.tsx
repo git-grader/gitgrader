@@ -21,7 +21,7 @@ const COURSE = {
  * combobox and unassociated tab panel lived on the instructor side.
  */
 describe('the instructor pages', () => {
-  beforeAll(() => { server.listen({ onUnhandledRequest: 'error' }); });
+  beforeAll(() => { server.listen({ onUnhandledFrame: 'error' }); });
   afterEach(() => { server.resetHandlers(); });
   afterAll(() => { server.close(); });
 

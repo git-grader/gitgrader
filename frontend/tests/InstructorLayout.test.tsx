@@ -33,7 +33,7 @@ function problemResponse(status: number) {
 }
 
 describe('the instructor shell', () => {
-  beforeAll(() => { server.listen({ onUnhandledRequest: 'error' }); });
+  beforeAll(() => { server.listen({ onUnhandledFrame: 'error' }); });
   afterEach(() => { server.resetHandlers(); vi.unstubAllGlobals(); });
   afterAll(() => { server.close(); });
 
@@ -163,7 +163,7 @@ describe('the instructor shell', () => {
  * not be loaded - which reads as an outage rather than a refusal.
  */
 describe('the administrator pages', () => {
-  beforeAll(() => { server.listen({ onUnhandledRequest: 'error' }); });
+  beforeAll(() => { server.listen({ onUnhandledFrame: 'error' }); });
   afterEach(() => { server.resetHandlers(); });
   afterAll(() => { server.close(); });
 

@@ -17,7 +17,7 @@ import { meta, renderWithProviders, server } from './harness';
  * reporting it as bad credentials sends people to reset a password that was fine.
  */
 describe('signing in', () => {
-  beforeAll(() => { server.listen({ onUnhandledRequest: 'error' }); });
+  beforeAll(() => { server.listen({ onUnhandledFrame: 'error' }); });
   afterEach(() => { server.resetHandlers(); vi.unstubAllGlobals(); });
   afterAll(() => { server.close(); });
 

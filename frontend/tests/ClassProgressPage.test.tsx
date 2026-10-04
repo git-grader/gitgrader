@@ -47,7 +47,7 @@ const CLASS_REPORT = {
   ]
 };
 
-beforeAll(() => { server.listen({ onUnhandledRequest: 'error' }); });
+beforeAll(() => { server.listen({ onUnhandledFrame: 'error' }); });
 afterEach(() => { server.resetHandlers(); vi.restoreAllMocks(); });
 afterAll(() => { server.close(); });
 

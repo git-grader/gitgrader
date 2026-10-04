@@ -16,7 +16,7 @@ import { renderWithProviders, server } from './harness';
  * and offered free text rather than the list, so nothing on screen said what would be.
  */
 describe('runtime creation', () => {
-  beforeAll(() => { server.listen({ onUnhandledRequest: 'error' }); });
+  beforeAll(() => { server.listen({ onUnhandledFrame: 'error' }); });
   afterEach(() => { server.resetHandlers(); });
   afterAll(() => { server.close(); });
 
