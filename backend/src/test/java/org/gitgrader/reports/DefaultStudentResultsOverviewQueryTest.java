@@ -250,7 +250,7 @@ class DefaultStudentResultsOverviewQueryTest {
 	private static AssignmentView assignment(UUID id, String key, String title, int displayOrder) {
 		return new AssignmentView(id, COURSE, key, title, null, displayOrder, AssignmentStatus.OPEN, true, null, null,
 				"UTC", new BigDecimal("100"), 10, new BigDecimal("70"), false, null, null, null, null, null, null, null,
-				false);
+				false, false);
 	}
 
 	private static SubmissionAssessmentView assessment(UUID id, UUID assignmentId, String commitSha, Instant receivedAt,

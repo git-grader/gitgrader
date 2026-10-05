@@ -24,7 +24,7 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - name: Shellcheck
-        run: shellcheck scripts/*.sh deployment/runtimes/*.sh
+        run: shellcheck scripts/*.sh deployment/runtimes/*.sh examples/*.sh
       # The scripts reach volumes through a helper image that Compose also names, and the
       # seeded runtime pins the image the Dockerfile builds. Dependabot updates only the
       # copy it can see, so the helper drifted to three different Alpine versions before
@@ -35,10 +35,17 @@ jobs:
         run: scripts/sync-image-pins.sh --check
 
   # Static analysis is not repeated here. Build runs the one full `verify` - formatting,
-  # Checkstyle, PMD/CPD, SpotBugs, forbidden APIs, frontend lint and licence headers - and
-  # running `verify -DskipTests` again repeated all of it plus packaging and the SBOM.
-  # Dropping tests did not make that a different gate. What is left is the one scan Build
-  # deliberately does not carry, because it depends on an external feed and a secret.
+  # Checkstyle, PMD/CPD, SpotBugs, forbidden APIs, frontend lint and licence headers. What
+  # is left is the one scan Build deliberately does not carry, because it depends on an
+  # external feed and a secret.
+  #
+  # `-DskipQuality` and `-DskipFrontend` are what make that true. Run 37121030354 proved
+  # the opposite: the command was `verify -DskipTests`, and every analysis plugin is bound
+  # to `verify`, so SpotBugs failed the job and the scan below never started. The run read
+  # as a red dependency check while scanning no CVEs at all, and it also spent a second
+  # `npm ci`, lint and bundle on it. Both flags route through properties that only the
+  # analysis and frontend plugins read - the security profile's own dependency-check
+  # execution does not consult `skipQuality`, so the scan still runs.
   dependency-check:
     runs-on: ubuntu-latest
     # A cold run downloads the whole NVD feed, which took 55 of the 60 minutes this
@@ -85,7 +92,7 @@ jobs:
             echo "::error::NVD_API_KEY is not configured, so the dependency check cannot run."
             exit 1
           fi
-          ./mvnw -B -Psecurity verify -DskipTests
+          ./mvnw -B -Psecurity verify -DskipTests -DskipQuality=true -DskipFrontend=true
       # Saving on failure is the point: the job fails when it finds something and the
       # feed it just downloaded is still good. Cancellation is the exception, because it
       # stops the download wherever it happens to be and can leave the H2 database

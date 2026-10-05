@@ -17,7 +17,6 @@
 package org.gitgrader.grading.internal;
 
 import java.io.IOException;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Clock;
@@ -35,10 +34,11 @@ import org.gitgrader.grading.GradingRunStatus;
 import org.gitgrader.grading.GradingRunner;
 import org.gitgrader.grading.GradingScore;
 import org.gitgrader.grading.GradingScorer;
-import org.gitgrader.grading.TestOutcome;
+import org.gitgrader.grading.WeightedOutcome;
 import org.gitgrader.grading.domain.GradingRun;
 import org.gitgrader.grading.domain.TestResultRecord;
 import org.gitgrader.grading.internal.GradingPlanResolver.GradingPlan;
+import org.gitgrader.runtimes.ReportFormat;
 import org.gitgrader.runtimes.RuntimeView;
 import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
@@ -118,7 +118,7 @@ public class GradingExecutor {
 		try {
 			GradingResult result = this.runner.execute(buildRequest(run, plan.assignment(), plan.runtime(), workspace,
 					plan.hiddenTests(), claimExpiresAt));
-			return interpret(run, plan.assignment(), result, workspace, plan.hiddenTests());
+			return interpret(run, plan.assignment(), plan.runtime(), result, workspace, plan.hiddenTests());
 		}
 		catch (RuntimeException ex) {
 			// The workspace reaches the caller only inside a returned Outcome, so
@@ -159,8 +159,8 @@ public class GradingExecutor {
 		}
 	}
 
-	private Outcome interpret(GradingRun run, AssignmentView assignment, GradingResult result, Path workspace,
-			Path hiddenTests) {
+	private Outcome interpret(GradingRun run, AssignmentView assignment, RuntimeView runtime, GradingResult result,
+			Path workspace, Path hiddenTests) {
 		if (result.infrastructureFailure() || result.timedOut()) {
 			// An unusable sandbox produces no score at all. Scoring zero here would be
 			// indistinguishable from a student who passed nothing.
@@ -168,10 +168,24 @@ public class GradingExecutor {
 					result.timedOut(), String.valueOf(result.failureDetail()));
 		}
 
+		ReportFormat format = runtime.reportFormat();
+		if (!this.reportParser.supports(format)) {
+			// The sandbox succeeded, but nothing here can read the report it produced.
+			// Handing it to a parser for a different grammar matches no line, every
+			// declared test comes back NOT_EXECUTED, and the scorer records a confident
+			// zero - a mark the student did earn nothing toward and cannot dispute. An
+			// unparseable report is the same class of event as an unusable sandbox:
+			// no score, and a reason an operator can act on.
+			logger.warn("Run {} declares report format {} and no parser implements it [correlationId={}]", run.id(),
+					format, run.correlationId());
+			return new Outcome(workspace, List.of(), null, result.exitCode(), result.durationMillis(), false,
+					"Runtime " + runtime.runtimeKey() + " declares report format " + format
+							+ ", which no report parser implements");
+		}
+
 		Manifest manifest = readManifest(hiddenTests);
 		List<ParsedResult> parsed = this.reportParser.parse(result.stdout(), result.stderr(), manifest);
-		List<TestOutcome> outcomes = parsed.stream().map(ParsedResult::outcome).toList();
-		GradingScore score = GradingScorer.score(outcomes, assignment.maxPoints(), assignment.passThreshold());
+		GradingScore score = score(parsed, assignment);
 
 		logger.debug("Run {} produced {} test result(s) [correlationId={}]", run.id(), parsed.size(),
 				run.correlationId());
@@ -254,20 +268,11 @@ public class GradingExecutor {
 		int pids = (pidOverride != null) ? pidOverride : this.properties.defaultPidLimit();
 		boolean network = this.properties.networkEnabled() && assignment.networkEnabled();
 
-		// A shimmed runtime splits the submission and the suite into two containers, so
-		// the suite must reach the sandbox over the grading protocol to load the module
-		// at all. A suite that never connects would fail every check with a
-		// connection error before it can test anything, which is not a defensible grade;
-		// refusing is the same rule the rest of the module follows for a missing
-		// manifest, an infrastructure error rather than a mark.
-		String shimKind = runtime.shimKind();
-		if (shimKind != null && !shimKind.isBlank() && !hasShimHarness(hiddenTests)) {
-			throw new IllegalStateException("The runtime '" + runtime.runtimeKey() + "' is shimmed but the hidden "
-					+ "test suite at " + hiddenTests
-					+ " never connects to the sandbox. A suite graded in two containers must import the shim "
-					+ "client (createShimClient) from /opt/gitgrader-shim/client.js; without it no check could "
-					+ "reach the submission.");
-		}
+		// Whether this runtime and this suite can be graded together, and a note when the
+		// runtime's topology is the one its row does not name. Both answers are about the
+		// pairing, not about the request being assembled here.
+		ShimmedRuntimeGuard.requireUsablePairing(runtime, hiddenTests);
+		ShimmedRuntimeGuard.reportUndeclaredTopology(runtime, run.id());
 
 		return new GradingExecutionRequest(workspace, hiddenTests, runtime.pinnedReference(), runtime.installCommand(),
 				runtime.testCommand(), timeout, memory, cpu, pids, network, this.properties.logSizeLimit().toBytes(),
@@ -313,45 +318,6 @@ public class GradingExecutor {
 		return parsed;
 	}
 
-	/**
-	 * Whether the hidden suite can reach the sandbox over the grading protocol.
-	 *
-	 * <p>
-	 * The shim harness is the suite's connection to the submission: it imports the shim
-	 * client and awaits its proxy. Requiring the marker to be present is what stops a
-	 * shimmed runtime from silently regressing to grading in one shared process, where
-	 * the submission could once again read the hidden sources (issue #40). The marker is
-	 * deliberately the same reference a working suite has to write, so the rule is a
-	 * guard, not a parallel contract.
-	 * @param hiddenTests the mounted hidden suite directory
-	 * @return whether some script in the suite references the shim client
-	 */
-	private static boolean hasShimHarness(Path hiddenTests) {
-		try (var scripts = Files.walk(hiddenTests)) {
-			return scripts.filter(Files::isRegularFile).filter(path -> {
-				Path fileName = path.getFileName();
-				if (fileName == null) {
-					return false;
-				}
-				String name = fileName.toString();
-				return name.endsWith(".js") || name.endsWith(".cjs") || name.endsWith(".mjs");
-			}).anyMatch(GradingExecutor::referencesShimClient);
-		}
-		catch (IOException ex) {
-			// An unreadable suite is no harness; the refusal below explains itself.
-			return false;
-		}
-	}
-
-	private static boolean referencesShimClient(Path script) {
-		try {
-			return Files.readString(script, StandardCharsets.UTF_8).contains("createShimClient");
-		}
-		catch (IOException ex) {
-			return false;
-		}
-	}
-
 	private static TestResultRecord toRecord(GradingRun run, ParsedResult parsed, int order) {
 		boolean hidden = TestResultRecord.VISIBILITY_HIDDEN.equals(parsed.visibility());
 		// For a hidden test the student-facing columns get the manifest's category and
@@ -359,6 +325,28 @@ public class GradingExecutor {
 		return new TestResultRecord(run.id(), parsed.visibility(), parsed.category(), parsed.testName(),
 				hidden ? parsed.category() : parsed.testName(), parsed.outcome(), parsed.weight(), parsed.durationMs(),
 				hidden ? parsed.hint() : parsed.studentMessage(), parsed.internalMessage(), order);
+	}
+
+	/**
+	 * Scores the run with the formula the assignment was created under.
+	 *
+	 * <p>
+	 * An assignment created before weights were honoured keeps the equal-weight formula,
+	 * so re-grading it produces the same number it always did. Which formula applies is
+	 * therefore a property of the assignment rather than of the release currently
+	 * deployed, so a redeploy cannot silently restate a grade.
+	 * @param parsed the parser output, carrying each test's manifest weight
+	 * @param assignment the assignment being graded
+	 * @return the score, or null when the run has none to give
+	 */
+	private @Nullable GradingScore score(List<ParsedResult> parsed, AssignmentView assignment) {
+		if (!assignment.weightsEnabled()) {
+			return GradingScorer.score(parsed.stream().map(ParsedResult::outcome).toList(), assignment.maxPoints(),
+					assignment.passThreshold());
+		}
+		return GradingScorer.weighted(
+				parsed.stream().map((result) -> new WeightedOutcome(result.outcome(), result.weight())).toList(),
+				assignment.maxPoints(), assignment.passThreshold());
 	}
 
 	/**

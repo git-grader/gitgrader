@@ -1,4 +1,7 @@
 #!/bin/sh
+# Copyright the GitGrader contributors.
+# SPDX-License-Identifier: Apache-2.0
+
 set -eu
 
 # CDPATH is cleared so a user's CDPATH cannot redirect the cd.
@@ -20,10 +23,19 @@ if [ "$(basename "$assignment")" != 'assignment-01-string-utils' ]; then
 	exit 1
 fi
 
-# The same digest-pinned image plays both halves. Pinning matches the runtime
-# registration in examples/seed-data.sql and the node-24 Dockerfile, so the
-# verification exercises exactly the image a deployment would grade with.
+# Both halves run the locally built runtime image, which is the node-24 Dockerfile
+# with jasmine installed globally for the suite half to invoke. The stock
+# node:24-bookworm-slim base cannot stand in: it has no jasmine, so the suite
+# container would fail on a reporter that does not exist. Override NODE_IMAGE only
+# with an equivalent image that already carries it.
 node_image=${NODE_IMAGE:-gitgrader-node-24:local}
+
+for tool in docker node awk diff mktemp; do
+  command -v "$tool" >/dev/null 2>&1 || {
+    printf '%s\n' "ERROR: $tool is required but not on PATH." >&2
+    exit 1
+  }
+done
 
 cleanup() {
   for id in "$work"/*.server; do
@@ -34,8 +46,13 @@ cleanup() {
 }
 trap cleanup EXIT HUP INT TERM
 
+# The image is built, not pulled, so this cannot fall back to a registry the way a
+# digest-pinned reference would. On a fresh clone the name carries no registry host
+# and `docker pull` fails without saying which command produces it.
 if ! docker image inspect "$node_image" >/dev/null 2>&1; then
-  docker pull "$node_image"
+  printf '%s\n' "ERROR: runtime image $node_image is not present locally." >&2
+  printf '%s\n' "Build it with:  deployment/runtimes/build-runtimes.sh" >&2
+  exit 1
 fi
 
 verify_names() {

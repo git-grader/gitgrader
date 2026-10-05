@@ -86,6 +86,17 @@ public class Assignment {
 	@Column(name = "allow_late", nullable = false)
 	private boolean allowLate;
 
+	/**
+	 * Whether this assignment scores each test by the weight its manifest declared.
+	 *
+	 * <p>
+	 * Set once, when the assignment is created, and deliberately not part of the editable
+	 * definition: switching it on for a published assignment would retroactively change
+	 * what its existing grades mean. Every assignment created before the column existed
+	 * reads FALSE from the database and keeps the equal-weight formula.
+	 */
+	private boolean weightsEnabled;
+
 	@Column(name = "template_version_id")
 	private @Nullable UUID templateVersionId;
 
@@ -133,6 +144,10 @@ public class Assignment {
 		this.id = UUID.randomUUID();
 		this.createdAt = now;
 		this.updatedAt = now;
+		// New assignments are weighted. Kept out of apply() on purpose: an instructor
+		// editing a
+		// draft must not be able to change how its results are computed after the fact.
+		this.weightsEnabled = true;
 		apply(definition);
 		validatePublication(this.status);
 	}
@@ -204,6 +219,14 @@ public class Assignment {
 	}
 
 	/**
+	 * Returns whether this assignment scores by manifest weight.
+	 * @return true when the manifest's per-test weights are honoured
+	 */
+	public boolean weightsEnabled() {
+		return this.weightsEnabled;
+	}
+
+	/**
 	 * Returns the default due instant required for published assignments.
 	 * @return assignment due instant
 	 */
@@ -223,7 +246,7 @@ public class Assignment {
 				this.displayOrder, this.status, this.mandatory, this.opensAt, this.dueAt, this.timezone, this.maxPoints,
 				this.testCount, this.passThreshold, this.allowLate, this.templateVersionId, this.testSuiteVersionId,
 				this.runtimeId, this.timeoutSeconds, this.memoryLimitBytes, this.cpuLimit, this.pidLimit,
-				this.networkEnabled);
+				this.networkEnabled, this.weightsEnabled);
 	}
 
 	private void apply(AssignmentDefinition definition) {

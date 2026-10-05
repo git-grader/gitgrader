@@ -50,5 +50,5 @@ public record AssignmentView(UUID id, UUID courseId, String assignmentKey, Strin
 		BigDecimal passThreshold, boolean allowLate, @Nullable UUID templateVersionId,
 		@Nullable UUID testSuiteVersionId, @Nullable UUID runtimeId, @Nullable Integer timeoutSeconds,
 		@Nullable Long memoryLimitBytes, @Nullable BigDecimal cpuLimit, @Nullable Integer pidLimit,
-		boolean networkEnabled) {
+		boolean networkEnabled, boolean weightsEnabled) {
 }

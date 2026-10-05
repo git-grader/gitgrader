@@ -250,7 +250,7 @@ services:
   # different base, read them back with:
   #   docker inspect --format '{{.Config.User}}' ghcr.io/git-grader/gitgrader:<tag>
   init-permissions:
-    image: alpine:3.24@sha256:294b683cb724975bec92580e1e685676bd4b50bda910ddb8c51d4cabeaec77e6
+    image: alpine:3.24.2@sha256:294b683cb724975bec92580e1e685676bd4b50bda910ddb8c51d4cabeaec77e6
     user: "0:0"
     command: ["chown", "-R", "${APP_UID:-1002}:${APP_GID:-1001}",
               "/data/git", "/data/grading", "/data/templates", "/data/tests", "/data/artifacts"]

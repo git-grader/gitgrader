@@ -70,7 +70,7 @@ class DashboardControllerTest {
 	private static AssignmentView assignment(AssignmentStatus status) {
 		return new AssignmentView(UUID.randomUUID(), UUID.randomUUID(), "a", "Assignment", null, 0, status, true,
 				Instant.parse("2026-01-01T00:00:00Z"), Instant.parse("2026-01-02T00:00:00Z"), "UTC", BigDecimal.TEN, 1,
-				BigDecimal.TEN, false, null, null, null, null, null, null, null, false);
+				BigDecimal.TEN, false, null, null, null, null, null, null, null, false, false);
 	}
 
 }

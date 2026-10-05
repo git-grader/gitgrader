@@ -33,13 +33,25 @@ sanitised categories and hints to students.
 ## Scoring
 
 The score formula is `passed / total * 100`. All ten checks carry weight one,
-so seven passing checks produce `7 / 10 * 100 = 70.0 %`. Run the proof from the
-repository root (it needs Docker, and pulls the pinned runtime digest on first
-use):
+so seven passing checks produce `7 / 10 * 100 = 70.0 %`.
+
+The proof needs a Docker engine, a host `node`, and the locally built node-24
+runtime image. Build the image once first; it is built rather than pulled,
+because the suite half needs the jasmine that the runtime image installs and the
+stock base image does not carry:
+
+```sh
+deployment/runtimes/build-runtimes.sh
+```
+
+Then run the proof from the repository root:
 
 ```sh
 ./examples/verify-example.sh
 ```
+
+Set `NODE_IMAGE` to grade with a different runtime image, as long as it has
+jasmine installed globally.
 
 The script grades the complete implementation and the intentional 70%
 implementation through the two-container shimmed path, checks TAP-to-manifest

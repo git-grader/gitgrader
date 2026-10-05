@@ -22,7 +22,10 @@ import java.time.ZoneOffset;
 
 import org.gitgrader.runtimes.ReportFormat;
 import org.gitgrader.runtimes.NewRuntime;
+import org.gitgrader.runtimes.ShimTopology;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.jspecify.annotations.Nullable;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -53,9 +56,61 @@ class RuntimeDefinitionTest {
 			.hasMessageContaining("latest");
 	}
 
+	@Test
+	@DisplayName("stores the declared single-sandbox topology the way legacy runtimes already are")
+	void legacyTopologyIsStoredAsAbsent() {
+		// The column keeps NULL for "one sandbox", so a runtime created now and one
+		// created before the shim existed are the same row to every part of the grading
+		// path.
+		RuntimeDefinition runtime = runtime("25", DIGEST);
+
+		assertThat(runtime.toView().shimKind()).isNull();
+	}
+
+	@Test
+	@DisplayName("stores a declared shim kind so grading splits the run in two")
+	void shimTopologyIsStoredAsDeclared() {
+		RuntimeDefinition runtime = runtime("25", DIGEST, "node", null);
+
+		assertThat(runtime.toView().shimKind()).isEqualTo("node");
+	}
+
+	@Test
+	@DisplayName("refuses a runtime that does not say which topology it grades with")
+	void refusesAnUndeclaredTopology() {
+		// The defect this closes: a blank topology silently picked the grading path, and
+		// the two paths return different marks for the same submission.
+		assertThatThrownBy(() -> runtime("25", DIGEST, null, null)).isInstanceOf(IllegalArgumentException.class)
+			.hasMessageContaining("grading topology");
+		assertThatThrownBy(() -> runtime("25", DIGEST, "  ", null)).isInstanceOf(IllegalArgumentException.class)
+			.hasMessageContaining("grading topology");
+	}
+
+	@Test
+	@DisplayName("refuses a topology name that is not a plain lowercase slug")
+	void refusesAMalformedTopologyName() {
+		assertThatThrownBy(() -> runtime("25", DIGEST, "Node Shim", null)).isInstanceOf(IllegalArgumentException.class)
+			.hasMessageContaining("lowercase");
+		assertThatThrownBy(() -> runtime("25", DIGEST, "node shim; rm -rf /", null))
+			.isInstanceOf(IllegalArgumentException.class);
+	}
+
+	@Test
+	@DisplayName("refuses a shim command on a runtime that starts no shim")
+	void refusesAShimCommandOnALegacyRuntime() {
+		assertThatThrownBy(() -> runtime("25", DIGEST, ShimTopology.LEGACY, "node /opt/gitgrader-shim/server.js"))
+			.isInstanceOf(IllegalArgumentException.class)
+			.hasMessageContaining("shim command");
+	}
+
 	private static RuntimeDefinition runtime(String tag, String digest) {
+		return runtime(tag, digest, ShimTopology.LEGACY, null);
+	}
+
+	private static RuntimeDefinition runtime(String tag, String digest, @Nullable String shimKind,
+			@Nullable String shimCommand) {
 		return new RuntimeDefinition(new NewRuntime("java-25", "Java 25", "ghcr.io/git-grader/java", tag, digest, null,
-				"./mvnw test", ReportFormat.JUNIT_XML, true, null, null), CLOCK);
+				"./mvnw test", ReportFormat.JUNIT_XML, true, shimKind, shimCommand), CLOCK);
 	}
 
 }

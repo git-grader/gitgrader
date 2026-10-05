@@ -31,6 +31,7 @@ import jakarta.persistence.Version;
 import org.gitgrader.runtimes.NewRuntime;
 import org.gitgrader.runtimes.ReportFormat;
 import org.gitgrader.runtimes.RuntimeView;
+import org.gitgrader.runtimes.ShimTopology;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -150,7 +151,7 @@ public class RuntimeDefinition {
 		this.testCommand = definition.testCommand();
 		this.reportFormat = definition.reportFormat();
 		this.enabled = definition.enabled();
-		this.shimKind = definition.shimKind();
+		this.shimKind = ShimTopology.toStored(definition.shimKind());
 		this.shimCommand = definition.shimCommand();
 		this.updatedAt = updatedAt;
 	}
@@ -163,6 +164,8 @@ public class RuntimeDefinition {
 		if ("latest".equalsIgnoreCase(definition.tag())) {
 			throw new IllegalArgumentException("The moving tag 'latest' is forbidden; pin a reproducible image digest");
 		}
+		ShimTopology.requireValid(definition.shimKind());
+		ShimTopology.requireConsistent(definition.shimKind(), definition.shimCommand());
 	}
 
 }

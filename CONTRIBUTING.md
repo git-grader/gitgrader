@@ -12,13 +12,16 @@ npm 11.16.0 into `backend/target/frontend-toolchain`; a separately installed
 Node is useful only for frontend-only work.
 
 ```sh
-./mvnw clean verify
+./mvnw -Plicense clean verify
 ./mvnw spring-javaformat:apply
 ./mvnw spring-boot:run
 ./mvnw spring-boot:build-image
 ```
 
-Run `./mvnw clean verify` before opening a pull request. It runs formatting
+Run `./mvnw -Plicense clean verify` before opening a pull request, because
+that is the command CI runs. A plain `verify` leaves the license profile out,
+so it can pass locally and fail the pull request on a missing SPDX header. It
+runs formatting
 validation, Checkstyle, frontend lint/test/build (unless skipped), unit and
 integration tests, PMD and CPD, SpotBugs with FindSecBugs, forbidden-apis,
 JaCoCo, and module architecture tests. The integration tests need a reachable
@@ -106,7 +109,7 @@ By signing off, you certify the DCO statement:
 
 Before requesting review:
 
-- run `./mvnw clean verify`;
+- run `./mvnw -Plicense clean verify`;
 - update tests, migrations, API docs, and operational documentation as needed;
 - describe security, schema, deployment, and rollback implications;
 - confirm no secret, hidden test, or identifiable student data is included;

@@ -20,6 +20,7 @@ pnpm-debug.log*
 .env.*
 !.env.example
 /data/
+/backups/
 config/*.local.*
 /assignments/
 
@@ -29,7 +30,7 @@ config/*.local.*
 .project
 .classpath
 .settings/
-.vscode/
+.vscode/*
 !.vscode/extensions.json
 
 # Operating systems

@@ -195,7 +195,7 @@ class PushAdmissionHookTest {
 		return new AssignmentView(ASSIGNMENT_ID, COURSE_ID, "assignment-01", "Assignment 01", null, 1,
 				AssignmentStatus.OPEN, true, Instant.parse("2026-02-01T10:00:00Z"),
 				Instant.parse("2026-12-01T10:00:00Z"), "UTC", new BigDecimal("100"), 10, new BigDecimal("100"), false,
-				null, null, null, null, null, null, null, false);
+				null, null, null, null, null, null, null, false, false);
 	}
 
 	/**

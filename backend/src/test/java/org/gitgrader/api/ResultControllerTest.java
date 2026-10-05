@@ -277,7 +277,7 @@ class ResultControllerTest {
 	private static AssignmentView assignment() {
 		return new AssignmentView(ASSIGNMENT, COURSE, "assignment-01", "String utilities", null, 1,
 				AssignmentStatus.OPEN, true, null, null, "UTC", new BigDecimal("100"), 10, new BigDecimal("70"), false,
-				null, null, null, null, null, null, null, false);
+				null, null, null, null, null, null, null, false, false);
 	}
 
 	private static CourseView course() {

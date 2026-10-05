@@ -16,9 +16,6 @@
 
 package org.gitgrader.security;
 
-import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
 import java.time.Clock;
 import java.time.Instant;
@@ -69,7 +66,7 @@ public class ResultTokenService {
 		SECURE_RANDOM.nextBytes(randomBytes);
 
 		String plainToken = Base64.getUrlEncoder().withoutPadding().encodeToString(randomBytes);
-		String tokenHash = hash(plainToken);
+		String tokenHash = TokenHash.of(plainToken);
 
 		int prefixLength = Math.min(plainToken.length(), this.appProperties.resultTokens().prefixLength());
 		String tokenPrefix = plainToken.substring(0, prefixLength);
@@ -100,7 +97,7 @@ public class ResultTokenService {
 	 * @return submission id
 	 */
 	public Optional<UUID> resolve(String token) {
-		String tokenHash = hash(token);
+		String tokenHash = TokenHash.of(token);
 		Optional<ResultToken> optionalEntity = this.repository.findByTokenHash(tokenHash);
 
 		if (optionalEntity.isEmpty()) {
@@ -130,17 +127,6 @@ public class ResultTokenService {
 			entity.revoke(actor, Instant.now(this.clock));
 			this.repository.save(entity);
 		});
-	}
-
-	private String hash(String value) {
-		try {
-			MessageDigest digest = MessageDigest.getInstance("SHA-256");
-			byte[] hash = digest.digest(value.getBytes(StandardCharsets.UTF_8));
-			return Base64.getUrlEncoder().withoutPadding().encodeToString(hash);
-		}
-		catch (NoSuchAlgorithmException ex) {
-			throw new IllegalStateException("SHA-256 missing", ex);
-		}
 	}
 
 }

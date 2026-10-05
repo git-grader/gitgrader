@@ -95,7 +95,8 @@ the entity, a test, and a row in `docs/configuration.md` if it adds a setting.
 `frontend/src/api`; add the schema there rather than casting.
 
 **…know what CI will fail me for?** `./mvnw -Plicense clean verify` is the same
-gate, plus `shellcheck` on `scripts/*.sh` and the CodeQL and Trivy scans. The
+gate, plus `shellcheck` on `scripts/*.sh deployment/runtimes/*.sh examples/*.sh`,
+`sync-image-pins.sh --check`, and the CodeQL and Trivy scans. The
 licence profile is not part of a plain `verify`, and a missing SPDX header is the
 most common first failure.
 

@@ -25,6 +25,7 @@ import java.util.Comparator;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Stream;
 
@@ -285,6 +286,30 @@ class DockerGradingRunnerIT {
 	}
 
 	@Test
+	@DisplayName("reports a tests root the daemon cannot resolve instead of grading against nothing")
+	void reportsAnUnresolvableTestsRoot(@TempDir Path tempDir) throws InterruptedException {
+		// The failure this reproduces: the application is containerised, its own tests
+		// path
+		// means nothing on the host, and the configured root points somewhere the daemon
+		// cannot see. Docker creates an empty directory for that bind source rather than
+		// failing, so the sandbox runs with no tests, the parser reads nothing, and every
+		// submission is scored zero with no visible error anywhere. The workspace root is
+		// deliberately left working, so this proves the tests root is now checked on its
+		// own.
+		String unresolvable = "/tmp/gitgrader-no-such-tests-root-" + UUID.randomUUID();
+		GradingProperties properties = properties("", unresolvable);
+		DockerClient client = new DockerClientConfiguration().dockerClient(properties);
+		ensureImagePresent(client);
+		StorageProperties storage = new StorageProperties(tempDir.resolve("repositories").toString(),
+				tempDir.resolve("templates").toString(), tempDir.resolve("tests").toString(),
+				tempDir.resolve("artifacts").toString(), tempDir.resolve("tmp").toString());
+
+		assertThat(new DockerSandboxMountProbe(client, properties, storage).unusableReason(IMAGE))
+			.as("an unresolvable tests root must be reported, not graded through")
+			.hasValueSatisfying((reason) -> assertThat(reason).contains("hidden tests").contains(unresolvable));
+	}
+
+	@Test
 	@DisplayName("grades over the protocol, the suite and the sandbox split and the same 7 of 10")
 	void gradesThePartialSolutionOverTwoContainers(@TempDir Path tempDir) throws IOException, InterruptedException {
 		// The two containers of a shimmed run have separate filesystems: one holds the
@@ -388,9 +413,13 @@ class DockerGradingRunnerIT {
 	}
 
 	private static GradingProperties properties(String shimMountPath) {
+		return properties(shimMountPath, "");
+	}
+
+	private static GradingProperties properties(String shimMountPath, String testsMountRoot) {
 		return new GradingProperties("docker", 2, Duration.ofSeconds(120), DataSize.ofMegabytes(512), 1.0, 256, false,
 				DataSize.ofMegabytes(1), false,
-				new GradingProperties.Docker("unix:///var/run/docker.sock", "", "", "65534:65534",
+				new GradingProperties.Docker("unix:///var/run/docker.sock", "", testsMountRoot, "65534:65534",
 						Duration.ofMinutes(5), true, DataSize.ofMegabytes(64), true, true, shimMountPath),
 				new GradingProperties.RunnerApi(false, "", "", Duration.ofSeconds(10), Duration.ofSeconds(30)),
 				new GradingProperties.Queue(true, Duration.ofSeconds(2), Duration.ofMinutes(15), 3,

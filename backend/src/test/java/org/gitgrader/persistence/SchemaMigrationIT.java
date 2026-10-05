@@ -30,6 +30,7 @@ import java.util.UUID;
 
 import javax.sql.DataSource;
 
+import org.gitgrader.security.TokenHash;
 import org.gitgrader.testsupport.EnabledIfDockerAvailable;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -165,6 +166,45 @@ class SchemaMigrationIT {
 		}
 
 		@Test
+		@DisplayName("backfills token hashes that match what the application computes")
+		void backfilledTokenHashesMatchTheApplication() throws SQLException {
+			// The overview token migration has to reproduce TokenHash in SQL to hash the
+			// plaintext it finds already in a live database. If the two ever disagree,
+			// every
+			// token that existed before the migration stops resolving and nobody finds
+			// out
+			// until a student clicks an old link. The values are chosen to cover the
+			// cases that
+			// break such a translation: digests containing '+' and '/' that become '-'
+			// and '_',
+			// padding that has to be stripped, an empty string, and multi-byte UTF-8.
+			List<String> values = List.of("a", "ab", "abc", "x+/=y", "ü€-unicode", "", "tok_9f8e7d6c5b4a",
+					"zzzzzz+/zz");
+			execute("CREATE TABLE srot_backfill_probe (token_value VARCHAR(128) NOT NULL, token_hash VARCHAR(64))");
+			for (String value : values) {
+				execute("INSERT INTO srot_backfill_probe (token_value) VALUES ('%s')".formatted(quote(value)));
+			}
+			// Copied from V14__overview_token_hash_only.sql, not shared with it on
+			// purpose: this
+			// test has to notice if that file's expression is edited and this one is not.
+			execute("""
+					UPDATE srot_backfill_probe
+					SET token_hash = translate(rtrim(encode(sha256(convert_to(token_value, 'UTF8')), 'base64'), '='), '+/', '-_')
+					""");
+
+			for (String value : values) {
+				assertThat(querySingle(
+						"SELECT token_hash FROM srot_backfill_probe WHERE token_value = '%s'".formatted(quote(value))))
+					.as("the SQL backfill must agree with TokenHash for '%s'", value)
+					.isEqualTo(TokenHash.of(value));
+			}
+		}
+
+		private String quote(String value) {
+			return value.replace("'", "''");
+		}
+
+		@Test
 		@DisplayName("keeps the job dispatch index partial so completed history does not bloat it")
 		void dispatchIndexIsPartial() throws SQLException {
 			String definition = querySingle("""
@@ -260,6 +300,29 @@ class SchemaMigrationIT {
 		}
 
 		@Test
+		@DisplayName("leaves every assignment that predates weights on the equal-weight formula")
+		void existingAssignmentsKeepEqualWeightScoring() throws SQLException {
+			UUID courseId = UUID.randomUUID();
+			insertCourse("weights-course", courseId);
+
+			// Inserted the way every row that already existed in a live database was
+			// inserted:
+			// without naming the column, so the column default decides.
+			execute("""
+					INSERT INTO assignments (id, course_id, assignment_key, title, status,
+						max_points, test_count, pass_threshold, created_at, updated_at)
+					VALUES ('%s', '%s', 'pre-weights', 'Existing', 'DRAFT', 100, 10, 100, now(), now())
+					""".formatted(UUID.randomUUID(), courseId));
+
+			// The whole safety of honouring manifest weights rests on this default. If it
+			// were
+			// true, every grade already released would be restated by the next regrade.
+			assertThat(
+					querySingle("SELECT weights_enabled::text FROM assignments WHERE assignment_key = 'pre-weights'"))
+				.isEqualTo("false");
+		}
+
+		@Test
 		@DisplayName("refuses a revoked key that does not say when it was revoked")
 		void refusesRevokedKeyWithoutTimestamp() throws SQLException {
 			UUID studentId = insertStudent("s-revoke");
@@ -326,6 +389,33 @@ class SchemaMigrationIT {
 
 			assertThat(querySingle("SELECT count(*)::text FROM deadline_extensions WHERE assignment_id = '%s'"
 				.formatted(assignmentId))).isEqualTo("2");
+		}
+
+		@Test
+		@DisplayName("permits only one active overview token per student")
+		void allowsOnlyOneActiveOverviewToken() throws SQLException {
+			UUID studentId = insertStudent("s-overview");
+			// Retired rows are history by design: a student accumulates one per expiry.
+			insertOverviewToken(studentId, "tok-a", "ACTIVE");
+			insertOverviewToken(studentId, "tok-b", "REVOKED");
+			insertOverviewToken(studentId, "tok-c", "EXPIRED");
+
+			// A second ACTIVE row is exactly what two concurrent pushes could both
+			// create,
+			// and it left every later lookup and revoke throwing instead of returning the
+			// one
+			// row they expected, for every later push from that student.
+			assertThatExceptionOfType(SQLException.class)
+				.isThrownBy(() -> insertOverviewToken(studentId, "tok-d", "ACTIVE"))
+				.withMessageContaining("uq_srot_one_active_per_student");
+
+			// Revoking must free the slot, or a withdrawn token could never be replaced.
+			execute("UPDATE student_results_overview_tokens SET status = 'REVOKED' WHERE token_value = 'tok-a'");
+			insertOverviewToken(studentId, "tok-e", "ACTIVE");
+
+			assertThat(querySingle(("SELECT count(*)::text FROM student_results_overview_tokens "
+					+ "WHERE student_id = '%s' AND status = 'ACTIVE'")
+				.formatted(studentId))).isEqualTo("1");
 		}
 
 		@Test
@@ -441,6 +531,19 @@ class SchemaMigrationIT {
 					reason, granted_by, granted_at, created_at)
 				VALUES ('%s', '%s', '%s', now(), 'documented reason', 'instructor', now(), now())
 				""".formatted(UUID.randomUUID(), assignmentId, studentId));
+	}
+
+	private void insertOverviewToken(UUID studentId, String tokenValue, String status) throws SQLException {
+		// token_hash is what the application actually looks up by, and V14 makes it NOT
+		// NULL
+		// and unique. token_value is written here only because the retired column still
+		// accepts
+		// a value and this test predates the hash; nothing reads it.
+		execute("""
+				INSERT INTO student_results_overview_tokens (id, student_id, token_value, token_hash, token_prefix,
+					status, created_at)
+				VALUES ('%s', '%s', '%s', '%s', '%s', '%s', now())
+				""".formatted(UUID.randomUUID(), studentId, tokenValue, TokenHash.of(tokenValue), tokenValue, status));
 	}
 
 	private void execute(String sql) throws SQLException {

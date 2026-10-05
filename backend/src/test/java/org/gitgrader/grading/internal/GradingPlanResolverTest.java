@@ -177,7 +177,7 @@ class GradingPlanResolverTest {
 		when(this.assignments.findAssignment(any()))
 			.thenReturn(Optional.of(new AssignmentView(ASSIGNMENT, UUID.randomUUID(), "assignment-01", "Assignment 01",
 					null, 1, AssignmentStatus.OPEN, true, null, null, "UTC", new BigDecimal("100"), 10,
-					new BigDecimal("100"), false, null, suiteId, runtimeId, null, null, null, null, false)));
+					new BigDecimal("100"), false, null, suiteId, runtimeId, null, null, null, null, false, false)));
 	}
 
 	private void givenRuntime() {

@@ -32,6 +32,6 @@ public interface StudentResultsOverviewTokenRepository extends JpaRepository<Stu
 
 	Optional<StudentResultsOverviewToken> findByStudentIdAndStatus(UUID studentId, Status status);
 
-	Optional<StudentResultsOverviewToken> findByTokenValue(String tokenValue);
+	Optional<StudentResultsOverviewToken> findByTokenHash(String tokenHash);
 
 }

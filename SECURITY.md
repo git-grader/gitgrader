@@ -2,13 +2,14 @@
 
 ## Supported versions
 
-Security fixes are made on the latest released minor version. Before a stable
-release line exists, report issues against `main`; version 0.1.x is the current
-supported line.
+Security fixes are made on the latest released minor version. No release has been
+published yet, so `main` is the supported line and the version table below changes
+when the first tag is cut.
 
 | Version | Supported |
 | --- | --- |
-| 0.1.x | Yes |
+| `main` (no release yet) | Yes |
+| 0.1.x | Once 0.1.0 is tagged |
 | Earlier versions | No |
 
 ## Reporting a vulnerability

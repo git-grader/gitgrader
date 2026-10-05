@@ -55,7 +55,12 @@ public class StudentResultsOverviewToken {
 
 	private UUID studentId;
 
-	private String tokenValue;
+	/**
+	 * Hash of the issued token, and the only way back to this row. The plain value is
+	 * never stored: it cannot be recovered from a hash, so a token cannot be re-shown and
+	 * is rotated instead.
+	 */
+	private String tokenHash;
 
 	private String tokenPrefix;
 
@@ -73,11 +78,11 @@ public class StudentResultsOverviewToken {
 	protected StudentResultsOverviewToken() {
 	}
 
-	public StudentResultsOverviewToken(UUID id, UUID studentId, String tokenValue, String tokenPrefix,
-			Instant createdAt, @Nullable Instant expiresAt, Status status) {
+	public StudentResultsOverviewToken(UUID id, UUID studentId, String tokenHash, String tokenPrefix, Instant createdAt,
+			@Nullable Instant expiresAt, Status status) {
 		this.id = id;
 		this.studentId = studentId;
-		this.tokenValue = tokenValue;
+		this.tokenHash = tokenHash;
 		this.tokenPrefix = tokenPrefix;
 		this.createdAt = createdAt;
 		this.expiresAt = expiresAt;
@@ -93,8 +98,8 @@ public class StudentResultsOverviewToken {
 		return this.studentId;
 	}
 
-	public String tokenValue() {
-		return this.tokenValue;
+	public String tokenHash() {
+		return this.tokenHash;
 	}
 
 	public String tokenPrefix() {

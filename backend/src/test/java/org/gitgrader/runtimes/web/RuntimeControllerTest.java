@@ -16,6 +16,12 @@
 
 package org.gitgrader.runtimes.web;
 
+import org.junit.jupiter.api.BeforeEach;
+import java.time.Instant;
+import java.util.UUID;
+import org.gitgrader.runtimes.ReportFormat;
+import org.gitgrader.runtimes.RuntimeView;
+import org.jspecify.annotations.Nullable;
 import org.gitgrader.api.GlobalExceptionHandler;
 import org.gitgrader.runtimes.RuntimeAdministration;
 import org.gitgrader.runtimes.RuntimeCatalog;
@@ -31,12 +37,26 @@ import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 import static org.mockito.Mockito.mock;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.clearInvocations;
 
 @SpringJUnitConfig(classes = RuntimeControllerTest.MethodSecurity.class)
 class RuntimeControllerTest {
 
 	@Autowired
 	private RuntimeController controller;
+
+	@Autowired
+	private RuntimeAdministration administration;
+
+	@BeforeEach
+	void forgetEarlierCalls() {
+		// The administration mock is a shared bean, so without this one test's create
+		// call is counted against the next test's verification.
+		clearInvocations(this.administration);
+	}
 
 	@Test
 	@WithMockUser(roles = "INSTRUCTOR")
@@ -54,12 +74,77 @@ class RuntimeControllerTest {
 				  "imageDigest":"sha256:abc",
 				  "testCommand":"mvn test",
 				  "reportFormat":"JUNIT_XML",
-				  "enabled":true
+				  "enabled":true,
+				  "shimKind":"legacy"
 				}
 				""";
 
 		mockMvc.perform(post("/api/v1/runtimes").contentType("application/json").content(body))
 			.andExpect(status().isForbidden());
+	}
+
+	@Test
+	@WithMockUser(roles = "ADMIN")
+	void refusesARuntimeThatDoesNotDeclareItsGradingTopology() throws Exception {
+		// A blank topology is not a defaultable detail: it decides whether the submission
+		// and the hidden suite share one sandbox, and the two return different marks for
+		// the same work. So an undeclared topology is refused at the boundary rather than
+		// defaulted.
+		MockMvc mockMvc = MockMvcBuilders.standaloneSetup(this.controller)
+			.setControllerAdvice(new GlobalExceptionHandler())
+			.build();
+
+		mockMvc.perform(post("/api/v1/runtimes").contentType("application/json").content(runtimeBody(null)))
+			.andExpect(status().isBadRequest());
+	}
+
+	@Test
+	@WithMockUser(roles = "ADMIN")
+	void acceptsTheExplicitSingleSandboxOptOut() throws Exception {
+		MockMvc mockMvc = MockMvcBuilders.standaloneSetup(this.controller)
+			.setControllerAdvice(new GlobalExceptionHandler())
+			.build();
+		when(this.administration.create(any())).thenReturn(view("legacy"));
+
+		mockMvc.perform(post("/api/v1/runtimes").contentType("application/json").content(runtimeBody("legacy")))
+			.andExpect(status().isCreated());
+		verify(this.administration).create(any());
+	}
+
+	@Test
+	@WithMockUser(roles = "ADMIN")
+	void acceptsANamedShimTopology() throws Exception {
+		MockMvc mockMvc = MockMvcBuilders.standaloneSetup(this.controller)
+			.setControllerAdvice(new GlobalExceptionHandler())
+			.build();
+		when(this.administration.create(any())).thenReturn(view("node"));
+
+		mockMvc.perform(post("/api/v1/runtimes").contentType("application/json").content(runtimeBody("node")))
+			.andExpect(status().isCreated());
+	}
+
+	private static String runtimeBody(@Nullable String shimKind) {
+		String topology = shimKind == null ? "" : "\"shimKind\":\"" + shimKind + "\",";
+		return """
+				{
+				  "runtimeKey":"java",
+				  "displayName":"Java",
+				  "image":"example/java",
+				  "tag":"25",
+				  "imageDigest":"sha256:%s",
+				  "testCommand":"mvn test",
+				  "reportFormat":"JUNIT_XML",
+				  "enabled":true,
+				  %s
+				  "shimCommand":null
+				}
+				""".formatted("a".repeat(64), topology);
+	}
+
+	private static RuntimeView view(@Nullable String shimKind) {
+		return new RuntimeView(UUID.randomUUID(), "java", "Java", "example/java", "25", "sha256:" + "a".repeat(64),
+				null, "mvn test", ReportFormat.JUNIT_XML, true, Instant.parse("2026-03-01T10:15:30Z"),
+				Instant.parse("2026-03-01T10:15:30Z"), shimKind, null);
 	}
 
 	@EnableMethodSecurity

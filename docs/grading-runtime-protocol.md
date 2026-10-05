@@ -150,6 +150,28 @@ instructor-only diagnostics and never parses as a report.
 - The runner tears both containers down on every exit path and removes the
   shared socket volume with them.
 
+## Declaring a runtime's topology
+
+  Every runtime states which of the two topologies it grades with, because they
+  are not interchangeable and the difference shows up in a student's mark:
+
+  | `shimKind` | what the runner does |
+  | --- | --- |
+  | `legacy` | Runs the submission and the hidden suite in one sandbox. |
+  | a shim name, e.g. `node` | Runs them in two containers joined by the shim socket. |
+
+  A runtime that leaves `shimKind` unstated is rejected, because a blank value
+  silently picked a grading path. `legacy` is stored as an absent topology, so a
+  runtime created now grades exactly as one created before the shim existed, and
+  a suite that has not been adapted keeps working untouched. A runtime already in
+  the database reports an absent topology and continues to grade in one sandbox;
+  saving it from the admin page records the choice explicitly.
+
+  Naming a shim obliges the hidden suite to import the shim client. A suite that
+  never opens the socket cannot load the submission at all, so the runner refuses
+  such a pairing as a misconfiguration rather than reporting it as a failing
+  student.
+
 ## Implementing a runtime
 
 The wire contract is language-independent. The shipped Node shim lives in

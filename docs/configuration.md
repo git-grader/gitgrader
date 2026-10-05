@@ -30,7 +30,6 @@ listed in the second table.
 | `git.require-signed-commits` | `GIT_REQUIRE_SIGNED_COMMITS` | `true` | Reject unsigned commits. |
 | `git.idle-timeout` | — | `10m` | SSH idle timeout. |
 | `git.allowed-key-types` | — | packaged list | Accepted OpenSSH key blob types. |
-| `grading.runner` | `GRADING_RUNNER` | `docker` | Runner implementation selector. |
 | `grading.max-parallel-jobs` | `GRADING_MAX_PARALLEL_JOBS` | `2` | Worker concurrency. |
 | `grading.default-timeout` | `GRADING_DEFAULT_TIMEOUT` | `120s` | Run time limit. |
 | `grading.default-memory-limit` / `default-cpu-limit` / `default-pid-limit` | `GRADING_DEFAULT_MEMORY_LIMIT` / `GRADING_DEFAULT_CPU_LIMIT` / `GRADING_DEFAULT_PID_LIMIT` | `512MB` / `1.0` / `256` | Default resource limits. |

@@ -733,8 +733,25 @@ export const RuntimeSchema = z.object({
   enabled: z.boolean(),
   createdAt: z.string(),
   updatedAt: z.string(),
+  // Absent means the runtime grades in one sandbox. A runtime created before the
+  // topology had to be declared still reports it this way, and keeps grading the same.
+  shimKind: z.string().nullish(),
+  shimCommand: z.string().nullish(),
 });
 export type Runtime = z.infer<typeof RuntimeSchema>;
+
+/** The topology that runs the submission and the hidden suite in one sandbox. */
+export const LEGACY_TOPOLOGY = 'legacy';
+
+/**
+ * The shim implementations this deployment ships.
+ *
+ * <p>
+ * Only names from here are offered, because a topology the operator invents produces a
+ * runtime that cannot load a submission at all. A deployment with its own shim adds its
+ * name here.
+ */
+export const SHIM_KINDS = ['node'] as const;
 
 export const RuntimeDefinitionSchema = z.object({
   runtimeKey: z.string().min(1, "Required"),
@@ -753,6 +770,13 @@ export const RuntimeDefinitionSchema = z.object({
   testCommand: z.string().min(1, "Required"),
   reportFormat: ReportFormatSchema,
   enabled: z.boolean(),
+  // Required, because it decides whether the submission and the hidden suite share one
+  // sandbox. The server rejects a runtime that leaves it unstated, so the form states it.
+  shimKind: z
+    .string()
+    .min(1, "Required")
+    .regex(/^[a-z0-9][a-z0-9._-]{0,31}$/, "Use a lowercase name such as 'node'"),
+  shimCommand: z.string().nullish(),
 });
 export type RuntimeDefinition = z.infer<typeof RuntimeDefinitionSchema>;
 

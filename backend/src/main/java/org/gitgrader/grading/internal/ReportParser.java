@@ -18,10 +18,26 @@ package org.gitgrader.grading.internal;
 
 import java.util.List;
 
+import org.gitgrader.runtimes.ReportFormat;
+
 /**
  * Parses test runner output into structured test results.
  */
 public interface ReportParser {
+
+	/**
+	 * Tells whether this parser can read the given report format.
+	 *
+	 * <p>
+	 * A runtime stores the format its reporter emits, but the formats the enum names are
+	 * not all implemented here. Parsing the wrong grammar does not fail: it matches
+	 * nothing, every declared test comes back unexecuted, and the scorer divides those
+	 * into a confident zero. That is indistinguishable on a student's page from a student
+	 * who passed nothing, so a format with no parser is refused instead of guessed at.
+	 * @param format the format a runtime declares
+	 * @return whether this parser implements that format
+	 */
+	boolean supports(ReportFormat format);
 
 	/**
 	 * Parses a report from the test runner.

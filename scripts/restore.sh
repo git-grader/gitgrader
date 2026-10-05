@@ -53,8 +53,9 @@ done
 # Asked of Compose rather than derived from the checkout directory: compose.yaml
 # pins the project name and both `-p` and COMPOSE_PROJECT_NAME override it, so a
 # name reconstructed here restores into volumes the application never reads.
+# `grep -m1` rather than a pipe into head, for the reason given in scripts/backup.sh.
 project="$(docker inspect -f '{{index .Config.Labels "com.docker.compose.project"}}' \
-  "$(docker compose ps -aq database | head -n1)")"
+  "$(docker compose ps -aq database | grep -m1 . || true)")"
 [[ -n $project ]] || fail 'Could not determine the Compose project name.'
 
 # The database is restored below through pg_restore, against the server started
@@ -68,6 +69,10 @@ for volume in git-data grading-data templates tests artifacts; do
     sh -ec 'find /target -mindepth 1 -maxdepth 1 -exec rm -rf {} +; tar -C /target -xzf "/backup/$1.tar.gz"' _ "$volume"
 done
 
-docker compose exec -T database sh -c "dropdb -U '$POSTGRES_USER' --if-exists '$POSTGRES_DB' && createdb -U '$POSTGRES_USER' '$POSTGRES_DB'"
+# Positional parameters rather than values interpolated into the script text, so a
+# database name or user containing a quote cannot change what runs in the container.
+# The same pattern is used for the volume name above.
+docker compose exec -T database sh -ec \
+  'dropdb -U "$1" --if-exists "$2" && createdb -U "$1" "$2"' _ "$POSTGRES_USER" "$POSTGRES_DB"
 docker compose exec -T database pg_restore -U "$POSTGRES_USER" -d "$POSTGRES_DB" --clean --if-exists <"$backup/postgresql.dump"
 printf 'Restore completed from %s. Start app and run scripts/verify-install.sh.\n' "$backup"

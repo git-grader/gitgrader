@@ -55,13 +55,7 @@ chmod 600 .env
 
 # Values that describe this machine or this checkout, not a preference. Each one is
 # wrong as a shipped default, so the installer settles it and says what it chose.
-set_env() {
-  if grep -q "^$1=" .env; then
-    sed -i "s|^$1=.*|$1=$2|" .env
-  else
-    printf '%s=%s\n' "$1" "$2" >> .env
-  fi
-}
+# set_env itself lives in scripts/lib.sh, shared with scripts/dev-up.sh.
 
 # The grading runner talks to the Docker socket and the application runs
 # unprivileged, so it has to join the group that owns the socket. The number

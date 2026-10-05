@@ -105,22 +105,27 @@ Manager UI is kept out of the normal stack and can be started only when needed:
 
 ```sh
 LAM_PASSWORD='use-a-strong-unique-password' \
-docker compose -f compose.yaml -f compose.ldap-admin.yaml \
+docker compose -f compose.yaml -f compose.dev.yaml -f compose.ldap-admin.yaml \
   up -d ldap-account-manager
 ```
+
+`compose.dev.yaml` is required, not optional: it is the file that defines the
+`openldap` service this UI attaches to, and Compose refuses the whole project
+before starting anything if a `depends_on` names a service no included file
+defines. Point `LDAP_SERVER` in the override at your own directory and drop that
+file from the command.
 
 Open <http://127.0.0.1:8081/> locally, add users below the configured user search
 base, and add them to `gitgrader-instructors` or `gitgrader-admins`. Stop the UI
 when finished:
 
 ```sh
-docker compose -f compose.yaml -f compose.ldap-admin.yaml \
+docker compose -f compose.yaml -f compose.dev.yaml -f compose.ldap-admin.yaml \
   stop ldap-account-manager
 ```
 
 The UI port is loopback-only. For production, change `LDAP_SERVER` in the override
 to the directory's `ldaps://` endpoint and protect the LAM configuration volumes.
-The image version should be reviewed and pinned before production deployment.
 
 ## Public URL
 

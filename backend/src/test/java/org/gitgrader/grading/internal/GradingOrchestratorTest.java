@@ -100,7 +100,7 @@ class GradingOrchestratorTest {
 	private static AssignmentView usableAssignment() {
 		return new AssignmentView(ASSIGNMENT, COURSE, "a1", "Assignment 1", null, 0, AssignmentStatus.OPEN, true, null,
 				null, null, java.math.BigDecimal.TEN, 10, new java.math.BigDecimal("70"), true, null, UUID.randomUUID(),
-				UUID.randomUUID(), null, null, null, null, false);
+				UUID.randomUUID(), null, null, null, null, false, false);
 	}
 
 	@Test

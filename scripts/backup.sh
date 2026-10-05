@@ -33,7 +33,10 @@ fail() { printf 'backup: %s\n' "$1" >&2; exit 1; }
 # The label Compose stamped on its own container is the one answer never guessed.
 compose_project() {
   local container
-  container="$(docker compose ps -aq database 2>/dev/null | head -n1)"
+  # `grep -m1` rather than a pipe into head, which would leave the first grep on a
+  # closed pipe and fail the whole pipeline under pipefail. See the same reasoning in
+  # scripts/sync-image-pins.sh.
+  container="$(docker compose ps -aq database 2>/dev/null | grep -m1 . || true)"
   [[ -n $container ]] || fail 'The Compose project is not running. Start it before taking a backup.'
   docker inspect -f '{{index .Config.Labels "com.docker.compose.project"}}' "$container"
 }

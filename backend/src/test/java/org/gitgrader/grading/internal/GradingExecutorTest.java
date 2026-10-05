@@ -33,6 +33,7 @@ import org.gitgrader.grading.GradingExecutionRequest;
 import org.gitgrader.configuration.GradingProperties;
 import org.gitgrader.grading.GradingResult;
 import org.gitgrader.grading.GradingRunner;
+import org.gitgrader.grading.TestOutcome;
 import org.gitgrader.grading.domain.GradingRun;
 import org.gitgrader.grading.internal.GradingPlanResolver.GradingPlan;
 import org.gitgrader.runtimes.ReportFormat;
@@ -114,6 +115,9 @@ class GradingExecutorTest {
 				UUID.randomUUID(), "corr-1", clock);
 		when(this.plans.resolve(any())).thenReturn(plan());
 		when(this.workspaces.materialise(any(), any())).thenReturn(WORKSPACE);
+		// Faithful to the real parser, which reads one format and refuses the rest
+		// rather than guessing: a bare `any()` stub would claim to parse them all.
+		when(this.reportParser.supports(ReportFormat.TAP)).thenReturn(true);
 	}
 
 	@Test
@@ -189,6 +193,108 @@ class GradingExecutorTest {
 
 	private void writeManifest(String json) throws Exception {
 		Files.writeString(this.hiddenTests.resolve("manifest.json"), json, StandardCharsets.UTF_8);
+	}
+
+	@Test
+	@DisplayName("refuses to grade a report format no parser implements, rather than scoring a zero nobody earned")
+	void refusesToGradeAnUnimplementedReportFormat() {
+		// The runtime names JUNIT_XML and the only parser here reads TAP. Handing it the
+		// XML matches no line, every declared test comes back NOT_EXECUTED, and the
+		// scorer divides that into a confident zero - on the student's page identical to
+		// having passed nothing, and recorded against their grade either way. The enum
+		// permits the format, the schema default is it, and the admin form offers it, so
+		// this is not an exotic configuration.
+		when(this.plans.resolve(any())).thenReturn(planWithFormat(ReportFormat.JUNIT_XML));
+		when(this.runner.execute(any())).thenReturn(new GradingResult(0,
+				"<?xml version=\"1.0\" encoding=\"UTF-8\"?><testsuite name=\"suite\" tests=\"1\" failures=\"0\">"
+						+ "<testcase name=\"first\" classname=\"CourseTest\"/></testsuite>",
+				"", 10, false, false, null));
+
+		GradingExecutor.Outcome outcome = this.executor.execute(this.run);
+
+		assertThat(outcome.score()).isNull();
+		assertThat(outcome.results()).isEmpty();
+		assertThat(outcome.failureDetail()).contains("JUNIT_XML");
+		verify(this.reportParser, never()).parse(any(), any(), any());
+	}
+
+	private GradingPlan planWithFormat(ReportFormat format) {
+		GradingPlan base = plan();
+		RuntimeView runtime = new RuntimeView(base.runtime().id(), base.runtime().runtimeKey(),
+				base.runtime().displayName(), base.runtime().image(), base.runtime().tag(),
+				base.runtime().imageDigest(), base.runtime().installCommand(), base.runtime().testCommand(), format,
+				base.runtime().enabled(), base.runtime().createdAt(), base.runtime().updatedAt(), null, null);
+		return new GradingPlan(base.submission(), base.repositoryPath(), base.assignment(), runtime,
+				base.hiddenTests());
+	}
+
+	private GradingProperties defaultProperties() {
+		return new GradingProperties("docker", 2, Duration.ofSeconds(120), DataSize.ofMegabytes(512), 1.0, 256, false,
+				DataSize.ofMegabytes(1), true,
+				new GradingProperties.Docker("unix:///var/run/docker.sock", "", "", "65534:65534",
+						Duration.ofMinutes(5), true, DataSize.ofMegabytes(64), true, true, ""),
+				new GradingProperties.RunnerApi(false, "", "", Duration.ofSeconds(10), Duration.ofSeconds(30)),
+				new GradingProperties.Queue(true, Duration.ofSeconds(2), Duration.ofMinutes(15), 3,
+						Duration.ofSeconds(30), 3, 500, 1000, Duration.ofSeconds(30)));
+	}
+
+	private GradingPlan planWithWeightedAssignment() {
+		GradingPlan base = plan();
+		AssignmentView weighted = new AssignmentView(base.assignment().id(), base.assignment().courseId(),
+				base.assignment().assignmentKey(), base.assignment().title(), base.assignment().description(),
+				base.assignment().displayOrder(), base.assignment().status(), base.assignment().mandatory(),
+				base.assignment().opensAt(), base.assignment().dueAt(), base.assignment().timezone(),
+				base.assignment().maxPoints(), base.assignment().testCount(), base.assignment().passThreshold(),
+				base.assignment().allowLate(), base.assignment().templateVersionId(),
+				base.assignment().testSuiteVersionId(), base.assignment().runtimeId(),
+				base.assignment().timeoutSeconds(), base.assignment().memoryLimitBytes(), base.assignment().cpuLimit(),
+				base.assignment().pidLimit(), base.assignment().networkEnabled(), true);
+		return new GradingPlan(base.submission(), base.repositoryPath(), weighted, base.runtime(), base.hiddenTests());
+	}
+
+	@Test
+	@DisplayName("scores a new assignment by the weights its manifest declared")
+	void scoresNewAssignmentByManifestWeight() {
+		this.plans = mock(GradingPlanResolver.class);
+		when(this.plans.resolve(any())).thenReturn(planWithWeightedAssignment());
+		GradingExecutor weightedExecutor = new GradingExecutor(this.runner, this.workspaces, this.plans,
+				this.reportParser, mock(TestResultRepository.class), defaultProperties(),
+				new tools.jackson.databind.ObjectMapper(),
+				Clock.fixed(Instant.parse("2026-04-01T10:00:00Z"), ZoneOffset.UTC));
+
+		when(this.runner.execute(any())).thenReturn(new GradingResult(0, "ignored", "", 10, false, false, null));
+		// One test worth five and one worth one, failing the cheap one. Counting tests
+		// would
+		// report fifty percent; the manifest says the passing one carries five sixths.
+		when(this.reportParser.parse(any(), any(), any())).thenReturn(List.of(
+				new ParsedResult("PUBLIC", null, "heavy", null, TestOutcome.PASSED, BigDecimal.valueOf(5), 1L, null,
+						null, null),
+				new ParsedResult("PUBLIC", null, "cheap", null, TestOutcome.FAILED, BigDecimal.ONE, 1L, null, null,
+						null)));
+
+		GradingExecutor.Outcome outcome = weightedExecutor.execute(this.run);
+
+		assertThat(outcome.score()).isNotNull();
+		assertThat(outcome.score().scorePercent().toPlainString()).isEqualTo("83.3");
+	}
+
+	@Test
+	@DisplayName("keeps counting tests for an assignment created before weights were honoured")
+	void scoresExistingAssignmentByTestCount() {
+		// The same parsed results against an assignment created before the weights column
+		// existed. Its grades were computed by counting, so counting is what it must keep
+		// getting; a redeploy must not be able to restate them.
+		when(this.runner.execute(any())).thenReturn(new GradingResult(0, "ignored", "", 10, false, false, null));
+		when(this.reportParser.parse(any(), any(), any())).thenReturn(List.of(
+				new ParsedResult("PUBLIC", null, "heavy", null, TestOutcome.PASSED, BigDecimal.valueOf(5), 1L, null,
+						null, null),
+				new ParsedResult("PUBLIC", null, "cheap", null, TestOutcome.FAILED, BigDecimal.ONE, 1L, null, null,
+						null)));
+
+		GradingExecutor.Outcome outcome = this.executor.execute(this.run);
+
+		assertThat(outcome.score()).isNotNull();
+		assertThat(outcome.score().scorePercent().toPlainString()).isEqualTo("50.0");
 	}
 
 	private GradingExecutor executorRetainingWorkspaces() {
@@ -281,7 +387,7 @@ class GradingExecutorTest {
 				a.description(), a.displayOrder(), a.status(), a.mandatory(), a.opensAt(), a.dueAt(), a.timezone(),
 				a.maxPoints(), a.testCount(), a.passThreshold(), a.allowLate(), a.templateVersionId(),
 				a.testSuiteVersionId(), a.runtimeId(), timeoutSeconds, a.memoryLimitBytes(), a.cpuLimit(), a.pidLimit(),
-				a.networkEnabled());
+				a.networkEnabled(), false);
 		return new GradingPlan(base.submission(), base.repositoryPath(), withTimeout, base.runtime(),
 				base.hiddenTests());
 	}
@@ -305,7 +411,7 @@ class GradingExecutorTest {
 				"SHA256:key", SubmissionStatus.QUEUED, false, null, null, null);
 		AssignmentView assignment = new AssignmentView(assignmentId, UUID.randomUUID(), "assignment-01",
 				"Assignment 01", null, 1, AssignmentStatus.OPEN, true, null, null, "UTC", new BigDecimal("100"), 10,
-				new BigDecimal("100"), false, null, UUID.randomUUID(), UUID.randomUUID(), null, null, null, null,
+				new BigDecimal("100"), false, null, UUID.randomUUID(), UUID.randomUUID(), null, null, null, null, false,
 				false);
 		RuntimeView runtime = new RuntimeView(UUID.randomUUID(), "node-24", "Node.js 24",
 				"registry.example.org/runtime-node", "24.13.0", "sha256:" + "a".repeat(64), "npm ci", "npm test",

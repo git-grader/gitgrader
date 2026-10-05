@@ -27,8 +27,12 @@ import org.gitgrader.configuration.AppProperties;
 import org.gitgrader.security.domain.StudentResultsOverviewToken;
 import org.gitgrader.security.domain.StudentResultsOverviewToken.Status;
 import org.gitgrader.security.internal.StudentResultsOverviewTokenRepository;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.TransactionDefinition;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 
 /**
  * Issues and resolves the long-lived, student-scoped results overview token.
@@ -44,39 +48,87 @@ public class StudentResultsOverviewTokenService {
 
 	private static final SecureRandom SECURE_RANDOM = new SecureRandom();
 
+	/**
+	 * Enough for two pushes of one repository colliding; more would be a defect, not a
+	 * race.
+	 */
+	private static final int MAX_MINT_ATTEMPTS = 3;
+
 	private final StudentResultsOverviewTokenRepository repository;
 
 	private final AppProperties appProperties;
 
 	private final Clock clock;
 
+	/**
+	 * Runs the insert on its own transaction so that losing the mint race cannot take the
+	 * caller's transaction with it. PostgreSQL aborts an entire transaction when any
+	 * statement fails, so a constraint violation caught inside the surrounding
+	 * transaction leaves that transaction unable to run the re-read that recovers from
+	 * it. The catch therefore has to happen outside a transaction that the failure
+	 * poisoned.
+	 */
+	private final TransactionTemplate insertAttempt;
+
 	public StudentResultsOverviewTokenService(StudentResultsOverviewTokenRepository repository,
-			AppProperties appProperties, Clock clock) {
+			AppProperties appProperties, Clock clock, PlatformTransactionManager transactionManager) {
 		this.repository = repository;
 		this.appProperties = appProperties;
 		this.clock = clock;
+		this.insertAttempt = new TransactionTemplate(transactionManager);
+		this.insertAttempt.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
 	}
 
 	/**
-	 * Returns an existing active unexpired token for the student, or creates a new one.
+	 * Mints this push's token, retiring whatever the previous push was given.
+	 *
+	 * <p>
+	 * The token is rotated rather than re-shown because it is no longer stored: only its
+	 * hash is kept, and a hash cannot be turned back into the value the student needs.
+	 * Each push therefore gets a new link and the previous one stops resolving once this
+	 * push lands. A link a student is still holding keeps working until their next push.
+	 * @param studentId the student the link is for
+	 * @return the plain token, which the caller must hand to the student now
 	 */
 	public String issueForStudent(UUID studentId) {
 		Instant now = Instant.now(this.clock);
-		Optional<StudentResultsOverviewToken> existing = this.repository.findByStudentIdAndStatus(studentId,
-				Status.ACTIVE);
-		if (existing.isPresent()) {
-			StudentResultsOverviewToken token = existing.get();
-			if (token.isExpired(now)) {
-				token.markExpired(now);
-				this.repository.save(token);
-				return createNew(studentId, now);
+
+		// Bounded because each retry needs a competing push to have inserted in between.
+		// Two
+		// pushes of one repository a moment apart is the realistic case and needs one
+		// retry;
+		// anything past that is not a race but a defect, and looping forever would hide
+		// it.
+		for (int attempt = 1; attempt <= MAX_MINT_ATTEMPTS; attempt++) {
+			retireActive(studentId, now);
+			try {
+				return mint(studentId, now);
 			}
-			return token.tokenValue();
+			catch (DataIntegrityViolationException ex) {
+				if (attempt == MAX_MINT_ATTEMPTS) {
+					throw ex;
+				}
+				// Another push inserted between the retire above and this insert, so
+				// uq_srot_one_active_per_student rejected this one. Retiring again picks
+				// up that
+				// row and the retry inserts in its place. The competitor's link is
+				// revoked by the
+				// retry, which is unavoidable once tokens rotate: there is one link per
+				// student
+				// and both pushes asked for a fresh one.
+			}
 		}
-		return createNew(studentId, now);
+		throw new IllegalStateException("unreachable");
 	}
 
-	private String createNew(UUID studentId, Instant now) {
+	private void retireActive(UUID studentId, Instant now) {
+		this.repository.findByStudentIdAndStatus(studentId, Status.ACTIVE).ifPresent((entity) -> {
+			entity.revoke(now);
+			this.repository.save(entity);
+		});
+	}
+
+	private String mint(UUID studentId, Instant now) {
 		int entropyBits = this.appProperties.resultTokens().entropyBits();
 		int bytesLength = entropyBits / Byte.SIZE;
 		byte[] randomBytes = new byte[bytesLength];
@@ -92,14 +144,24 @@ public class StudentResultsOverviewTokenService {
 			expiresAt = now.plus(this.appProperties.resultTokens().timeToLive());
 		}
 
-		StudentResultsOverviewToken entity = new StudentResultsOverviewToken(UUID.randomUUID(), studentId, plainToken,
-				tokenPrefix, now, expiresAt, Status.ACTIVE);
-		this.repository.save(entity);
+		StudentResultsOverviewToken entity = new StudentResultsOverviewToken(UUID.randomUUID(), studentId,
+				TokenHash.of(plainToken), tokenPrefix, now, expiresAt, Status.ACTIVE);
+		this.insertAttempt.executeWithoutResult((status) -> this.repository.saveAndFlush(entity));
 		return plainToken;
 	}
 
+	/**
+	 * Resolves a plain token to its student.
+	 *
+	 * <p>
+	 * The token is hashed before the lookup, and there is no stored plaintext to compare
+	 * it against. A revoked, expired or unknown token is indistinguishable from the
+	 * outside.
+	 * @param token the plain token from the request
+	 * @return the student, or empty when the token cannot be used
+	 */
 	public Optional<UUID> resolve(String token) {
-		Optional<StudentResultsOverviewToken> optionalEntity = this.repository.findByTokenValue(token);
+		Optional<StudentResultsOverviewToken> optionalEntity = this.repository.findByTokenHash(TokenHash.of(token));
 		if (optionalEntity.isEmpty()) {
 			return Optional.empty();
 		}

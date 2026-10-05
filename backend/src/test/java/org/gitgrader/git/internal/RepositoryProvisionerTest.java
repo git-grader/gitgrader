@@ -132,7 +132,7 @@ class RepositoryProvisionerTest {
 	private static AssignmentView assignment(String key, AssignmentStatus status) {
 		return new AssignmentView(UUID.randomUUID(), COURSE, key, key, null, 1, status, true, null, null, "UTC",
 				new BigDecimal("100"), 10, new BigDecimal("70"), false, TEMPLATE, null, null, null, null, null, null,
-				false);
+				false, false);
 	}
 
 }

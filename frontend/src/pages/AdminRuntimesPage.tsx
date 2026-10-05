@@ -3,7 +3,13 @@
 
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { api, REPORT_FORMATS, RuntimeDefinitionSchema } from '../api';
+import {
+  LEGACY_TOPOLOGY,
+  REPORT_FORMATS,
+  RuntimeDefinitionSchema,
+  SHIM_KINDS,
+  api
+} from '../api';
 import type { Runtime, RuntimeDefinition } from '../api';
 import { queryKeys } from '../api/queryKeys';
 import { QueryErrorNotice } from '../components/QueryErrorNotice';
@@ -16,10 +22,10 @@ import type { GridColDef, GridRenderCellParams } from '@mui/x-data-grid';
 import {
   Box, Typography, CircularProgress, Button, Dialog, DialogTitle,
   DialogContent, DialogActions, TextField, FormControl, InputLabel, Select, MenuItem,
-  FormControlLabel, Checkbox, Alert, Chip, Tooltip
+  FormControlLabel, Checkbox, Alert, Chip, Tooltip, FormHelperText
 } from '@mui/material';
 
-const EMPTY_FORM: Partial<RuntimeDefinition> = { enabled: true, reportFormat: 'JUNIT_XML' };
+const EMPTY_FORM: Partial<RuntimeDefinition> = { enabled: true, reportFormat: 'JUNIT_XML', shimKind: LEGACY_TOPOLOGY };
 
 /** A digest belongs to one immutable image build; the shortened form is the readable end. */
 const shortDigest = (digest: string) => `${digest.slice(0, 7)}…${digest.slice(-7)}`;
@@ -216,6 +222,30 @@ export function AdminRuntimesPage() {
             <TextField label="Image Digest" required fullWidth value={form.imageDigest ?? ''} onChange={e => setForm({ ...form, imageDigest: e.target.value })} error={!!errorFor('imageDigest')} helperText={errorFor('imageDigest') ?? 'Pins the image so a rebuild cannot change what students are graded in.'} disabled={createMutation.isPending} />
             <TextField label="Install Command (Optional)" fullWidth value={form.installCommand ?? ''} onChange={e => setForm({ ...form, installCommand: e.target.value || null })} disabled={createMutation.isPending} />
             <TextField label="Test Command" required fullWidth value={form.testCommand ?? ''} onChange={e => setForm({ ...form, testCommand: e.target.value })} error={!!errorFor('testCommand')} helperText={errorFor('testCommand')} disabled={createMutation.isPending} />
+
+            {/* The topology is not a detail the form can leave blank. It decides whether the
+                submission and the hidden suite share one sandbox, and the two produce
+                different marks for the same work, so the server refuses a runtime that does
+                not state it. */}
+            <FormControl fullWidth required error={!!errorFor('shimKind')}>
+              <InputLabel id="shim-kind-label">Grading Topology</InputLabel>
+              <Select
+                labelId="shim-kind-label"
+                label="Grading Topology"
+                value={form.shimKind ?? ''}
+                onChange={e => setForm({ ...form, shimKind: e.target.value })}
+                disabled={createMutation.isPending}
+              >
+                <MenuItem value={LEGACY_TOPOLOGY}>Single sandbox (legacy)</MenuItem>
+                {SHIM_KINDS.map(kind => (
+                  <MenuItem key={kind} value={kind}>Shim: {kind}</MenuItem>
+                ))}
+              </Select>
+              <FormHelperText>
+                {errorFor('shimKind') ?? 'A shimmed runtime needs a hidden suite that imports the shim client; without one it cannot load the submission.'}
+              </FormHelperText>
+            </FormControl>
+            <TextField label="Shim Command (Optional)" fullWidth value={form.shimCommand ?? ''} onChange={e => setForm({ ...form, shimCommand: e.target.value || null })} disabled={createMutation.isPending || form.shimKind === LEGACY_TOPOLOGY} helperText="Leave empty to use the command baked into the runtime image." />
 
             {/* Free text here defaulted to `JUNIT`, which the server does not accept, so
                 the prefilled form was rejected on submit and no runtime could be added

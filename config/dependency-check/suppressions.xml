@@ -13,41 +13,44 @@
 -->
 <suppressions xmlns="https://jeremylong.github.io/DependencyCheck/dependency-suppression.1.3.xsd">
 
-	<suppress>
+<suppress until="2027-04-01Z">
 		<notes><![CDATA[
 			False positive: the CPE matcher maps the Maven coordinate
 			org.eclipse.jgit:org.eclipse.jgit onto unrelated "git" CVEs that affect
 			the C implementation of git, not the pure Java JGit library. GitGrader
 			never invokes the git binary; all Git operations go through JGit.
+
+			The date is a review date, not an expiry: this is a property of how the
+			scanner maps CPEs rather than of a version that can move, so nothing about
+			it changes with a bump. It is here because this file requires one, and the
+			moment to check it is the next JGit upgrade - if that upgrade ever stops
+			using JGit, this suppression is what would keep hiding the real thing.
 		]]></notes>
 		<packageUrl regex="true">^pkg:maven/org\.eclipse\.jgit/.*$</packageUrl>
 		<cpe>cpe:/a:git-scm:git</cpe>
 	</suppress>
 
-	<suppress>
+	<suppress until="2027-04-01Z">
 		<notes><![CDATA[
 			False positive: com.github.docker-java is a Java client for the Docker
 			Engine API and is repeatedly matched against CVEs in Docker Engine or
 			the Docker daemon itself. Engine hardening is an operational concern
 			documented in docs/security.md, not a property of this library.
+
+			The date is a review date, not an expiry, for the same reason as the JGit
+			entry above. Check it at the next docker-java upgrade.
 		]]></notes>
 		<packageUrl regex="true">^pkg:maven/com\.github\.docker-java/.*$</packageUrl>
 		<cpe>cpe:/a:docker:docker</cpe>
 	</suppress>
 
-	<suppress until="2026-11-15Z">
-		<notes><![CDATA[
-			Not applicable, and not yet fixable. CVE-2026-66299 is an unbounded
-			buffer in the WebSocket chat example, which lives in the examples web
-			application. This is embedded Tomcat: tomcat-embed-core ships no web
-			applications at all, so the vulnerable code is not on the classpath.
-			Tomcat's own advisory says installations without the examples are not
-			affected. It is fixed in 11.0.25, which is unreleased, so there is no
-			version to move to; tomcat.version is already at 11.0.24, which is what
-			clears the other five. Revisit when 11.0.25 ships.
-		]]></notes>
-		<packageUrl regex="true">^pkg:maven/org\.apache\.tomcat\.embed/.*$</packageUrl>
-		<cve>CVE-2026-66299</cve>
-	</suppress>
+	<!--
+		CVE-2026-66299 used to be suppressed here: an unbounded buffer in the WebSocket
+		chat example, which tomcat-embed-core does not ship, in a version that had no fix
+		out yet. That entry was removed once 11.0.25 shipped and backend/pom.xml moved
+		onto it, which is what its own note said to wait for. Leaving it in place would
+		have been the worse of the two states: it would hide nothing today, and the first
+		time someone downgraded tomcat.version it would start hiding the real thing.
+	-->
 
 </suppressions>

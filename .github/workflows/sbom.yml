@@ -25,13 +25,17 @@ jobs:
           distribution: temurin
           java-version: '25'
           cache: maven
+      # The plugin sets outputName to gitgrader-sbom, so the aggregate lands at
+      # backend/target/gitgrader-sbom.{xml,json} and not at target/bom.*. The previous
+      # bom.* paths matched nothing: upload-artifact's if-no-files-found: error failed
+      # the job, and the release upload below named two files that were never written.
       - run: ./mvnw -B org.cyclonedx:cyclonedx-maven-plugin:makeAggregateBom
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: cyclonedx-sbom
           path: |
-            **/target/bom.xml
-            **/target/bom.json
+            backend/target/gitgrader-sbom.xml
+            backend/target/gitgrader-sbom.json
           if-no-files-found: error
       # An artifact expires with the run. The release is what operators keep, so the
       # aggregate SBOM has to live there too rather than being copied across by hand.
@@ -42,4 +46,6 @@ jobs:
           TAG: ${{ github.ref_name }}
         run: |
           gh release view "$TAG" >/dev/null 2>&1 || gh release create "$TAG" --generate-notes
-          gh release upload "$TAG" --clobber target/bom.xml target/bom.json
+          gh release upload "$TAG" --clobber \
+            backend/target/gitgrader-sbom.xml \
+            backend/target/gitgrader-sbom.json

@@ -100,9 +100,14 @@ for dockerfile in deployment/runtimes/node-*/Dockerfile; do
     'sha256:[a-f0-9]+'
 done
 
+# The value group requires the digest on both sides. It used to match the bare tag, which
+# let either file silently drop back to a mutable name while still reporting "in step":
+# a pin nobody verifies is not a pin. Dependabot cannot watch a value in a shell file,
+# so this comparison is the only thing standing between scripts/lib.sh and whatever the
+# registry serves next.
 sync_pin 'The alpine helper image' \
-  compose.yaml 'image: alpine:[0-9.]+' \
-  scripts/lib.sh 'ALPINE_IMAGE="alpine:[0-9.]+"' \
-  'alpine:[0-9.]+'
+  compose.yaml 'image: alpine:[0-9.]+@sha256:[a-f0-9]+' \
+  scripts/lib.sh 'ALPINE_IMAGE="alpine:[0-9.]+@sha256:[a-f0-9]+"' \
+  'alpine:[0-9.]+@sha256:[a-f0-9]+'
 
 exit "$drift"
