@@ -40,8 +40,13 @@ CREATE UNIQUE INDEX uq_srot_token_hash ON student_results_overview_tokens (token
 -- The column is kept rather than dropped. A DROP COLUMN cannot be reversed by a later
 -- migration, and a nullable, permanently empty column for one release costs nothing while
 -- leaving this change revertible without data loss. Nothing may write to it again.
-UPDATE student_results_overview_tokens SET token_value = NULL;
+--
+-- DROP NOT NULL must run BEFORE the UPDATE: token_value was NOT NULL for every row that
+-- predates this migration, and PostgreSQL enforces the constraint per statement, so setting
+-- it to NULL first aborts on any non-empty table. A fresh database hides the order bug only
+-- because its table is empty; against a live database the migration failed outright.
 ALTER TABLE student_results_overview_tokens ALTER COLUMN token_value DROP NOT NULL;
+UPDATE student_results_overview_tokens SET token_value = NULL;
 
 COMMENT ON COLUMN student_results_overview_tokens.token_value IS
 	'Retired: no usable token is stored here any more. Kept nullable and empty so this change stays revertible. Do not repopulate.';
