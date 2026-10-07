@@ -47,6 +47,23 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.anyList;
 
+/**
+ * Tests the container configuration {@link DockerGradingRunner} and
+ * {@link ShimmedGradingContainer} build.
+ *
+ * <p>
+ * These are the isolation guarantees, asserted on the {@code HostConfig} handed to the
+ * Docker client because that object is the only place they are decided. The sandbox
+ * container must see the workspace and the shim socket but never the hidden tests, and
+ * the suite container the reverse; either leak would hand a submission the answers or the
+ * student the grader.
+ *
+ * <p>
+ * Auto-remove is off on purpose: the runner still has to read logs and wait on the
+ * container after it exits, and Docker would have deleted it first. Auto-remove off plus
+ * a swap limit equal to the memory limit means a runaway submission is bounded on both
+ * counts, since Docker reads an unset swap limit as double the memory limit.
+ */
 class DockerGradingRunnerConfigTest {
 
 	private static final Path SOCKET_DIR = Path.of("/data/tmp/gitgrader-shim-abc");
@@ -87,6 +104,7 @@ class DockerGradingRunnerConfigTest {
 	}
 
 	@Test
+	@DisplayName("verifies the container host config, the unprivileged user and the working directory")
 	void verifySecurityConfig() {
 		DockerGradingRunner runner = new DockerGradingRunner(this.dockerClient, this.properties, this.clock, storage(),
 				(image) -> Optional.empty());

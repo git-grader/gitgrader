@@ -25,6 +25,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import java.util.Optional;
 
+/** Persists courses. */
 interface CourseRepository extends JpaRepository<Course, UUID> {
 
 	Page<Course> findByStatus(CourseStatus status, Pageable pageable);

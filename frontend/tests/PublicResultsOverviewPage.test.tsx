@@ -3,10 +3,10 @@
 
 import { render, screen } from '@testing-library/react';
 import { PublicResultsOverviewPage } from '../src/pages/PublicResultsOverviewPage';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter, Route, Routes } from 'react-router';
-import { expect, test, vi } from 'vitest';
-import { expectNoAxeViolations } from './harness';
+import { expect, it, vi } from 'vitest';
+import { createTestQueryClient, expectNoAxeViolations } from './harness';
 
 vi.mock('../src/api', async () => {
   const actual = await vi.importActual<typeof import('../src/api')>('../src/api');
@@ -64,7 +64,7 @@ vi.mock('../src/api', async () => {
 
 function renderPage() {
   return render(
-    <QueryClientProvider client={new QueryClient()}>
+    <QueryClientProvider client={createTestQueryClient()}>
       <MemoryRouter initialEntries={['/results/overview/token123']}>
         <Routes>
           <Route path="/results/overview/:token" element={<PublicResultsOverviewPage />} />
@@ -74,7 +74,7 @@ function renderPage() {
   );
 }
 
-test('PublicResultsOverviewPage lists grouped attempts and links to scoped reports', async () => {
+it('PublicResultsOverviewPage lists grouped attempts and links to scoped reports', async () => {
   renderPage();
 
   await screen.findByText('Example Programming');
@@ -91,7 +91,7 @@ test('PublicResultsOverviewPage lists grouped attempts and links to scoped repor
   );
 });
 
-test('PublicResultsOverviewPage has no a11y violations', async () => {
+it('PublicResultsOverviewPage has no a11y violations', async () => {
   const { container } = renderPage();
   await screen.findByText('Example Programming');
   await expectNoAxeViolations(container);

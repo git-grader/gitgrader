@@ -23,9 +23,11 @@ import org.gitgrader.registration.internal.DuplicateRegistrationException;
 import org.gitgrader.registration.internal.RateLimitExceededException;
 import org.gitgrader.registration.internal.RegistrationClosedException;
 import org.gitgrader.registration.internal.RegistrationService;
+import org.gitgrader.registration.web.RegistrationController.RegistrationResponse;
 import org.gitgrader.sshkeys.SshKeyRejectedException;
 import org.gitgrader.sshkeys.SshKeyRejectionReason;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 import org.springframework.http.MediaType;
@@ -39,6 +41,17 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+/**
+ * Tests that {@link RegistrationController} maps each refusal to the status a client can
+ * act on.
+ *
+ * <p>
+ * The distinctions are the point. A duplicate is a conflict, a closed course is
+ * forbidden, rate limiting is 429, and a rejected public key is a bad request carrying
+ * the reason's own public message. Collapsing any of them into one generic error would
+ * leave a caller unable to tell a retry from a correction, which for the duplicate case
+ * means silently asking a student to resubmit a registration that already exists.
+ */
 class RegistrationControllerTest {
 
 	private MockMvc mockMvc;
@@ -54,6 +67,7 @@ class RegistrationControllerTest {
 	}
 
 	@Test
+	@DisplayName("reports a successful registration as created")
 	void successfulRegistrationReturns201() throws Exception {
 		RegistrationResponse response = new RegistrationResponse(UUID.randomUUID(), "12345", "John Doe",
 				StudentStatus.SELF_REGISTERED, "SHA256:fingerprint");
@@ -75,6 +89,7 @@ class RegistrationControllerTest {
 	}
 
 	@Test
+	@DisplayName("refuses a registration that submits private key material")
 	void privateKeySubmittedReturns400() throws Exception {
 		when(registrationService.register(any(), anyString()))
 			.thenThrow(new SshKeyRejectedException(SshKeyRejectionReason.PRIVATE_KEY_SUBMITTED));
@@ -94,6 +109,7 @@ class RegistrationControllerTest {
 	}
 
 	@Test
+	@DisplayName("reports a duplicate registration as a conflict")
 	void duplicateRegistrationReturns409() throws Exception {
 		when(registrationService.register(any(), anyString()))
 			.thenThrow(new DuplicateRegistrationException("already exists"));
@@ -111,6 +127,7 @@ class RegistrationControllerTest {
 	}
 
 	@Test
+	@DisplayName("reports a rate-limited registration as too many requests")
 	void rateLimitedReturns429() throws Exception {
 		when(registrationService.register(any(), anyString())).thenThrow(new RateLimitExceededException("rate limit"));
 
@@ -127,6 +144,7 @@ class RegistrationControllerTest {
 	}
 
 	@Test
+	@DisplayName("reports a closed registration as forbidden")
 	void registrationClosedReturns403() throws Exception {
 		when(registrationService.register(any(), anyString())).thenThrow(new RegistrationClosedException("closed"));
 

@@ -3,12 +3,11 @@
 This image runs zero-dependency Node ESM assignments on Node 26. It pins the
 official multi-architecture `node:26-bookworm-slim` OCI index at
 `sha256:662933cf47f013bc8e4beb31a6116448427a82057ba7c42c97e4c5ba766504c2`.
-This digest was resolved with `docker buildx imagetools inspect` on 2026-09-19.
 
 Sibling runtimes cover the other supported majors: `node-22` and `node-24`.
 Jasmine `7.0.0` is installed globally in the image for both student-visible
-and operator hidden Jasmine suites; the hidden suite will later emit TAP through
-the assignment runner.
+and operator hidden Jasmine suites; the hidden suite emits TAP through the
+custom reporter described under Runner contract.
 All Node runtimes bake one version-agnostic shim from
 `deployment/runtimes/node-shim/` into the image at `/opt/gitgrader-shim`.
 

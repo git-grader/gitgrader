@@ -30,6 +30,7 @@ statuses this API actually returns are:
 | `200` | the request succeeded and the body carries the resource |
 | `201` | a resource was created; the body carries it |
 | `202` | the work was accepted and runs asynchronously - a regrade |
+| `204` | the operation succeeded and there is nothing to return - deleting a course or a class, revoking a results-overview link |
 | `400` | the request was malformed, or the domain refused an argument |
 | `401` | the request was not authenticated |
 | `403` | the caller is authenticated but not permitted |
@@ -38,4 +39,4 @@ statuses this API actually returns are:
 | `429` | a rate limit was reached - registration, result lookups, regrades |
 | `500` | an unexpected failure; the detail is deliberately generic |
 
-`204` is not used: an operation that succeeds returns the resource it acted on.
+Every other successful operation returns the resource it acted on.

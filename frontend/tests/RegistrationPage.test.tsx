@@ -5,7 +5,7 @@ import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import { RegistrationPage } from '../src/pages/RegistrationPage';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter } from 'react-router';
-import { beforeEach, expect, test, vi } from 'vitest';
+import { beforeEach, expect, it, vi } from 'vitest';
 import userEvent from '@testing-library/user-event';
 import { expectNoAxeViolations } from './harness';
 import * as api from '../src/api';
@@ -80,7 +80,7 @@ async function fillRegistration(courseName = 'Course 1', className: string | nul
   fireEvent.submit(form);
 }
 
-test('RegistrationPage blocks private key', async () => {
+it('RegistrationPage blocks private key', async () => {
   renderWithProviders(<RegistrationPage />);
 
   await screen.findByText(/Register for Test/i);
@@ -100,7 +100,7 @@ test('RegistrationPage blocks private key', async () => {
   expect(register).not.toHaveBeenCalled();
 });
 
-test('RegistrationPage has no a11y violations', async () => {
+it('RegistrationPage has no a11y violations', async () => {
   const { container } = renderWithProviders(<RegistrationPage />);
   await screen.findByText(/Register for Test/i);
   await expectNoAxeViolations(container);
@@ -111,7 +111,7 @@ test('RegistrationPage has no a11y violations', async () => {
  * The page showed `error.message`, which for a problem document is its title, so
  * "that student username is already registered" reached the student as "Bad Request".
  */
-test('RegistrationPage shows what the server actually objected to', async () => {
+it('RegistrationPage shows what the server actually objected to', async () => {
   register.mockRejectedValue(
     new ApiProblem('about:blank', 'Bad Request', 400, 'That student username is already registered', undefined, [
       { field: 'studentUsername', message: 'already registered' }
@@ -127,7 +127,7 @@ test('RegistrationPage shows what the server actually objected to', async () => 
   expect(screen.queryByText('Bad Request')).not.toBeInTheDocument();
 });
 
-test('RegistrationPage says something for a failure that is not a problem document', async () => {
+it('RegistrationPage says something for a failure that is not a problem document', async () => {
   register.mockRejectedValue(new Error('Failed to fetch'));
 
   renderWithProviders(<RegistrationPage />);
@@ -142,7 +142,7 @@ test('RegistrationPage says something for a failure that is not a problem docume
  * without one. The form required a class from a dropdown that had nothing in it, so such
  * a course could not be registered for and nothing on screen said why.
  */
-test('RegistrationPage registers for a course that has no classes', async () => {
+it('RegistrationPage registers for a course that has no classes', async () => {
   availability.mockResolvedValue({
     open: true,
     courses: [{ courseKey: 'solo', name: 'Class-less Course', classes: [] }]

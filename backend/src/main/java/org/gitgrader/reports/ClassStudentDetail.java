@@ -25,7 +25,17 @@ import org.gitgrader.identity.StudentStatus;
 import org.gitgrader.reports.ClassProgressReport.LatestSubmission;
 import org.jspecify.annotations.Nullable;
 
-/** Course-context student progress and latest assignment attempts. */
+/**
+ * Course-context student progress and latest assignment attempts.
+ *
+ * @param courseId course the class belongs to
+ * @param classId class the student is enrolled in
+ * @param studentId student the detail is about
+ * @param studentUsername login name of the student
+ * @param fullName display name of the student
+ * @param status account status of the student
+ * @param assignments one entry per assignment visible in the class
+ */
 public record ClassStudentDetail(UUID courseId, UUID classId, UUID studentId, String studentUsername, String fullName,
 		StudentStatus status, List<AssignmentDetail> assignments) {
 

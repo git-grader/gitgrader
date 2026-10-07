@@ -1,7 +1,7 @@
 // Copyright the GitGrader contributors.
 // SPDX-License-Identifier: Apache-2.0
 
-import { afterAll, afterEach, beforeAll, beforeEach, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { http, HttpResponse } from 'msw';
 import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
@@ -27,10 +27,8 @@ const course = { id: 'c1', courseKey: 'course', name: 'Course One', timezone: 'E
 const students = ['ada', 'grace'].map((name, i) => ({ id: `st${i}`, studentUsername: name, firstName: name, lastName: 'Student', email: `${name}@example.org`, status: 'SELF_REGISTERED' }));
 const materials = { isLoading: false, isError: false, publishedTemplateVersions: [{ id: 'tv1', label: 'Template' }], publishedSuiteVersions: [{ id: 'sv1', label: 'Suite' }], runtimes: [{ id: 'rt1', runtimeKey: 'node', displayName: 'Node', image: 'node', tag: '24', imageDigest: 'digest', testCommand: 'test', reportFormat: 'TAP', enabled: true, createdAt: '', updatedAt: '' }] };
 
-beforeAll(() => server.listen({ onUnhandledFrame: 'error' }));
 beforeEach(() => { localStorage.clear(); });
-afterEach(() => { server.resetHandlers(); vi.restoreAllMocks(); });
-afterAll(() => server.close());
+  afterEach(() => { vi.restoreAllMocks(); });
 
 it('rejects corrupt preferences and saves only known filter parameters', () => {
   expect(parseTableSettings('{broken').views).toEqual([]);

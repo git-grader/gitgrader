@@ -43,6 +43,14 @@ import org.jspecify.annotations.Nullable;
  * @param templateVersionId selected template version
  * @param testSuiteVersionId selected hidden test-suite version
  * @param runtimeId selected runtime
+ * @param timeoutSeconds per-test wall-clock limit, or {@code null} to use the global
+ * default
+ * @param memoryLimitBytes per-test memory ceiling, or {@code null} to use the global
+ * default
+ * @param cpuLimit per-test CPU ceiling, or {@code null} to use the global default
+ * @param pidLimit per-test process limit, or {@code null} to use the global default
+ * @param networkEnabled whether tests may reach the network
+ * @param weightsEnabled whether per-test weights override an even split of the points
  */
 public record AssignmentView(UUID id, UUID courseId, String assignmentKey, String title, @Nullable String description,
 		int displayOrder, AssignmentStatus status, boolean mandatory, @Nullable Instant opensAt,

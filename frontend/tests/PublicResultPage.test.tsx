@@ -3,10 +3,10 @@
 
 import { render, screen } from '@testing-library/react';
 import { PublicResultPage } from '../src/pages/PublicResultPage';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter, Route, Routes } from 'react-router';
-import { expect, test, vi } from 'vitest';
-import { expectNoAxeViolations } from './harness';
+import { expect, it, vi } from 'vitest';
+import { createTestQueryClient, expectNoAxeViolations } from './harness';
 
 
 vi.mock('../src/api', async () => {
@@ -33,44 +33,41 @@ vi.mock('../src/api', async () => {
   };
 });
 
-const queryClient = new QueryClient();
-
-test('PublicResultPage defensive stripping', async () => {
-  render(
-    <QueryClientProvider client={queryClient}>
-      <MemoryRouter initialEntries={['/result/token123']}>
+// A fresh client per render: a module-level one would carry the first test's cached
+// result into the next, so the later tests would pass on cached data rather than on
+// whatever their own stub returned.
+function renderPage(route = '/result/token123') {
+  return render(
+    <QueryClientProvider client={createTestQueryClient()}>
+      <MemoryRouter initialEntries={[route]}>
         <Routes>
           <Route path="/result/:token" element={<PublicResultPage />} />
         </Routes>
       </MemoryRouter>
     </QueryClientProvider>
   );
-  
+}
+
+it('PublicResultPage defensive stripping', async () => {
+  renderPage();
+
   await screen.findByText('Test Assig');
-  
+
   // Should show public test details
   expect(screen.getByText('PubTest')).toBeInTheDocument();
   expect(screen.getByText('OK')).toBeInTheDocument();
-  
+
   // Should hide secret names/messages
   expect(screen.queryByText('HiddenTestSecret')).not.toBeInTheDocument();
   expect(screen.queryByText('secret stacktrace')).not.toBeInTheDocument();
-  
+
   // Should show category and hint
   expect(screen.getByText('Security')).toBeInTheDocument();
   expect(screen.getByText('Check constraints')).toBeInTheDocument();
 });
 
-test('PublicResultPage has no a11y violations', async () => {
-  const { container } = render(
-    <QueryClientProvider client={queryClient}>
-      <MemoryRouter initialEntries={['/result/token123']}>
-        <Routes>
-          <Route path="/result/:token" element={<PublicResultPage />} />
-        </Routes>
-      </MemoryRouter>
-    </QueryClientProvider>
-  );
+it('PublicResultPage has no a11y violations', async () => {
+  const { container } = renderPage();
   await screen.findByText('Test Assig');
   await expectNoAxeViolations(container);
 });
@@ -79,7 +76,7 @@ test('PublicResultPage has no a11y violations', async () => {
 // write a zero because it would be indistinguishable from a student who passed nothing.
 // The page read it as a number regardless, which threw during render and left the
 // student a blank page instead of their result.
-test('PublicResultPage explains a run that produced no score', async () => {
+it('PublicResultPage explains a run that produced no score', async () => {
   const { api } = await import('../src/api');
   (api.getResult as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
     assignmentTitle: 'Timed Out Assig',
@@ -93,15 +90,7 @@ test('PublicResultPage explains a run that produced no score', async () => {
     tests: []
   });
 
-  render(
-    <QueryClientProvider client={new QueryClient()}>
-      <MemoryRouter initialEntries={['/result/token456']}>
-        <Routes>
-          <Route path="/result/:token" element={<PublicResultPage />} />
-        </Routes>
-      </MemoryRouter>
-    </QueryClientProvider>
-  );
+  renderPage('/result/token456');
 
   await screen.findByText('Timed Out Assig');
   expect(screen.getByText(/has no score yet/)).toBeInTheDocument();

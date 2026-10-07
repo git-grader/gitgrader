@@ -29,6 +29,15 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+/**
+ * Tests for {@link LdapSecurityConfig.LdapTransportGuard}, which refuses to start against
+ * a directory reached over plain LDAP.
+ *
+ * <p>
+ * The refusal is keyed to the development profile rather than to the absence of a profile
+ * named "production". A jar started with no profile at all, or with one called "prod",
+ * was sending the instructor password and the manager bind credentials in the clear.
+ */
 class LdapTransportGuardTest {
 
 	@Test

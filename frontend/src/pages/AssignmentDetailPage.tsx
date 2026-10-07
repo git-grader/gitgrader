@@ -71,7 +71,10 @@ function ConfigurationForm({ assignment, materials, isDraft, pending, onSave }: 
 
   return (
     <Paper id="assignment-configuration" tabIndex={-1} component="form" onSubmit={handleSave} sx={{ p: 3, display: 'flex', flexDirection: 'column', gap: 3, scrollMarginTop: 96 }}>
-      <Typography variant="h6">Configuration</Typography>
+      {/* `component="h2"` with the h6 variant: the size is a visual choice, but the level
+          is not. A heading that jumped from the page's h1 to an h6 told a screen-reader
+          user the page had skipped two levels of structure. */}
+      <Typography variant="h6" component="h2">Configuration</Typography>
       {validationError && <Alert severity="error">{validationError}</Alert>}
       <Typography variant="body2" color="text.secondary">Dates use {assignment.timezone || 'your local timezone'}.</Typography>
 
@@ -130,9 +133,18 @@ export function AssignmentDetailPage() {
 
   // Both endpoints answer with the updated assignment, so the cache is corrected from
   // the response rather than left stale until a refetch lands.
+  //
+  // The invalidation is scoped to the list keys rather than to `queryKeys.assignments.all`.
+  // React Query matches query keys by prefix, and `all` is the bare prefix
+  // `["assignments"]`, which the detail key also sits under - so invalidating it discarded
+  // the assignment just written and refetched it. The write-back was undone by the same
+  // tick it happened in, and a publish left the form showing a draft until something else
+  // triggered another load.
   const applyUpdated = (updated: AssignmentDetail) => {
     queryClient.setQueryData(queryKeys.assignments.detail(updated.id), updated);
-    void queryClient.invalidateQueries({ queryKey: queryKeys.assignments.all });
+    void queryClient.invalidateQueries({
+      predicate: (query) => query.queryKey[0] === 'assignments' && query.queryKey[1] === 'list'
+    });
   };
 
   const updateMutation = useMutation({
@@ -243,7 +255,7 @@ export function AssignmentDetailPage() {
       />
 
       <Paper sx={{ p: 3, display: 'flex', flexDirection: 'column', gap: 2 }}>
-        <Typography variant="h6">Deadline Extensions</Typography>
+        <Typography variant="h6" component="h2">Deadline Extensions</Typography>
         <Typography variant="body2" color="text.secondary">
           Give an individual student more time without changing the deadline for the class.
         </Typography>

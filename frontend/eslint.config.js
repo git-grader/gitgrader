@@ -25,5 +25,24 @@ export default tseslint.config(
       '@typescript-eslint/restrict-template-expressions': 'off',
       '@typescript-eslint/no-confusing-void-expression': 'off'
     },
+  },
+  // The Playwright smoke scripts are plain Node ES modules. They were outside every
+  // `files` block, so ESLint still parsed them and reported success while applying zero
+  // rules: a vacuous pass that made `npm run lint` green over 900-odd lines of
+  // unreviewed code. They get the recommended JavaScript rules and both global sets,
+  // because each file legitimately spans two contexts: the script body runs in Node,
+  // while every `page.evaluate`, `addInitScript` and `waitForFunction` callback is
+  // serialised and executed inside the browser, where `document`, `location` and
+  // `getComputedStyle` are defined and flagging them would be a false positive.
+  // They stay out of the TypeScript project because they are not part of the
+  // application and `tsc` has no `allowJs` to check them with.
+  {
+    extends: [js.configs.recommended],
+    files: ['**/*.mjs'],
+    languageOptions: {
+      ecmaVersion: 2022,
+      sourceType: 'module',
+      globals: { ...globals.node, ...globals.browser },
+    },
   }
 );

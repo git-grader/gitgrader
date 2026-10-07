@@ -25,6 +25,16 @@ import org.junit.jupiter.api.Test;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 
+/**
+ * Tests for {@link DockerAvailableCondition}, the gate every Testcontainers-backed test
+ * passes through before it runs.
+ *
+ * <p>
+ * Its subject is therefore the build as much as the code: a probe that blocks turns a
+ * machine without Docker into a hung build rather than a skipped test. The probe has to
+ * return on a deadline, treat a failed probe as unavailable rather than as an error, and
+ * abandon the thread it started - as a daemon, or the build still waits at shutdown.
+ */
 class DockerAvailableConditionTest {
 
 	private static final Duration PATIENCE = Duration.ofSeconds(2);

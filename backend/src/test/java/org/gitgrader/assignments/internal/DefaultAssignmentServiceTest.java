@@ -31,6 +31,7 @@ import org.gitgrader.assignments.AssignmentStatus;
 import org.gitgrader.assignments.DeadlineExtensionView;
 import org.gitgrader.assignments.domain.Assignment;
 import org.gitgrader.assignments.domain.DeadlineExtension;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -39,6 +40,23 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+/**
+ * Tests for the extension and admission rules in {@link DefaultAssignmentService}.
+ *
+ * <p>
+ * A student's effective deadline is the extension if one is live and the assignment's own
+ * otherwise, and revoking frees the single live slot for a fresh grant rather than
+ * leaving the student stuck on the old date. Listing an assignment's extensions includes
+ * the revoked ones, because an instructor reconciling an old submission needs to see what
+ * was withdrawn as well as what stands.
+ *
+ * <p>
+ * Two authority checks are what keep one student's record out of another's. The extension
+ * identifier alone used to be enough to revoke anything, so naming any assignment in the
+ * URL took away a deadline someone else held; and a draft with no due date is refused on
+ * its state, which is reachable whenever a published assignment is taken back to draft
+ * while every provisioned repository stays in place.
+ */
 class DefaultAssignmentServiceTest {
 
 	private static final UUID COURSE_ID = UUID.randomUUID();
@@ -50,6 +68,7 @@ class DefaultAssignmentServiceTest {
 	private static final Clock CLOCK = Clock.fixed(NOW, ZoneOffset.UTC);
 
 	@Test
+	@DisplayName("takes the effective deadline from a live extension and otherwise from the assignment")
 	void effectiveDueAtUsesLiveExtensionAndOtherwiseAssignmentDueAt() {
 		AssignmentRepository assignments = mock(AssignmentRepository.class);
 		DeadlineExtensionRepository extensions = mock(DeadlineExtensionRepository.class);
@@ -69,6 +88,7 @@ class DefaultAssignmentServiceTest {
 	}
 
 	@Test
+	@DisplayName("lists every extension of an assignment, including the revoked ones")
 	void everyExtensionOnAnAssignmentIsListedIncludingRevokedOnes() {
 		AssignmentRepository assignments = mock(AssignmentRepository.class);
 		DeadlineExtensionRepository extensions = mock(DeadlineExtensionRepository.class);
@@ -87,6 +107,7 @@ class DefaultAssignmentServiceTest {
 	}
 
 	@Test
+	@DisplayName("refuses to list extensions of an assignment that does not exist")
 	void listingExtensionsOfAnAssignmentThatDoesNotExistIsRefused() {
 		AssignmentRepository assignments = mock(AssignmentRepository.class);
 		DeadlineExtensionRepository extensions = mock(DeadlineExtensionRepository.class);
@@ -98,6 +119,7 @@ class DefaultAssignmentServiceTest {
 	}
 
 	@Test
+	@DisplayName("enforces at most one live extension before persisting a grant")
 	void exactlyOneLiveExtensionIsEnforcedBeforePersistence() {
 		AssignmentRepository assignments = mock(AssignmentRepository.class);
 		DeadlineExtensionRepository extensions = mock(DeadlineExtensionRepository.class);
@@ -114,6 +136,7 @@ class DefaultAssignmentServiceTest {
 	}
 
 	@Test
+	@DisplayName("frees the live extension slot for another grant when one is revoked")
 	void revokingFreesTheLiveExtensionSlotForAnotherGrant() {
 		AssignmentRepository assignments = mock(AssignmentRepository.class);
 		DeadlineExtensionRepository extensions = mock(DeadlineExtensionRepository.class);
@@ -137,6 +160,7 @@ class DefaultAssignmentServiceTest {
 	}
 
 	@Test
+	@DisplayName("refuses to revoke an extension granted on another assignment")
 	void refusesToRevokeAnExtensionGrantedOnAnotherAssignment() {
 		// The extension identifier alone used to be enough: naming any assignment in the
 		// URL revoked the extension anyway, so one student lost their deadline because an
@@ -156,6 +180,7 @@ class DefaultAssignmentServiceTest {
 	}
 
 	@Test
+	@DisplayName("refuses a push to a draft with no deadline rather than failing later")
 	void refusesAPushToADraftThatHasNoDueDateRatherThanFailing() {
 		// Reachable without doing anything unusual: publish an assignment, which
 		// provisions a repository for every enrolled student, then take it back to draft

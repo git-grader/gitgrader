@@ -28,15 +28,28 @@ import org.gitgrader.grading.InstructorGradingResult;
 import org.gitgrader.grading.TestOutcome;
 import org.gitgrader.grading.domain.GradingRun;
 import org.gitgrader.grading.domain.TestResultRecord;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+/**
+ * Tests that {@link DefaultGradingResultQuery} keeps hidden test material out of the
+ * instructor result.
+ *
+ * <p>
+ * The assertion is made against the serialised JSON rather than against the record's
+ * accessors, because a leak reaches a student through any field the object happens to
+ * expose, including one added later. The canary strings stand in for the hidden tests'
+ * internal names and messages: none may appear, while the facts an instructor needs - the
+ * outcome, the duration, the category - must still be there.
+ */
 class DefaultGradingResultQueryTest {
 
 	@Test
+	@DisplayName("keeps the safe test facts and omits the hidden canaries from an instructor result")
 	void instructorResultKeepsSafeTestFactsAndOmitsHiddenCanaries() throws Exception {
 		GradingRunRepository runs = mock(GradingRunRepository.class);
 		TestResultRepository results = mock(TestResultRepository.class);

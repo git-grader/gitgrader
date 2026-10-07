@@ -22,6 +22,7 @@ import java.util.UUID;
 import org.gitgrader.identity.domain.Instructor;
 import org.springframework.data.jpa.repository.JpaRepository;
 
+/** Persists instructors and administrators. */
 interface InstructorRepository extends JpaRepository<Instructor, UUID> {
 
 	Optional<Instructor> findByUsernameIgnoreCase(String username);

@@ -42,7 +42,7 @@ import org.jspecify.annotations.Nullable;
  * or {@code null} to use the runtime image's canonical one
  */
 public record RuntimeView(UUID id, String runtimeKey, String displayName, String image, String tag, String imageDigest,
-		@Nullable String installCommand, String testCommand, ReportFormat reportFormat, boolean enabled,
+		@Nullable String installCommand, String testCommand, RuntimeReportFormat reportFormat, boolean enabled,
 		Instant createdAt, Instant updatedAt, @Nullable String shimKind, @Nullable String shimCommand) {
 
 	/**

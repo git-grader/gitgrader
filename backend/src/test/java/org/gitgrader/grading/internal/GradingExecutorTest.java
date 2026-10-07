@@ -36,7 +36,7 @@ import org.gitgrader.grading.GradingRunner;
 import org.gitgrader.grading.TestOutcome;
 import org.gitgrader.grading.domain.GradingRun;
 import org.gitgrader.grading.internal.GradingPlanResolver.GradingPlan;
-import org.gitgrader.runtimes.ReportFormat;
+import org.gitgrader.runtimes.RuntimeReportFormat;
 import org.gitgrader.runtimes.RuntimeView;
 import org.gitgrader.submissions.SignatureVerdict;
 import org.gitgrader.submissions.SubmissionStatus;
@@ -117,7 +117,7 @@ class GradingExecutorTest {
 		when(this.workspaces.materialise(any(), any())).thenReturn(WORKSPACE);
 		// Faithful to the real parser, which reads one format and refuses the rest
 		// rather than guessing: a bare `any()` stub would claim to parse them all.
-		when(this.reportParser.supports(ReportFormat.TAP)).thenReturn(true);
+		when(this.reportParser.supports(RuntimeReportFormat.TAP)).thenReturn(true);
 	}
 
 	@Test
@@ -204,7 +204,7 @@ class GradingExecutorTest {
 		// having passed nothing, and recorded against their grade either way. The enum
 		// permits the format, the schema default is it, and the admin form offers it, so
 		// this is not an exotic configuration.
-		when(this.plans.resolve(any())).thenReturn(planWithFormat(ReportFormat.JUNIT_XML));
+		when(this.plans.resolve(any())).thenReturn(planWithFormat(RuntimeReportFormat.JUNIT_XML));
 		when(this.runner.execute(any())).thenReturn(new GradingResult(0,
 				"<?xml version=\"1.0\" encoding=\"UTF-8\"?><testsuite name=\"suite\" tests=\"1\" failures=\"0\">"
 						+ "<testcase name=\"first\" classname=\"CourseTest\"/></testsuite>",
@@ -218,7 +218,7 @@ class GradingExecutorTest {
 		verify(this.reportParser, never()).parse(any(), any(), any());
 	}
 
-	private GradingPlan planWithFormat(ReportFormat format) {
+	private GradingPlan planWithFormat(RuntimeReportFormat format) {
 		GradingPlan base = plan();
 		RuntimeView runtime = new RuntimeView(base.runtime().id(), base.runtime().runtimeKey(),
 				base.runtime().displayName(), base.runtime().image(), base.runtime().tag(),
@@ -415,8 +415,8 @@ class GradingExecutorTest {
 				false);
 		RuntimeView runtime = new RuntimeView(UUID.randomUUID(), "node-24", "Node.js 24",
 				"registry.example.org/runtime-node", "24.13.0", "sha256:" + "a".repeat(64), "npm ci", "npm test",
-				ReportFormat.TAP, true, Instant.parse("2026-01-01T00:00:00Z"), Instant.parse("2026-01-01T00:00:00Z"),
-				null, null);
+				RuntimeReportFormat.TAP, true, Instant.parse("2026-01-01T00:00:00Z"),
+				Instant.parse("2026-01-01T00:00:00Z"), null, null);
 		return new GradingPlan(submission, "course-a/assignment-01/12345", assignment, runtime, this.hiddenTests);
 	}
 

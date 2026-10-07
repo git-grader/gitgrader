@@ -27,10 +27,10 @@ import org.springframework.stereotype.Service;
 @Service
 public class ReportExportService {
 
-	private final Map<ReportFormat, ReportExporter> exporters;
+	private final Map<ExportFormat, ReportExporter> exporters;
 
 	public ReportExportService(List<ReportExporter> exporters) {
-		Map<ReportFormat, ReportExporter> indexed = new EnumMap<>(ReportFormat.class);
+		Map<ExportFormat, ReportExporter> indexed = new EnumMap<>(ExportFormat.class);
 		exporters.forEach((exporter) -> indexed.put(exporter.format(), exporter));
 		this.exporters = Map.copyOf(indexed);
 	}
@@ -42,7 +42,7 @@ public class ReportExportService {
 	 * @return serialized report
 	 * @throws IOException when serialization fails
 	 */
-	public byte[] export(CourseReport report, ReportFormat format) throws IOException {
+	public byte[] export(CourseReport report, ExportFormat format) throws IOException {
 		ReportExporter exporter = this.exporters.get(format);
 		if (exporter == null) {
 			throw new IllegalArgumentException("Unsupported report format");
@@ -57,7 +57,7 @@ public class ReportExportService {
 	 * @throws IOException when serialization fails
 	 */
 	public byte[] exportClassReport(ClassProgressReport report) throws IOException {
-		ReportExporter exporter = this.exporters.get(ReportFormat.XLSX);
+		ReportExporter exporter = this.exporters.get(ExportFormat.XLSX);
 		if (exporter == null) {
 			throw new IllegalArgumentException("XLSX report export is not available");
 		}

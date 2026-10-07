@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { useState } from 'react';
-import { expect, test } from 'vitest';
+import { expect, it } from 'vitest';
 import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { SearchableChoice } from '../src/components/SearchableChoice';
@@ -15,7 +15,7 @@ function Picker() {
   ]} /><output aria-label="Selected runtime">{value || 'None'}</output></>;
 }
 
-test('searches options, selects by id and can clear the selection', async () => {
+it('searches options, selects by id and can clear the selection', async () => {
   renderWithProviders(<Picker />);
   const user = userEvent.setup();
   await user.type(screen.getByRole('combobox', { name: 'Runtime' }), 'Java');
@@ -26,7 +26,7 @@ test('searches options, selects by id and can clear the selection', async () => 
   expect(screen.getByLabelText('Selected runtime')).toHaveTextContent('None');
 });
 
-test('retains a saved choice missing from the current published catalogue', () => {
+it('retains a saved choice missing from the current published catalogue', () => {
   renderWithProviders(<SearchableChoice label="Template Version" value="retired" options={[]} onChange={() => {}} disabled />);
   expect(screen.getByRole('combobox', { name: 'Template Version' })).toHaveValue('Saved selection (retired)');
 });

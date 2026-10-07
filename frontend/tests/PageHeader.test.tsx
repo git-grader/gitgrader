@@ -2,10 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { render, screen } from '@testing-library/react';
-import { expect, test } from 'vitest';
+import { expect, it } from 'vitest';
 import { PageHeader } from '../src/components/PageHeader';
 
-test('renders a semantic page title, description, and actions', () => {
+it('renders a semantic page title, description, and actions', () => {
   render(
     <PageHeader
       title="Courses"
@@ -19,7 +19,7 @@ test('renders a semantic page title, description, and actions', () => {
   expect(screen.getByRole('button', { name: 'New Course' })).toBeInTheDocument();
 });
 
-test('groups wrapping header actions under a clear label', () => {
+it('groups wrapping header actions under a clear label', () => {
   render(
     <PageHeader
       title="A deliberately long course title that must retain its hierarchy"

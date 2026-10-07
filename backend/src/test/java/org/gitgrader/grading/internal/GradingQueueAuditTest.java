@@ -39,6 +39,7 @@ import org.gitgrader.submissions.SubmissionService;
 import org.gitgrader.submissions.SubmissionView;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
@@ -110,6 +111,7 @@ class GradingQueueAuditTest {
 	}
 
 	@Test
+	@DisplayName("audits an infrastructure outcome only after the commit, without raw failure text")
 	void infrastructureOutcomeIsAuditedOnlyAfterCommitWithoutRawFailureText() {
 		doAnswer(invocation -> {
 			this.run.fail(FailureCategory.INFRASTRUCTURE_ERROR, "secret sandbox output", GradingRunStatus.TIMEOUT,
@@ -133,6 +135,7 @@ class GradingQueueAuditTest {
 	}
 
 	@Test
+	@DisplayName("audits exhausted worker failures after the commit")
 	void exhaustedWorkerFailuresProduceAnAuditAfterCommit() {
 		assertThat(this.queue.recordFailure(this.lease, this.run.id(), new IllegalStateException("secret"))).isTrue();
 		verifyNoInteractions(this.audit);
@@ -141,6 +144,7 @@ class GradingQueueAuditTest {
 	}
 
 	@Test
+	@DisplayName("produces no audit for an outcome that was rolled back")
 	void rolledBackOutcomeDoesNotProduceAnAudit() {
 		this.queue.recordFailure(this.lease, this.run.id(), new IllegalStateException("failed"));
 		TransactionSynchronizationManager.getSynchronizations()
@@ -149,6 +153,7 @@ class GradingQueueAuditTest {
 	}
 
 	@Test
+	@DisplayName("does not let a stale worker produce an audit")
 	void staleWorkerCannotProduceAnAudit() {
 		when(this.jobs.lockRunningLease(any(), any(), anyLong(), any())).thenReturn(Optional.empty());
 		assertThat(this.queue.recordFailure(this.lease, this.run.id(), new IllegalStateException("stale"))).isFalse();
@@ -158,6 +163,7 @@ class GradingQueueAuditTest {
 	}
 
 	@ParameterizedTest
+	@DisplayName("records completed tests as successful grading actions even when the student failed")
 	@ValueSource(booleans = { true, false })
 	void completedTestsAreSuccessfulGradingActionsEvenWhenStudentFails(boolean passed) {
 		doAnswer(invocation -> {
@@ -176,6 +182,7 @@ class GradingQueueAuditTest {
 	}
 
 	@Test
+	@DisplayName("does not report a scheduled retry as a terminal completion")
 	void scheduledRetryIsNotReportedAsTerminalCompletion() {
 		GradingJob retrying = mock(GradingJob.class);
 		when(retrying.recordFailure(any(), any(), any())).thenReturn(true);
@@ -186,6 +193,7 @@ class GradingQueueAuditTest {
 	}
 
 	@Test
+	@DisplayName("does not break committed grading when audit storage is unavailable")
 	void unavailableAuditStorageDoesNotBreakCommittedGrading() {
 		this.queue.recordFailure(this.lease, this.run.id(), new IllegalStateException("failed"));
 		doThrow(new IllegalStateException("audit unavailable")).when(this.audit).record(any());

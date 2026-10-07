@@ -12,10 +12,11 @@ usage() {
   cat <<'EOF'
 Usage: scripts/sync-image-pins.sh [--check|--fix]
 
-Two files carry a copy of an image pin that Dependabot updates somewhere else and
-cannot see: examples/seed-data.sql seeds the runtimes that the
-deployment/runtimes/node-*/Dockerfile files build, and scripts/lib.sh names the
-helper image compose.yaml already pins.
+Several files carry a copy of an image pin that Dependabot updates somewhere else
+and cannot see: examples/seed-data.sql seeds the runtimes that the
+deployment/runtimes/node-*/Dockerfile files build, each runtime's README quotes
+the digest it pins, and scripts/lib.sh names the helper image compose.yaml
+already pins.
 
   --check  report drift and exit 1 (default; this is what the Quality workflow runs)
   --fix    rewrite the trailing copies to match, then report what moved
@@ -97,6 +98,15 @@ for dockerfile in deployment/runtimes/node-*/Dockerfile; do
   sync_pin "The $key runtime digest" \
     "$dockerfile" 'sha256:[a-f0-9]+' \
     examples/seed-data.sql "$key.*sha256:[a-f0-9]+" \
+    'sha256:[a-f0-9]+'
+
+  # The README beside the Dockerfile quotes the same digest, and it is the copy a reader
+  # is most likely to copy into a deployment by hand. That copy went stale twice before
+  # this line existed, so it is checked here rather than trusted.
+  readme="$(dirname "$dockerfile")/README.md"
+  sync_pin "The $key runtime digest quoted in its README" \
+    "$dockerfile" 'sha256:[a-f0-9]+' \
+    "$readme" 'sha256:[a-f0-9]+' \
     'sha256:[a-f0-9]+'
 done
 

@@ -17,6 +17,7 @@
 package org.gitgrader.security.internal;
 
 import org.gitgrader.configuration.SecurityProperties;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.core.env.Environment;
 import org.springframework.core.env.Profiles;
@@ -29,9 +30,21 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+/**
+ * Tests for {@link LocalAccountsConfig.LocalAccountsGuard}: local password accounts are a
+ * convenience for the demo, and enabling them in production would leave this deployment
+ * holding credentials that its configured identity provider should be the only authority
+ * for.
+ *
+ * <p>
+ * The guard has to fail only on the combination that matters - enabled and production -
+ * so a deployment that has switched local accounts off still starts under the production
+ * profile.
+ */
 class LocalAccountsGuardTest {
 
 	@Test
+	@DisplayName("refuses local accounts in production")
 	void throwsWhenEnabledInProduction() {
 		SecurityProperties.LocalAccounts localAccounts = new SecurityProperties.LocalAccounts(true, List.of());
 		SecurityProperties props = new SecurityProperties(null, localAccounts, null, null, "csp", "rcsp");
@@ -47,6 +60,7 @@ class LocalAccountsGuardTest {
 	}
 
 	@Test
+	@DisplayName("passes in production when local accounts are disabled")
 	void passesWhenDisabledInProduction() {
 		SecurityProperties.LocalAccounts localAccounts = new SecurityProperties.LocalAccounts(false, List.of());
 		SecurityProperties props = new SecurityProperties(null, localAccounts, null, null, "csp", "rcsp");
@@ -60,6 +74,7 @@ class LocalAccountsGuardTest {
 	}
 
 	@Test
+	@DisplayName("passes outside production when local accounts are enabled")
 	void passesWhenEnabledInDevelopment() {
 		SecurityProperties.LocalAccounts localAccounts = new SecurityProperties.LocalAccounts(true, List.of());
 		SecurityProperties props = new SecurityProperties(null, localAccounts, null, null, "csp", "rcsp");

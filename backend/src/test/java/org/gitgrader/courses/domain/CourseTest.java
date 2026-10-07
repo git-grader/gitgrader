@@ -22,16 +22,27 @@ import java.time.ZoneOffset;
 
 import org.gitgrader.courses.CourseDefinition;
 import org.gitgrader.courses.CourseStatus;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+/**
+ * Tests for the registration window and course key rules of {@link Course}.
+ *
+ * <p>
+ * Both bounds are inclusive and a null bound is unbounded, so a course that declares no
+ * dates never rejects a registration by accident. The key pattern is the first defence
+ * against a key such as {@code ../unsafe} later becoming a filesystem path segment, which
+ * is why that rejection belongs here rather than at the storage boundary.
+ */
 class CourseTest {
 
 	private static final Clock CLOCK = Clock.fixed(Instant.parse("2026-03-01T10:15:30Z"), ZoneOffset.UTC);
 
 	@Test
+	@DisplayName("treats the registration window as inclusive and null bounds as unbounded")
 	void registrationWindowIsInclusiveAndNullBoundsAreUnbounded() {
 		Instant opens = Instant.parse("2026-03-01T00:00:00Z");
 		Instant closes = Instant.parse("2026-03-31T23:59:59Z");
@@ -44,6 +55,7 @@ class CourseTest {
 	}
 
 	@Test
+	@DisplayName("rejects registration for a closed window, disabled registration, or an inactive course")
 	void closedWindowsDisabledRegistrationAndInactiveCoursesRejectRegistration() {
 		Instant opens = Instant.parse("2026-03-10T00:00:00Z");
 		Instant closes = Instant.parse("2026-03-20T00:00:00Z");
@@ -59,6 +71,7 @@ class CourseTest {
 	}
 
 	@Test
+	@DisplayName("rejects a course key that is not safe on a filesystem")
 	void invalidFilesystemCourseKeysAreRejected() {
 		assertThatThrownBy(() -> course("../unsafe", CourseStatus.ACTIVE, true, null, null))
 			.isInstanceOf(IllegalArgumentException.class)
@@ -69,6 +82,7 @@ class CourseTest {
 	}
 
 	@Test
+	@DisplayName("opens registration once the course is active and registration is enabled")
 	void updatingToActiveAndEnablingRegistrationOpensRegistration() {
 		Course course = course("java-101", CourseStatus.DRAFT, false, null, null);
 		CourseDefinition active = new CourseDefinition("java-101", "Updated Java", "Description", "Spring", null, null,

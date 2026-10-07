@@ -1,7 +1,7 @@
 // Copyright the GitGrader contributors.
 // SPDX-License-Identifier: Apache-2.0
 
-import { afterAll, afterEach, beforeAll, expect, test, vi } from 'vitest';
+import { expect, it, vi } from 'vitest';
 import { http, HttpResponse } from 'msw';
 import { fireEvent, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
@@ -9,9 +9,6 @@ import { Route, Routes } from 'react-router';
 import { StudentDetailPage } from '../src/pages/StudentDetailPage';
 import { renderWithProviders, server } from './harness';
 
-beforeAll(() => { server.listen({ onUnhandledFrame: 'error' }); });
-afterEach(() => { server.resetHandlers(); });
-afterAll(() => { server.close(); });
 
 const STUDENT = {
   id: 's1',
@@ -33,7 +30,7 @@ function stubStudent() {
   server.use(http.get('/api/v1/students/s1', () => HttpResponse.json({ student: STUDENT, sshKeys: [] })));
 }
 
-test('edits the loaded student', async () => {
+it('edits the loaded student', async () => {
   stubStudent();
   renderDetail();
 
@@ -45,7 +42,7 @@ test('edits the loaded student', async () => {
   expect(screen.getByRole('region', { name: 'Student status' })).toBeInTheDocument();
 });
 
-test('saves the changes and returns to the list', async () => {
+it('saves the changes and returns to the list', async () => {
   stubStudent();
   let body: unknown;
   server.use(http.put('/api/v1/students/s1', async ({ request }) => {
@@ -63,7 +60,7 @@ test('saves the changes and returns to the list', async () => {
   expect(await screen.findByText('Students list')).toBeInTheDocument();
 });
 
-test('shows the field the server rejected the update on', async () => {
+it('shows the field the server rejected the update on', async () => {
   stubStudent();
   server.use(http.put('/api/v1/students/s1', () => new HttpResponse(
     JSON.stringify({
@@ -85,7 +82,7 @@ test('shows the field the server rejected the update on', async () => {
   expect(screen.getByRole('button', { name: 'Save' })).toBeEnabled();
 });
 
-test('resets the results-overview link after confirmation', async () => {
+it('resets the results-overview link after confirmation', async () => {
   stubStudent();
   let reset = false;
   server.use(http.post('/api/v1/students/s1/results-overview/revoke', () => {
@@ -104,7 +101,7 @@ test('resets the results-overview link after confirmation', async () => {
   confirm.mockRestore();
 });
 
-test('shows read-only latest coursework while preserving best score and hiding hidden-test internals', async () => {
+it('shows read-only latest coursework while preserving best score and hiding hidden-test internals', async () => {
   stubStudent();
   server.use(http.get('/api/v1/reports/courses/course-1/classes/class-1/students/s1', () => HttpResponse.json({
     courseId: 'course-1', classId: 'class-1', studentId: 's1', studentUsername: 'alice',
@@ -139,7 +136,7 @@ test('shows read-only latest coursework while preserving best score and hiding h
   expect(screen.queryByRole('textbox', { name: /grade/i })).not.toBeInTheDocument();
 });
 
-test('distinguishes ungraded and infrastructure-error attempts from failed student tests', async () => {
+it('distinguishes ungraded and infrastructure-error attempts from failed student tests', async () => {
   stubStudent();
   server.use(http.get('/api/v1/reports/courses/course-1/classes/class-1/students/s1', () => HttpResponse.json({
     courseId: 'course-1', classId: 'class-1', studentId: 's1', studentUsername: 'alice',

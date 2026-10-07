@@ -3,7 +3,7 @@
 
 import { render, screen } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router';
-import { expect, test, vi, afterEach } from 'vitest';
+import { afterEach, expect, it, vi } from 'vitest';
 import { RegistrationSuccessPage } from '../src/pages/RegistrationSuccessPage';
 import { MetaContext } from '../src/components/MetaProvider';
 
@@ -47,7 +47,7 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-test('copies the clone command and says so', async () => {
+it('copies the clone command and says so', async () => {
   const writeText = vi.fn().mockResolvedValue(undefined);
   vi.stubGlobal('navigator', { clipboard: { writeText } });
   renderPage();
@@ -63,7 +63,7 @@ test('copies the clone command and says so', async () => {
 // page exactly as it was. The clone command is the one thing they came away with, and it
 // is built here rather than listed from the response: the repositories are created from
 // the registration event and do not exist yet when this page renders.
-test('says so when the browser will not let it copy', async () => {
+it('says so when the browser will not let it copy', async () => {
   vi.stubGlobal('navigator', {});
   renderPage();
 
@@ -73,7 +73,7 @@ test('says so when the browser will not let it copy', async () => {
   expect(screen.getByText(cloneCommand)).toBeInTheDocument();
 });
 
-test('keeps the visually hidden status region at one pixel', () => {
+it('keeps the visually hidden status region at one pixel', () => {
   renderPage();
 
   const status = getComputedStyle(screen.getByRole('status'));
@@ -84,7 +84,7 @@ test('keeps the visually hidden status region at one pixel', () => {
 
 // Port 22 is SSH's default. It is usually the port in use, so the clone command omits it
 // rather than printing `:22`; a non-default port is the one worth spelling out.
-test('omits the default port 22 from the clone command', () => {
+it('omits the default port 22 from the clone command', () => {
   render(
     <MetaContext.Provider value={{ ...meta, sshPort: 22 }}>
       <MemoryRouter initialEntries={[{ pathname: '/register/success', state: { result, courseKey: 'cs101' } }]}>
@@ -103,14 +103,14 @@ test('omits the default port 22 from the clone command', () => {
 // must not promise a later verification that will never happen. The email and student
 // username collected at registration are the identity; the clone-and-push invitation is
 // unconditional.
-test('does not promise verification under the permissive policy', () => {
+it('does not promise verification under the permissive policy', () => {
   renderPage();
 
   expect(screen.getByText(/clone and push now/)).toBeInTheDocument();
   expect(screen.queryByText(/verify/)).not.toBeInTheDocument();
 });
 
-test('says pushes wait for an instructor when verification is required', () => {
+it('says pushes wait for an instructor when verification is required', () => {
   render(
     <MetaContext.Provider value={{ ...meta, requireInstructorVerification: true }}>
       <MemoryRouter initialEntries={[{ pathname: '/register/success', state: { result, courseKey: 'cs101' } }]}>

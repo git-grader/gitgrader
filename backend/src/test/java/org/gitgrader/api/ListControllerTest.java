@@ -34,6 +34,7 @@ import org.gitgrader.submissions.SubmissionService;
 import org.gitgrader.submissions.SubmissionStatus;
 import org.gitgrader.submissions.SubmissionView;
 import org.gitgrader.submissions.web.SubmissionController;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
@@ -50,9 +51,21 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 
+/**
+ * Tests for the paginated listing and detail endpoints of {@link AssignmentController}
+ * and {@link SubmissionController}, which share one filtering contract.
+ *
+ * <p>
+ * Two failure modes hide behind a request that returns 200. A filter applied to a page
+ * already read drops the matches sitting on other pages and reports the surviving page as
+ * the total, so the filters are asserted on the query the service received. And a
+ * submission carries only a student identifier, so the username an instructor reads has
+ * to be resolved for both a page of submissions and a single one.
+ */
 class ListControllerTest {
 
 	@Test
+	@DisplayName("lists assignments with and without a course filter")
 	void assignmentsListWorksWithAndWithoutCourseId() throws Exception {
 		AssignmentCatalog catalog = mock(AssignmentCatalog.class);
 		when(catalog.findAll()).thenReturn(List.of());
@@ -72,6 +85,7 @@ class ListControllerTest {
 	}
 
 	@Test
+	@DisplayName("lists submissions with and without a course filter")
 	void submissionsListWorksWithAndWithoutCourseId() throws Exception {
 		SubmissionService submissions = mock(SubmissionService.class);
 		StudentDirectory students = mock(StudentDirectory.class);
@@ -89,6 +103,7 @@ class ListControllerTest {
 	}
 
 	@Test
+	@DisplayName("includes the student username in a submissions listing")
 	void submissionsListIncludesStudentUsername() throws Exception {
 		SubmissionService submissions = mock(SubmissionService.class);
 		StudentDirectory students = mock(StudentDirectory.class);
@@ -112,6 +127,7 @@ class ListControllerTest {
 	}
 
 	@Test
+	@DisplayName("includes the student username in a submission detail")
 	void submissionDetailIncludesStudentUsername() throws Exception {
 		SubmissionService submissions = mock(SubmissionService.class);
 		StudentDirectory students = mock(StudentDirectory.class);
@@ -148,6 +164,7 @@ class ListControllerTest {
 	 * @throws Exception when the request cannot be performed
 	 */
 	@Test
+	@DisplayName("passes the submission filters to the query rather than filtering the page")
 	void submissionFiltersReachTheQueryRatherThanThePage() throws Exception {
 		SubmissionService submissions = mock(SubmissionService.class);
 		StudentDirectory students = mock(StudentDirectory.class);

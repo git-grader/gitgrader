@@ -22,7 +22,20 @@ import java.util.List;
 
 import org.jspecify.annotations.Nullable;
 
-/** Instructor-visible facts from the latest attempt at a submission. */
+/**
+ * Instructor-visible facts from the latest attempt at a submission.
+ *
+ * @param attempt one-based attempt number for this submission
+ * @param status status of the grading run
+ * @param testsPassed tests that passed
+ * @param testsTotal tests run
+ * @param scorePercent percentage of tests passed, or {@code null} before scoring
+ * @param pointsAwarded points earned, or {@code null} before scoring
+ * @param passed whether the attempt met the pass threshold, or {@code null} before
+ * scoring
+ * @param finishedAt instant the run finished, or {@code null} while it is still running
+ * @param tests per-test facts, safe to show an instructor
+ */
 public record InstructorGradingResult(int attempt, GradingRunStatus status, int testsPassed, int testsTotal,
 		@Nullable BigDecimal scorePercent, @Nullable BigDecimal pointsAwarded, @Nullable Boolean passed,
 		@Nullable Instant finishedAt, List<InstructorTestResult> tests) {

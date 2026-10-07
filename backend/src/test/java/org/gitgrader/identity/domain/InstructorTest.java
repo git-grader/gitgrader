@@ -21,13 +21,25 @@ import java.time.Instant;
 import java.time.ZoneOffset;
 import java.util.Set;
 
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+/**
+ * Tests the login refresh of the {@link Instructor} projection.
+ *
+ * <p>
+ * Display name, email and roles come from the identity provider on every sign-in, so the
+ * local copy has to be overwritten rather than merged: a renamed instructor or a revoked
+ * role that survived the refresh would leave the application authorising on stale data.
+ * First and last login are recorded from separate clocks, which is what pins that the
+ * original sign-in time is preserved while the most recent one moves.
+ */
 class InstructorTest {
 
 	@Test
+	@DisplayName("refreshes the projection and the last login time on login")
 	void loginRefreshesProjectionAndLastLoginTime() {
 		Clock firstClock = Clock.fixed(Instant.parse("2026-03-01T10:15:30Z"), ZoneOffset.UTC);
 		Clock secondClock = Clock.fixed(Instant.parse("2026-03-02T10:15:30Z"), ZoneOffset.UTC);

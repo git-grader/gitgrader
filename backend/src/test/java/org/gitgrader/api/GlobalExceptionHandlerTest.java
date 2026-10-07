@@ -17,6 +17,7 @@
 package org.gitgrader.api;
 
 import jakarta.persistence.EntityNotFoundException;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
@@ -27,6 +28,16 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+/**
+ * Tests that {@link GlobalExceptionHandler} tells a missing record apart from a refused
+ * argument, and that neither of them explains itself.
+ *
+ * <p>
+ * The two once shared one handler, so an unsupported export format or a path that escaped
+ * its root both answered "the requested resource does not exist" - telling a caller their
+ * request was fine when the opposite was true. Exception text carries table and column
+ * names, so the detail is fixed wording and the message never reaches the caller.
+ */
 class GlobalExceptionHandlerTest {
 
 	private final MockMvc mockMvc = MockMvcBuilders.standaloneSetup(new ThrowingController())
@@ -34,6 +45,7 @@ class GlobalExceptionHandlerTest {
 		.build();
 
 	@Test
+	@DisplayName("a missing entity is reported as not found rather than a server fault")
 	void aMissingEntityIsNotFoundRatherThanAServerFault() throws Exception {
 		this.mockMvc.perform(get("/missing-entity"))
 			.andExpect(status().isNotFound())
@@ -41,6 +53,7 @@ class GlobalExceptionHandlerTest {
 	}
 
 	@Test
+	@DisplayName("an argument the domain refused is reported as a bad request")
 	void anArgumentTheDomainRefusedIsABadRequest() throws Exception {
 		// Sharing the handler with EntityNotFoundException made an unsupported export
 		// format and a path that escaped its root both answer "the requested resource
@@ -56,6 +69,7 @@ class GlobalExceptionHandlerTest {
 	 * column names.
 	 */
 	@Test
+	@DisplayName("the refusal reason is not disclosed to the caller")
 	void theReasonIsNotDisclosedToTheCaller() throws Exception {
 		this.mockMvc.perform(get("/missing-entity"))
 			.andExpect(jsonPath("$.detail").value("The requested resource does not exist."));

@@ -1,11 +1,11 @@
 // Copyright the GitGrader contributors.
 // SPDX-License-Identifier: Apache-2.0
 
-import { expect, test } from 'vitest';
+import { expect, it } from 'vitest';
 import { getContrastRatio } from '@mui/material/styles';
 import { createAppTheme } from '../src/theme';
 
-test('defines a calm operational canvas in both color modes', () => {
+it('defines a calm operational canvas in both color modes', () => {
   const light = createAppTheme('light');
   const dark = createAppTheme('dark');
 
@@ -21,7 +21,7 @@ test('defines a calm operational canvas in both color modes', () => {
   }
 });
 
-test('keeps shared operational controls compact and framed', () => {
+it('keeps shared operational controls compact and framed', () => {
   const theme = createAppTheme('light');
 
   expect(theme.components?.MuiButton?.styleOverrides?.root).toMatchObject({

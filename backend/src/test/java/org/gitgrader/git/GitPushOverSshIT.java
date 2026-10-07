@@ -308,7 +308,7 @@ class GitPushOverSshIT {
 					LocalDate.now(java.time.Clock.systemUTC()), null, "UTC", CourseStatus.ACTIVE, null, null, true));
 		RuntimeView runtime = this.runtimes.create(new NewRuntime("node-24-e2e", "Node.js 24",
 				"registry.example.org/gitgrader/runtime-node", "24.13.0", "sha256:" + "a".repeat(64), "npm ci",
-				"npm test", org.gitgrader.runtimes.ReportFormat.TAP, true, ShimTopology.LEGACY, null));
+				"npm test", org.gitgrader.runtimes.RuntimeReportFormat.TAP, true, ShimTopology.LEGACY, null));
 
 		writeTemplateContent();
 		UUID templateId = this.templates.createTemplate("tpl-e2e", "Template", null);

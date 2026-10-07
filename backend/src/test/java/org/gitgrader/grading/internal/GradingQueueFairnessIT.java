@@ -455,7 +455,7 @@ class GradingQueueFairnessIT {
 		String suiteKey = unique("suite");
 		RuntimeView runtime = this.runtimes.create(new NewRuntime(unique("rt"), "Node.js 24",
 				"registry.example.org/gitgrader/runtime-node", "24.13.0", "sha256:" + "a".repeat(64), "npm ci",
-				"npm test", org.gitgrader.runtimes.ReportFormat.TAP, true, ShimTopology.LEGACY, null));
+				"npm test", org.gitgrader.runtimes.RuntimeReportFormat.TAP, true, ShimTopology.LEGACY, null));
 		writeContent(templateKey, suiteKey);
 
 		UUID templateId = this.templates.createTemplate(templateKey, "Template", null);

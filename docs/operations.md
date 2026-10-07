@@ -53,9 +53,9 @@ reproducibility matters.
 Retry only runs whose failure was transient or caused by an operator-corrected
 runner/infrastructure problem. Retrying a student test failure changes neither
 the source nor expected result; retriggering after a template, test, or runtime
-change should be recorded as a distinct grading decision. This documentation
-does not assert a particular retry REST endpoint: use the deployed UI/API
-contract to perform an available retry.
+change should be recorded as a distinct grading decision. Retrying is
+`POST /api/v1/submissions/{id}/regrade` for an instructor or administrator, which
+answers `202` with the queued run's id, or `429` when a queue ceiling refuses it.
 
 ## Shutdown and restart
 
@@ -103,9 +103,9 @@ sees the submission sit in `RUNNING` for that long.
 | Hidden tests appear in output | Stop sharing the affected output, rotate result tokens, inspect logs/artifacts/access controls, and follow the security response process. |
 | Database is full or slow | Inspect PostgreSQL volume capacity, backup retention, artifact retention, long transactions, and worker concurrency before deleting data. |
 
-Use `docker compose logs --since=30m app database`, `scripts/verify-install.sh`,
-host escape, hidden-test disclosure, token leak, or credential exposure through
-the private process in [SECURITY.md](../SECURITY.md).
+Start with `docker compose logs --since=30m app database` and
+`scripts/verify-install.sh`. For a host escape, hidden-test disclosure, token leak, or
+credential exposure, follow the private process in [SECURITY.md](../SECURITY.md).
 
 ## Sizing the grading workers
 

@@ -1,16 +1,13 @@
 // Copyright the GitGrader contributors.
 // SPDX-License-Identifier: Apache-2.0
 
-import { afterAll, afterEach, beforeAll, expect, test } from 'vitest';
+import { expect, it } from 'vitest';
 import { http, HttpResponse } from 'msw';
 import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { AssignmentsPage } from '../src/pages/AssignmentsPage';
 import { page, renderWithProviders, server } from './harness';
 
-beforeAll(() => { server.listen({ onUnhandledFrame: 'error' }); });
-afterEach(() => { server.resetHandlers(); });
-afterAll(() => { server.close(); });
 
 const COURSE = {
   id: 'c1', courseKey: 'cs101', name: 'Course One', description: null, semester: null,
@@ -25,7 +22,7 @@ const COURSE = {
  * because the fan-out reappears the moment someone fetches versions per material again,
  * and that reads as nothing worse than a slow page until a course grows.
  */
-test('the assignment form asks for its choices in a fixed number of requests', async () => {
+it('the assignment form asks for its choices in a fixed number of requests', async () => {
   const materials = Array.from({ length: 40 }, (_, i) => ({
     id: `m${i}`, templateKey: `t${i}`, suiteKey: `s${i}`, name: `Material ${i}`, description: null
   }));

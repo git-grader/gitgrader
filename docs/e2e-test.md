@@ -141,9 +141,10 @@ docker compose -f compose.yaml -f compose.dev.yaml exec -T database psql -U gitg
           left join course_classes c on c.id = e.class_id'
 ```
 
-**Expect** 12 repositories, one per assignment, **and one enrolment row** naming the class
-the student picked. A student with repositories and no enrolment is invisible to every
-course report.
+**Expect** one repository, one per assignment, **and one enrolment row** naming the class
+the student picked. `examples/seed-data.sql` creates a single assignment, so the count is
+the number of published assignments rather than a fixed figure. A student with
+repositories and no enrolment is invisible to every course report.
 
 ### Refusals worth checking
 
@@ -248,7 +249,7 @@ Open <http://localhost:8080/> and sign in as `instructor` / `password`.
 | `/courses` → New Course | required fields are enforced before submitting; creating one lists it |
 | `/submissions` | the pushed commit, **Passed**, Signature **VERIFIED** |
 | `/courses` → the course | classes and enrolments load; a failed load says so rather than showing an empty table |
-| `/reports/courses/{id}` | the enrolled students appear, and CSV, JSON and XLSX each download **without leaving the page** |
+| `/reports/course/{id}` | the enrolled students appear, and CSV, JSON and XLSX each download **without leaving the page** |
 | `/admin/audit` | refused with "Administrators only", naming the signed-in account |
 | sign out | returns to `/login`; afterwards `curl /api/v1/me` is `401` |
 

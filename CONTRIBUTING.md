@@ -27,8 +27,17 @@ integration tests, PMD and CPD, SpotBugs with FindSecBugs, forbidden-apis,
 JaCoCo, and module architecture tests. The integration tests need a reachable
 Docker engine; without one they are skipped rather than failed, so the command
 still completes. CI sets `CI`, where the same tests run regardless and a missing
-engine fails the build instead of quietly proving nothing. The optional native
-build is:
+engine fails the build instead of quietly proving nothing. An editor can
+disrupt the run in a similar way. m2e does not give the language server a
+private `bin/` directory: it derives the Eclipse class output from Maven's
+build directory, so the generated `.classpath` sets `output="target/classes"`
+and m2e's `workspacestate.properties` maps `org.gitgrader:gitgrader` onto
+`backend/target/classes`. The editor's compiler therefore writes into the very
+directory Maven is using. If it recompiles after the tests have already
+executed, it rewrites the `.class` files, which invalidates JaCoCo's execution
+data and makes `jacoco-check` fail with `Classes in bundle ... do not match
+with execution data` and zero coverage even though every test passed. Close the
+editor and re-run when that happens. The optional native build is:
 
 ```sh
 ./mvnw -Pnative native:compile

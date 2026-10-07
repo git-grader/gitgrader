@@ -28,7 +28,18 @@ import org.gitgrader.identity.StudentStatus;
 import org.gitgrader.submissions.SubmissionStatus;
 import org.jspecify.annotations.Nullable;
 
-/** Course and class scoped progress for every enrolled student. */
+/**
+ * Course and class scoped progress for every enrolled student.
+ *
+ * @param courseId course the class belongs to
+ * @param classId class the report covers
+ * @param classKey course-local class key
+ * @param className display name of the class
+ * @param totalMandatoryAssignments mandatory assignments in the class
+ * @param totalPointsAvailable points available across those assignments
+ * @param assignments per-assignment counts for the class
+ * @param students one row per enrolled student
+ */
 public record ClassProgressReport(UUID courseId, UUID classId, String classKey, String className,
 		int totalMandatoryAssignments, BigDecimal totalPointsAvailable, List<AssignmentSummary> assignments,
 		List<StudentRow> students) {

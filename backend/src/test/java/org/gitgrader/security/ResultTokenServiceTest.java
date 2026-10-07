@@ -33,6 +33,7 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.Base64;
 
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mockito;
@@ -43,6 +44,21 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+/**
+ * Tests for {@link ResultTokenService}, which mints the bearer token a result link
+ * carries.
+ *
+ * <p>
+ * The plaintext exists only in the response: the row keeps a SHA-256 hash and a short
+ * prefix an operator can recognise a token by, so a stolen table is not a set of working
+ * credentials. Expiry is read from the injected {@link Clock}, which is what makes a
+ * lapsed token testable at all.
+ *
+ * <p>
+ * Entropy is checked in both directions: a token must carry every configured bit, and the
+ * configuration must refuse a size that would be silently rounded down to a byte boundary
+ * or that falls below the floor.
+ */
 class ResultTokenServiceTest {
 
 	private ResultTokenRepository repository;
@@ -66,6 +82,7 @@ class ResultTokenServiceTest {
 	}
 
 	@Test
+	@DisplayName("returns a unique token per issue and stores only its hash")
 	void issueReturnsUniqueTokensAndStoresHash() {
 		UUID submissionId = UUID.randomUUID();
 
@@ -83,6 +100,7 @@ class ResultTokenServiceTest {
 	}
 
 	@Test
+	@DisplayName("resolves an expired token to nothing")
 	void resolveExpiredTokenReturnsEmpty() {
 		String token = service.issue(UUID.randomUUID());
 
@@ -94,6 +112,7 @@ class ResultTokenServiceTest {
 	}
 
 	@Test
+	@DisplayName("resolves a valid token to its submission")
 	void resolveValidTokenReturnsSubmission() {
 		UUID submissionId = UUID.randomUUID();
 		String token = service.issue(submissionId);
@@ -106,6 +125,7 @@ class ResultTokenServiceTest {
 	}
 
 	@Test
+	@DisplayName("resolves an unknown token to nothing")
 	void resolveUnknownTokenReturnsEmpty() {
 		when(repository.findByTokenHash(any())).thenReturn(Optional.empty());
 
@@ -113,6 +133,7 @@ class ResultTokenServiceTest {
 	}
 
 	@Test
+	@DisplayName("resolves a revoked token to nothing")
 	void resolveRevokedTokenReturnsEmpty() {
 		String token = service.issue(UUID.randomUUID());
 
@@ -126,6 +147,7 @@ class ResultTokenServiceTest {
 	}
 
 	@Test
+	@DisplayName("uses every configured bit of entropy in an issued token")
 	void issueUsesEveryConfiguredBitOfEntropy() {
 		when(appProperties.resultTokens()).thenReturn(new ResultTokens(128, Duration.ofDays(180), 8));
 
@@ -137,6 +159,7 @@ class ResultTokenServiceTest {
 	}
 
 	@Test
+	@DisplayName("refuses entropy that would be silently rounded down")
 	void refusesEntropyThatWouldBeSilentlyRoundedDown() {
 		assertThatExceptionOfType(IllegalArgumentException.class)
 			.isThrownBy(() -> new ResultTokens(130, Duration.ofDays(180), 8))
@@ -144,6 +167,7 @@ class ResultTokenServiceTest {
 	}
 
 	@Test
+	@DisplayName("refuses entropy below the floor")
 	void refusesEntropyBelowTheFloor() {
 		assertThatExceptionOfType(IllegalArgumentException.class)
 			.isThrownBy(() -> new ResultTokens(64, Duration.ofDays(180), 8))

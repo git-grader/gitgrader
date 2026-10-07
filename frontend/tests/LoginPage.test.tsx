@@ -1,7 +1,7 @@
 // Copyright the GitGrader contributors.
 // SPDX-License-Identifier: Apache-2.0
 
-import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { http, HttpResponse } from 'msw';
 import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
@@ -17,9 +17,7 @@ import { meta, renderWithProviders, server } from './harness';
  * reporting it as bad credentials sends people to reset a password that was fine.
  */
 describe('signing in', () => {
-  beforeAll(() => { server.listen({ onUnhandledFrame: 'error' }); });
-  afterEach(() => { server.resetHandlers(); vi.unstubAllGlobals(); });
-  afterAll(() => { server.close(); });
+  afterEach(() => { vi.unstubAllGlobals(); });
 
   /**
    * Replaces only the navigation, keeping every other part of the address intact.

@@ -34,6 +34,7 @@ import org.gitgrader.templates.TemplateCatalog;
 import org.gitgrader.templates.TemplateContentGuard;
 import org.gitgrader.templates.TemplateContentRejectedException;
 import org.gitgrader.templates.TemplateVersionView;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.springframework.mock.web.MockMultipartFile;
@@ -48,12 +49,23 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+/**
+ * Tests for {@link TemplateController}, which creates, uploads and publishes templates.
+ *
+ * <p>
+ * The storage path and the publishing actor are both server-derived; neither comes from
+ * the request, because a client-chosen path is a traversal primitive and a client-chosen
+ * actor makes the audit trail worthless. A {@link TemplateContentGuard} rejection has to
+ * surface as a bad request rather than a server error, since it is a mistake in the
+ * upload.
+ */
 class TemplateControllerTest {
 
 	@TempDir
 	private Path temporaryDirectory;
 
 	@Test
+	@DisplayName("uses server-owned storage and the authenticated actor to create, upload and publish")
 	void createUploadAndPublishUseServerOwnedStorageAndActor() throws Exception {
 		TemplateCatalog catalog = mock(TemplateCatalog.class);
 		TemplateAdministration administration = mock(TemplateAdministration.class);
@@ -86,6 +98,7 @@ class TemplateControllerTest {
 	}
 
 	@Test
+	@DisplayName("reports a content-guard rejection as a bad request")
 	void contentGuardRejectionReturns400() throws Exception {
 		TemplateAdministration administration = mock(TemplateAdministration.class);
 		UUID versionId = UUID.randomUUID();

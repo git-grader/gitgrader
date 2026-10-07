@@ -38,7 +38,7 @@ import org.gitgrader.grading.WeightedOutcome;
 import org.gitgrader.grading.domain.GradingRun;
 import org.gitgrader.grading.domain.TestResultRecord;
 import org.gitgrader.grading.internal.GradingPlanResolver.GradingPlan;
-import org.gitgrader.runtimes.ReportFormat;
+import org.gitgrader.runtimes.RuntimeReportFormat;
 import org.gitgrader.runtimes.RuntimeView;
 import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
@@ -168,7 +168,7 @@ public class GradingExecutor {
 					result.timedOut(), String.valueOf(result.failureDetail()));
 		}
 
-		ReportFormat format = runtime.reportFormat();
+		RuntimeReportFormat format = runtime.reportFormat();
 		if (!this.reportParser.supports(format)) {
 			// The sandbox succeeded, but nothing here can read the report it produced.
 			// Handing it to a parser for a different grammar matches no line, every

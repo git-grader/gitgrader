@@ -1,16 +1,13 @@
 // Copyright the GitGrader contributors.
 // SPDX-License-Identifier: Apache-2.0
 
-import { afterAll, afterEach, beforeAll, expect, test } from 'vitest';
+import { expect, it } from 'vitest';
 import { http, HttpResponse } from 'msw';
 import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { AssignmentsPage } from '../src/pages/AssignmentsPage';
 import { page, renderWithProviders, server } from './harness';
 
-beforeAll(() => { server.listen({ onUnhandledFrame: 'error' }); });
-afterEach(() => { server.resetHandlers(); });
-afterAll(() => { server.close(); });
 
 const COURSE = {
   id: 'c1', courseKey: 'cs101', name: 'Course One', description: null, semester: null,
@@ -64,7 +61,7 @@ async function openDialog() {
  * The suite runs in Europe/Zurich (see `test.env` in vite.config.ts), so a New York
  * assignment is a real six-hour disagreement rather than a no-op.
  */
-test('sends a deadline in the assignment timezone rather than the browser one', async () => {
+it('sends a deadline in the assignment timezone rather than the browser one', async () => {
   stubReads();
   let body: unknown;
   server.use(http.post('/api/v1/assignments', async ({ request }) => {
@@ -85,7 +82,7 @@ test('sends a deadline in the assignment timezone rather than the browser one', 
   expect(body).toMatchObject({ dueAt: '2026-03-02T04:59:00.000Z' });
 }, 60_000);
 
-test('does not throw out of the form when a date cannot be read', async () => {
+it('does not throw out of the form when a date cannot be read', async () => {
   stubReads();
   let body: unknown;
   server.use(http.post('/api/v1/assignments', async ({ request }) => {
@@ -108,7 +105,7 @@ test('does not throw out of the form when a date cannot be read', async () => {
  * created an assignment worth nothing without saying anything about it. What must not
  * happen is a request carrying a zero nobody typed.
  */
-test('refuses a cleared points field rather than submitting zero', async () => {
+it('refuses a cleared points field rather than submitting zero', async () => {
   stubReads();
   const posts: unknown[] = [];
   server.use(http.post('/api/v1/assignments', async ({ request }) => {
@@ -126,7 +123,7 @@ test('refuses a cleared points field rather than submitting zero', async () => {
   expect(screen.getByRole('dialog')).toBeInTheDocument();
 });
 
-test('names the field when a required choice is missing', async () => {
+it('names the field when a required choice is missing', async () => {
   server.use(
     http.get('/api/v1/courses', () => HttpResponse.json(page([]))),
     http.get('/api/v1/assignments', () => HttpResponse.json(page([]))),
@@ -149,7 +146,7 @@ test('names the field when a required choice is missing', async () => {
   expect(posts).toEqual([]);
 });
 
-test('keeps a deliberate zero distinguishable from an empty field', async () => {
+it('keeps a deliberate zero distinguishable from an empty field', async () => {
   stubReads();
   let body: unknown;
   server.use(http.post('/api/v1/assignments', async ({ request }) => {
@@ -167,7 +164,7 @@ test('keeps a deliberate zero distinguishable from an empty field', async () => 
   expect(body).toMatchObject({ maxPoints: 0 });
 });
 
-test('sorts assignments locally when an assignment column is selected', async () => {
+it('sorts assignments locally when an assignment column is selected', async () => {
   const requestedSorts: string[] = [];
   server.use(
     http.get('/api/v1/courses', () => HttpResponse.json(page([COURSE]))),
@@ -194,7 +191,7 @@ test('sorts assignments locally when an assignment column is selected', async ()
  * attempt was still there the next time it opened - including the error banner from a
  * request the instructor had already given up on.
  */
-test('opens clean after a failed attempt', async () => {
+it('opens clean after a failed attempt', async () => {
   stubReads();
   server.use(http.post('/api/v1/assignments', () => new HttpResponse(
     JSON.stringify({ type: 'about:blank', title: 'Conflict', status: 409, detail: 'That key is taken' }),

@@ -60,9 +60,10 @@ names, and rejects any result other than 10/10 and 7/10 respectively.
 ## Scope
 
 This example package intentionally contains and verifies only
-`assignment-01-string-utils`. The WBE assignment packages under
-`examples/assignments/wbe/` are separate course material and are not included
-in this example, its seed data, or its verification script.
+`assignment-01-string-utils`, which is the only directory under
+`examples/assignments/`. Other WBE assignment packages are separate course
+material and are not included in this example, its seed data, or its
+verification script.
 
 ## Seed a running instance
 

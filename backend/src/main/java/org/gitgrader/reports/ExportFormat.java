@@ -19,7 +19,7 @@ package org.gitgrader.reports;
 import java.util.Locale;
 
 /** Supported report export representations. */
-public enum ReportFormat {
+public enum ExportFormat {
 
 	/** Comma-separated text. */
 	CSV("text/csv", "csv"),
@@ -34,7 +34,7 @@ public enum ReportFormat {
 
 	private final String extension;
 
-	ReportFormat(String mediaType, String extension) {
+	ExportFormat(String mediaType, String extension) {
 		this.mediaType = mediaType;
 		this.extension = extension;
 	}
@@ -60,7 +60,7 @@ public enum ReportFormat {
 	 * @param value requested format
 	 * @return parsed format
 	 */
-	public static ReportFormat parse(String value) {
+	public static ExportFormat parse(String value) {
 		return valueOf(value.toUpperCase(Locale.ROOT));
 	}
 

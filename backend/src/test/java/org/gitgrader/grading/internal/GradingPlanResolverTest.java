@@ -26,7 +26,7 @@ import org.gitgrader.assignments.AssignmentStatus;
 import org.gitgrader.assignments.AssignmentView;
 import org.gitgrader.configuration.StorageProperties;
 import org.gitgrader.grading.internal.GradingPlanResolver.GradingPlan;
-import org.gitgrader.runtimes.ReportFormat;
+import org.gitgrader.runtimes.RuntimeReportFormat;
 import org.gitgrader.runtimes.RuntimeCatalog;
 import org.gitgrader.runtimes.RuntimeView;
 import org.gitgrader.submissions.SignatureVerdict;
@@ -183,7 +183,7 @@ class GradingPlanResolverTest {
 	private void givenRuntime() {
 		when(this.runtimes.findRuntime(any())).thenReturn(
 				Optional.of(new RuntimeView(RUNTIME, "node-24", "Node.js 24", "registry.example.org/runtime-node",
-						"24.13.0", "sha256:" + "a".repeat(64), "npm ci", "npm test", ReportFormat.TAP, true,
+						"24.13.0", "sha256:" + "a".repeat(64), "npm ci", "npm test", RuntimeReportFormat.TAP, true,
 						Instant.parse("2026-01-01T00:00:00Z"), Instant.parse("2026-01-01T00:00:00Z"), null, null)));
 	}
 

@@ -22,6 +22,7 @@ import java.nio.file.Path;
 import java.util.stream.Stream;
 
 import org.gitgrader.configuration.StorageProperties;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -29,12 +30,29 @@ import org.junit.jupiter.params.provider.MethodSource;
 
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+/**
+ * Tests for {@link TemplateContentGuard}, which vets an uploaded template before it can
+ * be published.
+ *
+ * <p>
+ * A template is instructor-supplied and lands in the grading sandbox beside the hidden
+ * suite, so a reference solution, an answer key, a private key or a {@code .env} that
+ * travelled in with the archive has to be refused. The template key is resolved through
+ * {@link StorageProperties#resolveInside} for the same reason: it becomes a filesystem
+ * path segment, and {@code ../} must not reach the hidden tests.
+ *
+ * <p>
+ * The allow-list matters as much as the deny-list. An earlier revision refused
+ * {@code solution.js}, which an ordinary assignment template legitimately contains, and a
+ * guard that blocks normal work is a guard an operator turns off.
+ */
 class TemplateContentGuardTest {
 
 	@TempDir
 	private Path directory;
 
 	@ParameterizedTest
+	@DisplayName("rejects every hidden-test and secret pattern")
 	@MethodSource("forbiddenPaths")
 	void rejectsEveryHiddenTestAndSecretPattern(String relativePath) throws IOException {
 		Path file = this.directory.resolve(relativePath);
@@ -47,12 +65,14 @@ class TemplateContentGuardTest {
 	}
 
 	@Test
+	@DisplayName("allows the public key variant of a rejected substring")
 	void publicKeyVariantIsAllowed() throws IOException {
 		Files.writeString(this.directory.resolve("id_ed25519.pub"), "public");
 		new TemplateContentGuard().validate(this.directory);
 	}
 
 	@Test
+	@DisplayName("refuses a template key that escapes the storage root")
 	void templateKeyCannotEscapeTheStorageRoot() {
 		assertThatThrownBy(() -> StorageProperties.resolveInside(this.directory, "../hidden-tests"))
 			.isInstanceOf(IllegalArgumentException.class)
@@ -60,6 +80,7 @@ class TemplateContentGuardTest {
 	}
 
 	@ParameterizedTest
+	@DisplayName("allows ordinary template content")
 	@MethodSource("allowedPaths")
 	void allowsOrdinaryTemplateContent(String relativePath) throws IOException {
 		Path file = this.directory.resolve(relativePath);

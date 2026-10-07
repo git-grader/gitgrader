@@ -1,7 +1,7 @@
 // Copyright the GitGrader contributors.
 // SPDX-License-Identifier: Apache-2.0
 
-import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
+import { describe, expect, it } from "vitest";
 import { http, HttpResponse } from "msw";
 import { screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
@@ -26,9 +26,6 @@ const grace = {
 };
 
 describe("StudentsPage", () => {
-  beforeAll(() => { server.listen({ onUnhandledFrame: "error" }); });
-  afterEach(() => { server.resetHandlers(); });
-  afterAll(() => { server.close(); });
 
   it("loads every bounded page and filters the complete student list locally", async () => {
     const requestedPages: string[] = [];

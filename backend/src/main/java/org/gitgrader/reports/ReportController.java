@@ -116,7 +116,7 @@ public class ReportController {
 	@GetMapping("/{courseId}/export")
 	public ResponseEntity<ByteArrayResource> export(@PathVariable UUID courseId, @RequestParam String format)
 			throws IOException {
-		ReportFormat representation = ReportFormat.parse(format);
+		ExportFormat representation = ExportFormat.parse(format);
 		byte[] content = this.exports.export(report(courseId), representation);
 		HttpHeaders headers = new HttpHeaders();
 		headers.setContentType(MediaType.parseMediaType(representation.mediaType()));
@@ -128,8 +128,8 @@ public class ReportController {
 	@GetMapping("/{courseId}/classes/{classId}/export")
 	public ResponseEntity<ByteArrayResource> exportClass(@PathVariable UUID courseId, @PathVariable UUID classId,
 			@RequestParam String format) throws IOException {
-		ReportFormat representation = ReportFormat.parse(format);
-		if (representation != ReportFormat.XLSX) {
+		ExportFormat representation = ExportFormat.parse(format);
+		if (representation != ExportFormat.XLSX) {
 			throw new IllegalArgumentException("Class reports are available as XLSX");
 		}
 		byte[] content = this.exports.exportClassReport(this.classReports.report(courseId, classId));

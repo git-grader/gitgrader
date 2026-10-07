@@ -41,8 +41,8 @@ public class CsvReportExporter implements ReportExporter {
 	private static final String FORMULA_LEADS = "=+-@\t\r";
 
 	@Override
-	public ReportFormat format() {
-		return ReportFormat.CSV;
+	public ExportFormat format() {
+		return ExportFormat.CSV;
 	}
 
 	@Override
