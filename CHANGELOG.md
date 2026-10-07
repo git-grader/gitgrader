@@ -137,6 +137,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Publish a container image only from a semantic-version release tag, and move `:latest`
   only for a stable one. A manual run from a branch previously published that branch as
   an image tag and repointed `:latest` at it.
+- Mint a push's overview token on one transaction instead of retiring on one connection
+  and inserting on another. The insert has to check `uq_srot_one_active_per_student`,
+  and the retire that frees the row for it was uncommitted on a connection the same
+  thread was holding, so the check could not see it and waited - with nothing left that
+  could ever release it. Every push from a student who already held a token hung there
+  and kept its pool connections, and once enough had, the ten-connection pool had nothing
+  left for authentication either: the grader then answered every clone and push in the
+  course with `Permission denied (publickey)`. Each attempt now owns its transaction, so
+  a lost race rolls back whole and the retry re-reads, and the retire is flushed before
+  the insert so the insert never meets the row it is replacing.
 
 ### Added
 

@@ -31,6 +31,7 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.TransactionDefinition;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionTemplate;
 
@@ -61,22 +62,35 @@ public class StudentResultsOverviewTokenService {
 	private final Clock clock;
 
 	/**
-	 * Runs the insert on its own transaction so that losing the mint race cannot take the
-	 * caller's transaction with it. PostgreSQL aborts an entire transaction when any
-	 * statement fails, so a constraint violation caught inside the surrounding
-	 * transaction leaves that transaction unable to run the re-read that recovers from
-	 * it. The catch therefore has to happen outside a transaction that the failure
-	 * poisoned.
+	 * Runs one whole mint attempt - retire the previous token, insert the next - on its
+	 * own transaction.
+	 *
+	 * <p>
+	 * Two things have to be true at once and they pull in opposite directions. Losing the
+	 * mint race must not take the caller's transaction with it, because PostgreSQL aborts
+	 * an entire transaction when any statement fails: a constraint violation caught
+	 * inside the surrounding transaction leaves that transaction unable to run the
+	 * re-read that recovers from it. And the retire and the insert must not be split
+	 * across two transactions, because the insert would then be checking
+	 * {@code uq_srot_one_active_per_student} while the retire that frees the row sits
+	 * uncommitted on another connection. That check cannot see it, so it blocks - and
+	 * when both connections belong to the same thread the block can never be resolved,
+	 * which is a deadlock that holds a pool connection for as long as it lasts.
+	 *
+	 * <p>
+	 * One transaction per attempt satisfies both: the failure rolls back the attempt as a
+	 * whole, and within it the insert reads its own retire, so the only thing that can
+	 * still reject it is a competing push that committed while this one was running.
 	 */
-	private final TransactionTemplate insertAttempt;
+	private final TransactionTemplate mintAttempt;
 
 	public StudentResultsOverviewTokenService(StudentResultsOverviewTokenRepository repository,
 			AppProperties appProperties, Clock clock, PlatformTransactionManager transactionManager) {
 		this.repository = repository;
 		this.appProperties = appProperties;
 		this.clock = clock;
-		this.insertAttempt = new TransactionTemplate(transactionManager);
-		this.insertAttempt.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
+		this.mintAttempt = new TransactionTemplate(transactionManager);
+		this.mintAttempt.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
 	}
 
 	/**
@@ -87,35 +101,51 @@ public class StudentResultsOverviewTokenService {
 	 * hash is kept, and a hash cannot be turned back into the value the student needs.
 	 * Each push therefore gets a new link and the previous one stops resolving once this
 	 * push lands. A link a student is still holding keeps working until their next push.
+	 *
+	 * <p>
+	 * Not transactional itself: every attempt owns its transaction (see
+	 * {@link #mintAttempt}) so that a failed attempt can be rolled back whole and the
+	 * next one can re-read. Running the attempts inside a transaction of its own would
+	 * leave this method holding a connection that nothing writes to.
 	 * @param studentId the student the link is for
 	 * @return the plain token, which the caller must hand to the student now
 	 */
+	@Transactional(propagation = Propagation.NOT_SUPPORTED)
 	public String issueForStudent(UUID studentId) {
 		Instant now = Instant.now(this.clock);
 
 		// Bounded because each retry needs a competing push to have inserted in between.
-		// Two
-		// pushes of one repository a moment apart is the realistic case and needs one
-		// retry;
-		// anything past that is not a race but a defect, and looping forever would hide
-		// it.
+		// Two pushes of one repository a moment apart is the realistic case and needs one
+		// retry; anything past that is not a race but a defect, and looping forever would
+		// hide it.
 		for (int attempt = 1; attempt <= MAX_MINT_ATTEMPTS; attempt++) {
-			retireActive(studentId, now);
 			try {
-				return mint(studentId, now);
+				String plainToken = this.mintAttempt.execute((status) -> {
+					retireActive(studentId, now);
+					// Flush the revoke before minting. Hibernate runs the inserts of one
+					// flush ahead of its updates, so leaving it queued would have the
+					// insert checking uq_srot_one_active_per_student against the very
+					// row this attempt is retiring, which rejects every attempt and not
+					// only the ones a competing push actually won.
+					this.repository.flush();
+					return mint(studentId, now);
+				});
+				if (plainToken == null) {
+					throw new IllegalStateException("mint attempt completed without a token");
+				}
+				return plainToken;
 			}
 			catch (DataIntegrityViolationException ex) {
 				if (attempt == MAX_MINT_ATTEMPTS) {
 					throw ex;
 				}
-				// Another push inserted between the retire above and this insert, so
-				// uq_srot_one_active_per_student rejected this one. Retiring again picks
-				// up that
-				// row and the retry inserts in its place. The competitor's link is
-				// revoked by the
-				// retry, which is unavoidable once tokens rotate: there is one link per
-				// student
-				// and both pushes asked for a fresh one.
+				// Another push committed between this attempt's read of the active row
+				// and its insert, so uq_srot_one_active_per_student rejected the insert.
+				// The attempt's own retire rolled back with it, and the next attempt
+				// reads that competing row instead and inserts in its place. The
+				// competitor's link is revoked by the retry, which is unavoidable once
+				// tokens rotate: there is one link per student and both pushes asked for
+				// a fresh one.
 			}
 		}
 		throw new IllegalStateException("unreachable");
@@ -146,7 +176,9 @@ public class StudentResultsOverviewTokenService {
 
 		StudentResultsOverviewToken entity = new StudentResultsOverviewToken(UUID.randomUUID(), studentId,
 				TokenHash.of(plainToken), tokenPrefix, now, expiresAt, Status.ACTIVE);
-		this.insertAttempt.executeWithoutResult((status) -> this.repository.saveAndFlush(entity));
+		// Flushed rather than left to the commit so that the constraint is checked here,
+		// while the caller can still catch the rejection and retry.
+		this.repository.saveAndFlush(entity);
 		return plainToken;
 	}
 

@@ -33,6 +33,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
+import org.mockito.InOrder;
 import org.mockito.Mockito;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.transaction.PlatformTransactionManager;
@@ -65,12 +66,11 @@ class StudentResultsOverviewTokenServiceTest {
 		this.appProperties = Mockito.mock(AppProperties.class);
 		when(this.appProperties.resultTokens()).thenReturn(new ResultTokens(256, Duration.ofDays(180), 8));
 		this.clock = Clock.fixed(Instant.parse("2026-01-01T10:00:00Z"), ZoneId.of("UTC"));
-		// The service mints on its own transaction so that a rejected insert cannot
-		// poison the
-		// caller's, which is what makes the lost-race recovery possible. A transaction
-		// manager
-		// that simply hands back a status is enough: these tests assert on repository
-		// calls.
+		// Every mint attempt runs on its own transaction, so a rejected insert can be
+		// rolled back whole instead of poisoning the caller's transaction - which is what
+		// makes the lost-race recovery possible, and what keeps the retire and the insert
+		// on one connection so the insert can see the retire. A transaction manager that
+		// simply hands back a status is enough: these tests assert on repository calls.
 		this.transactionManager = Mockito.mock(PlatformTransactionManager.class);
 		when(this.transactionManager.getTransaction(any())).thenReturn(new SimpleTransactionStatus());
 		this.service = new StudentResultsOverviewTokenService(this.repository, this.appProperties, this.clock,
@@ -164,6 +164,44 @@ class StudentResultsOverviewTokenServiceTest {
 		assertThatExceptionOfType(DataIntegrityViolationException.class)
 			.isThrownBy(() -> this.service.issueForStudent(STUDENT));
 		verify(this.repository, Mockito.times(3)).saveAndFlush(any(StudentResultsOverviewToken.class));
+	}
+
+	@Test
+	@DisplayName("rolls the rejected attempt back whole, so the retry re-reads from a clean slate")
+	void rollsBackTheRejectedAttempt() {
+		when(this.repository.findByStudentIdAndStatus(STUDENT, Status.ACTIVE)).thenReturn(Optional.empty());
+		when(this.repository.saveAndFlush(any(StudentResultsOverviewToken.class)))
+			.thenThrow(new DataIntegrityViolationException("uq_srot_one_active_per_student"))
+			.thenAnswer((invocation) -> invocation.getArgument(0));
+
+		this.service.issueForStudent(STUDENT);
+
+		// PostgreSQL refuses every later statement in a transaction that failed, so the
+		// retry can only re-read if the failed attempt was rolled back first. One
+		// rollback for the rejected attempt and one commit for the one that won.
+		verify(this.transactionManager, Mockito.times(1)).rollback(any());
+		verify(this.transactionManager, Mockito.times(1)).commit(any());
+	}
+
+	@Test
+	@DisplayName("flushes the retire before minting, so the insert never meets the row it replaces")
+	void flushesTheRetireBeforeMinting() {
+		StudentResultsOverviewToken previous = new StudentResultsOverviewToken(UUID.randomUUID(), STUDENT,
+				TokenHash.of("previous-token"), "previous-", Instant.now(this.clock).minusSeconds(60),
+				Instant.now(this.clock).plusSeconds(600), Status.ACTIVE);
+		when(this.repository.findByStudentIdAndStatus(STUDENT, Status.ACTIVE)).thenReturn(Optional.of(previous));
+
+		this.service.issueForStudent(STUDENT);
+
+		// Hibernate runs a flush's inserts ahead of its updates, so without an explicit
+		// flush the insert would check uq_srot_one_active_per_student against the very
+		// row this attempt is retiring and be rejected without any race at all.
+		ArgumentCaptor<StudentResultsOverviewToken> captor = ArgumentCaptor.forClass(StudentResultsOverviewToken.class);
+		InOrder inOrder = Mockito.inOrder(this.repository);
+		inOrder.verify(this.repository).save(captor.capture());
+		inOrder.verify(this.repository).flush();
+		inOrder.verify(this.repository).saveAndFlush(any(StudentResultsOverviewToken.class));
+		assertThat(captor.getValue().status()).isEqualTo(Status.REVOKED);
 	}
 
 	@Test
