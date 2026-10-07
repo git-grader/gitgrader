@@ -18,6 +18,7 @@ package org.gitgrader.registration.domain;
 
 import org.gitgrader.audit.AuditProperties;
 import org.gitgrader.audit.ClientAddressHasher;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 import java.time.Instant;
@@ -25,9 +26,19 @@ import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+/**
+ * Tests that a {@link RegistrationAttempt} retains nothing identifying.
+ *
+ * <p>
+ * The row exists to show why a registration was refused, so it holds the same deployment
+ * keyed, truncated hash the audit trail uses rather than the address, student number or
+ * email as submitted. Storing the raw values would turn a rejected registration into a
+ * working copy of the personal data a policy decided not to keep.
+ */
 class RegistrationAttemptTest {
 
 	@Test
+	@DisplayName("stores only hashes, never the submitted identifier")
 	void storesOnlyHashes() {
 		ClientAddressHasher hasher = new ClientAddressHasher(
 				new AuditProperties("secret-key", java.time.Duration.ofDays(1)));

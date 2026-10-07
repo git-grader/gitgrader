@@ -30,6 +30,7 @@ import org.gitgrader.courses.domain.CourseClass;
 import org.gitgrader.courses.web.CourseController;
 import org.gitgrader.courses.web.CourseExceptionHandler;
 import org.gitgrader.identity.StudentDirectory;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
@@ -41,6 +42,16 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+/**
+ * Tests for the instructor-facing update endpoints of {@link CourseController}.
+ *
+ * <p>
+ * The course key and the class key are the identities used as filesystem path segments
+ * for every repository, assignment and test suite beneath them, so a change after the
+ * fact would strand the data already pushed. These tests pin the refusal, and equally
+ * that a class reached through the wrong course is a 404 rather than a permission error,
+ * so the response does not confirm the existence of another course's class.
+ */
 class CourseControllerTest {
 
 	private static final Instant NOW = Instant.parse("2026-03-01T10:15:30Z");
@@ -48,6 +59,7 @@ class CourseControllerTest {
 	private static final Clock CLOCK = Clock.fixed(NOW, ZoneOffset.UTC);
 
 	@Test
+	@DisplayName("changes the status and the registration flag when updating a course")
 	void updatingCourseChangesStatusAndRegistrationFlag() throws Exception {
 		Course course = course("java-101", CourseStatus.DRAFT, false);
 
@@ -61,6 +73,7 @@ class CourseControllerTest {
 	}
 
 	@Test
+	@DisplayName("refuses a change of the course key")
 	void changingCourseKeyReturns400() throws Exception {
 		Course course = course("java-101", CourseStatus.DRAFT, false);
 
@@ -72,6 +85,7 @@ class CourseControllerTest {
 	}
 
 	@Test
+	@DisplayName("reports an unknown course as not found")
 	void updatingUnknownCourseReturns404() throws Exception {
 		mockMvc(null, null)
 			.perform(put("/api/v1/courses/{id}", UUID.randomUUID()).contentType("application/json")
@@ -80,6 +94,7 @@ class CourseControllerTest {
 	}
 
 	@Test
+	@DisplayName("changes the name when updating a class")
 	void updatingClassChangesName() throws Exception {
 		Course course = course("java-101", CourseStatus.ACTIVE, true);
 		CourseClass courseClass = new CourseClass(course.id(), "class-a", "Class A", CLOCK);
@@ -94,6 +109,7 @@ class CourseControllerTest {
 	}
 
 	@Test
+	@DisplayName("reports a class reached through the wrong course as not found")
 	void updatingClassThroughTheWrongCourseReturns404() throws Exception {
 		Course course = course("java-101", CourseStatus.ACTIVE, true);
 		Course otherCourse = course("python-201", CourseStatus.ACTIVE, true);
@@ -107,6 +123,7 @@ class CourseControllerTest {
 	}
 
 	@Test
+	@DisplayName("refuses a change of the class key")
 	void changingClassKeyReturns400() throws Exception {
 		Course course = course("java-101", CourseStatus.ACTIVE, true);
 		CourseClass courseClass = new CourseClass(course.id(), "class-a", "Class A", CLOCK);

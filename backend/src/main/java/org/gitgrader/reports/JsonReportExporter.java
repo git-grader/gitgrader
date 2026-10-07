@@ -33,8 +33,8 @@ public class JsonReportExporter implements ReportExporter {
 	}
 
 	@Override
-	public ReportFormat format() {
-		return ReportFormat.JSON;
+	public ExportFormat format() {
+		return ExportFormat.JSON;
 	}
 
 	@Override

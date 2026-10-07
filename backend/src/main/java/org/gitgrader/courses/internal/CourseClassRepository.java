@@ -22,6 +22,7 @@ import java.util.UUID;
 import org.gitgrader.courses.domain.CourseClass;
 import org.springframework.data.jpa.repository.JpaRepository;
 
+/** Persists the classes a course is taught in. */
 interface CourseClassRepository extends JpaRepository<CourseClass, UUID> {
 
 	List<CourseClass> findByCourseId(UUID courseId);

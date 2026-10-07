@@ -74,10 +74,16 @@ export default defineConfig({
       // It only does that job while it is kept there: left at 18/11/8/19 while the
       // suite grew to 29/21/15/30, it had ten points of slack, and every test the
       // frontend has for the result and registration pages could have been deleted
-      // without the build noticing. Now 60/52/45/61, so these sit a couple of points
-      // under - close enough to catch a deletion, not so close that an unrelated
+      // without the build noticing. These sit two to three points under the measured
+      // 68/62/58/69 - close enough to catch a deletion, not so close that an unrelated
       // refactor fails the build.
-      thresholds: { statements: 56, branches: 48, functions: 39, lines: 57 },
+      //
+      // Raising them is part of the job, not a one-off: a ratchet that is never moved
+      // decays back into the slack it replaced. Re-measure with `npm run test:ci` and
+      // move these up when the real numbers have climbed. Last move: adding tests for
+      // AdminAuditPage and AssignmentDetailPage took the measured figures from
+      // 68/62/58/69 to 74/68/64/75, so these follow to 71/65/61/72.
+      thresholds: { statements: 71, branches: 65, functions: 61, lines: 72 },
     },
   },
 });

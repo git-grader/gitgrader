@@ -19,7 +19,14 @@ package org.gitgrader.identity;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 
-/** Editable instructor-owned fields of a student profile. */
+/**
+ * Editable instructor-owned fields of a student profile.
+ *
+ * @param studentUsername login name, which is also the student's identity for grading
+ * @param firstName given name
+ * @param lastName family name
+ * @param email contact address
+ */
 public record StudentUpdate(@NotBlank String studentUsername, @NotBlank String firstName, @NotBlank String lastName,
 		@NotBlank @Email String email) {
 }

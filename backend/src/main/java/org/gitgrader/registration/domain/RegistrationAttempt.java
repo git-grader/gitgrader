@@ -24,6 +24,17 @@ import jakarta.persistence.Table;
 
 import org.jspecify.annotations.Nullable;
 
+/**
+ * One recorded attempt to self-register, successful or not.
+ *
+ * <p>
+ * The row exists so an operator can see what registration traffic looked like, and it is
+ * written for refused attempts as well as accepted ones — a form that answers 400 without
+ * recording anything leaves nothing to diagnose. The identifying columns are hashed
+ * rather than stored: the address, username and email are all attacker-supplied values
+ * that the service has no need to retain, and keeping the hashes still permits
+ * correlating repeated attempts by the same caller.
+ */
 @Entity
 @Table(name = "registration_attempts")
 public class RegistrationAttempt {

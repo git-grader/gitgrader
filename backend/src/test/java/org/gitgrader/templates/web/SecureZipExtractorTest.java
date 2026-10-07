@@ -26,6 +26,7 @@ import java.util.zip.ZipOutputStream;
 
 import org.apache.commons.compress.archivers.zip.ZipArchiveEntry;
 import org.apache.commons.compress.archivers.zip.ZipArchiveOutputStream;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.springframework.mock.web.MockMultipartFile;
@@ -33,12 +34,29 @@ import org.springframework.mock.web.MockMultipartFile;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+/**
+ * Tests for {@link SecureZipExtractor}, which unpacks an instructor's uploaded archive
+ * into server-owned storage.
+ *
+ * <p>
+ * An entry name is attacker-controlled and becomes a filesystem path, so a traversing
+ * name is refused rather than normalised. Each refusal also asserts that the destination
+ * does not exist afterwards, because a half-extracted template is a directory an operator
+ * could mistake for a published version, and an entry-count overrun has already spent the
+ * disk by the time it is noticed.
+ *
+ * <p>
+ * The permissive cases are load-bearing too: an archive recording only permission bits
+ * has no file-type bits and must still extract, and the result must be readable by the
+ * grading sandbox, which runs as a different user from the application.
+ */
 class SecureZipExtractorTest {
 
 	@TempDir
 	private Path temporaryDirectory;
 
 	@Test
+	@DisplayName("rejects a zip-slip entry without leaving a partial directory")
 	void zipSlipEntryIsRejectedWithoutPartialDirectory() throws IOException {
 		Path destination = this.temporaryDirectory.resolve("template/version");
 		MockMultipartFile upload = new MockMultipartFile("file", "unsafe.zip", "application/zip",
@@ -52,6 +70,7 @@ class SecureZipExtractorTest {
 	}
 
 	@Test
+	@DisplayName("rejects an archive with too many entries without leaving a partial directory")
 	void tooManyEntriesAreRejectedWithoutPartialDirectory() throws IOException {
 		Path destination = this.temporaryDirectory.resolve("template/version");
 		ByteArrayOutputStream bytes = new ByteArrayOutputStream();
@@ -70,6 +89,7 @@ class SecureZipExtractorTest {
 	}
 
 	@Test
+	@DisplayName("extracts an entry whose permission bits lack the file-type bits")
 	void entryCarryingPermissionBitsWithoutFileTypeBitsIsExtracted() throws IOException {
 		Path destination = this.temporaryDirectory.resolve("template/version");
 		ByteArrayOutputStream bytes = new ByteArrayOutputStream();
@@ -88,6 +108,7 @@ class SecureZipExtractorTest {
 	}
 
 	@Test
+	@DisplayName("extracts content the grading sandbox can read")
 	void extractedContentIsReadableByTheGradingSandbox() throws IOException {
 		Path destination = this.temporaryDirectory.resolve("suite/v1");
 		MockMultipartFile upload = new MockMultipartFile("file", "suite.zip", "application/zip",

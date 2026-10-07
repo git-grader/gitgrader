@@ -5,7 +5,6 @@ import type { ReactElement } from 'react';
 import { render } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter } from 'react-router';
-import { setupServer } from 'msw/node';
 import { axe } from 'vitest-axe';
 import { expect } from 'vitest';
 
@@ -16,8 +15,11 @@ import { expect } from 'vitest';
  * a schema that disagrees with the server, a request body the server would reject, or a
  * cache key that no longer matches all survive a mocked call. These tests answer real
  * HTTP instead, so the fetch, the parse and the query key are all in the loop.
+ *
+ * The server itself and its listen/reset/close lifecycle live in the setup file, so a
+ * test never has to arrange them to get one.
  */
-export const server = setupServer();
+export { server } from './setup';
 
 export function createTestQueryClient(): QueryClient {
   return new QueryClient({

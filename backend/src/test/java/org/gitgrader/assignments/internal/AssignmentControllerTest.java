@@ -36,6 +36,7 @@ import org.gitgrader.assignments.domain.DeadlineExtension;
 import org.gitgrader.assignments.web.AssignmentController;
 import org.gitgrader.assignments.web.AssignmentExceptionHandler;
 import org.gitgrader.identity.ActorProvider;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.data.web.PageableHandlerMethodArgumentResolver;
 import org.springframework.test.web.servlet.MockMvc;
@@ -50,6 +51,20 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+/**
+ * Tests for {@link AssignmentController} over a real {@link DefaultAssignmentService}, so
+ * the HTTP contract and the lifecycle rules behind it are exercised together rather than
+ * mocked apart.
+ *
+ * <p>
+ * Most of these guard the changes that would rewrite history silently. A published
+ * assignment is refused outright, and neither the owning course nor the course-local key
+ * can be altered, because graded artefacts are keyed by that pair and moving either
+ * orphans work that has already been submitted. A draft stays savable while incomplete,
+ * since the missing material is exactly what the publish step looks for, and the
+ * extensions endpoint has to answer with the granted record rather than with an empty
+ * list.
+ */
 class AssignmentControllerTest {
 
 	private static final Instant OPENS = Instant.parse("2026-03-01T10:00:00Z");
@@ -59,6 +74,7 @@ class AssignmentControllerTest {
 	private static final Clock CLOCK = Clock.fixed(OPENS.minusSeconds(60), ZoneOffset.UTC);
 
 	@Test
+	@DisplayName("sorts assignments in the requested direction before selecting the requested page")
 	void sortsAssignmentsBeforeSelectingRequestedPage() throws Exception {
 		UUID courseId = UUID.randomUUID();
 		AssignmentCatalog catalog = mock(AssignmentCatalog.class);
@@ -77,15 +93,30 @@ class AssignmentControllerTest {
 			.setControllerAdvice(new GlobalExceptionHandler(), new AssignmentExceptionHandler())
 			.build();
 
+		// m-key is the median of this fixture, so the second page reads the same whether
+		// the direction was honoured or reversed. The first page of each direction is
+		// where a reversed or ignored comparator shows up.
+		mockMvc
+			.perform(
+					get("/api/v1/assignments").param("page", "0").param("size", "1").param("sort", "assignmentKey,asc"))
+			.andExpect(status().isOk())
+			.andExpect(jsonPath("$.content[0].assignmentKey").value("a-key"));
+
 		mockMvc
 			.perform(
 					get("/api/v1/assignments").param("page", "1").param("size", "1").param("sort", "assignmentKey,asc"))
 			.andExpect(status().isOk())
 			.andExpect(jsonPath("$.content[0].assignmentKey").value("m-key"))
 			.andExpect(jsonPath("$.totalElements").value(3));
+
+		mockMvc.perform(
+				get("/api/v1/assignments").param("page", "0").param("size", "1").param("sort", "assignmentKey,desc"))
+			.andExpect(status().isOk())
+			.andExpect(jsonPath("$.content[0].assignmentKey").value("z-key"));
 	}
 
 	@Test
+	@DisplayName("changes the exercise material when updating a draft")
 	void updatingDraftChangesExerciseMaterial() throws Exception {
 		UUID courseId = UUID.randomUUID();
 		UUID templateVersionId = UUID.randomUUID();
@@ -105,6 +136,7 @@ class AssignmentControllerTest {
 	}
 
 	@Test
+	@DisplayName("allows a draft to be saved before it is complete")
 	void draftMayBeSavedBeforeItIsComplete() throws Exception {
 		UUID courseId = UUID.randomUUID();
 		UUID templateVersionId = UUID.randomUUID();
@@ -120,6 +152,7 @@ class AssignmentControllerTest {
 	}
 
 	@Test
+	@DisplayName("refuses to update a published assignment")
 	void updatingPublishedAssignmentReturns409() throws Exception {
 		UUID courseId = UUID.randomUUID();
 		Assignment assignment = assignment(courseId, "assignment-1", AssignmentStatus.OPEN);
@@ -131,6 +164,7 @@ class AssignmentControllerTest {
 	}
 
 	@Test
+	@DisplayName("refuses a change of the owning course")
 	void changingCourseIdReturns400() throws Exception {
 		Assignment assignment = assignment(UUID.randomUUID(), "assignment-1", AssignmentStatus.DRAFT);
 
@@ -142,6 +176,7 @@ class AssignmentControllerTest {
 	}
 
 	@Test
+	@DisplayName("refuses a change of the course-local assignment key")
 	void changingAssignmentKeyReturns400() throws Exception {
 		UUID courseId = UUID.randomUUID();
 		Assignment assignment = assignment(courseId, "assignment-1", AssignmentStatus.DRAFT);
@@ -154,6 +189,7 @@ class AssignmentControllerTest {
 	}
 
 	@Test
+	@DisplayName("reports an unknown assignment as not found")
 	void updatingUnknownAssignmentReturns404() throws Exception {
 		UUID courseId = UUID.randomUUID();
 
@@ -164,6 +200,7 @@ class AssignmentControllerTest {
 	}
 
 	@Test
+	@DisplayName("publishes an assignment once an update supplies the missing material")
 	void assignmentCanBePublishedAfterUpdateSuppliesMissingMaterial() throws Exception {
 		UUID courseId = UUID.randomUUID();
 		Assignment assignment = assignment(courseId, "assignment-1", AssignmentStatus.DRAFT);
@@ -180,6 +217,7 @@ class AssignmentControllerTest {
 	}
 
 	@Test
+	@DisplayName("lists granted extensions rather than reporting none")
 	void grantedExtensionsAreListedRatherThanReportedAsNone() throws Exception {
 		UUID courseId = UUID.randomUUID();
 		Assignment assignment = assignment(courseId, "assignment-1", AssignmentStatus.OPEN);
@@ -198,6 +236,7 @@ class AssignmentControllerTest {
 	}
 
 	@Test
+	@DisplayName("reports an unknown assignment as not found when listing extensions")
 	void listingExtensionsOfUnknownAssignmentReturns404() throws Exception {
 		mockMvc().perform(get("/api/v1/assignments/{id}/extensions", UUID.randomUUID()))
 			.andExpect(status().isNotFound());

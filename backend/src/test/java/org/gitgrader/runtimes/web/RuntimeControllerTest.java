@@ -19,12 +19,13 @@ package org.gitgrader.runtimes.web;
 import org.junit.jupiter.api.BeforeEach;
 import java.time.Instant;
 import java.util.UUID;
-import org.gitgrader.runtimes.ReportFormat;
+import org.gitgrader.runtimes.RuntimeReportFormat;
 import org.gitgrader.runtimes.RuntimeView;
 import org.jspecify.annotations.Nullable;
 import org.gitgrader.api.GlobalExceptionHandler;
 import org.gitgrader.runtimes.RuntimeAdministration;
 import org.gitgrader.runtimes.RuntimeCatalog;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
@@ -42,6 +43,15 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.mockito.Mockito.clearInvocations;
 
+/**
+ * Tests for {@link RuntimeController}, the admin-only endpoint that registers a runtime.
+ *
+ * <p>
+ * Method security matters as much as the payload: only an administrator may define the
+ * image and command every student's code runs in. A missing grading topology is refused
+ * rather than defaulted, because the shim and legacy paths return different marks for the
+ * same submission.
+ */
 @SpringJUnitConfig(classes = RuntimeControllerTest.MethodSecurity.class)
 class RuntimeControllerTest {
 
@@ -59,6 +69,7 @@ class RuntimeControllerTest {
 	}
 
 	@Test
+	@DisplayName("refuses a runtime created by an instructor")
 	@WithMockUser(roles = "INSTRUCTOR")
 	void instructorCannotCreateRuntime() throws Exception {
 		MockMvc mockMvc = MockMvcBuilders.standaloneSetup(this.controller)
@@ -84,6 +95,7 @@ class RuntimeControllerTest {
 	}
 
 	@Test
+	@DisplayName("refuses a runtime that does not declare its grading topology")
 	@WithMockUser(roles = "ADMIN")
 	void refusesARuntimeThatDoesNotDeclareItsGradingTopology() throws Exception {
 		// A blank topology is not a defaultable detail: it decides whether the submission
@@ -99,6 +111,7 @@ class RuntimeControllerTest {
 	}
 
 	@Test
+	@DisplayName("accepts the explicit single-sandbox opt-out")
 	@WithMockUser(roles = "ADMIN")
 	void acceptsTheExplicitSingleSandboxOptOut() throws Exception {
 		MockMvc mockMvc = MockMvcBuilders.standaloneSetup(this.controller)
@@ -112,6 +125,7 @@ class RuntimeControllerTest {
 	}
 
 	@Test
+	@DisplayName("accepts a named shim topology")
 	@WithMockUser(roles = "ADMIN")
 	void acceptsANamedShimTopology() throws Exception {
 		MockMvc mockMvc = MockMvcBuilders.standaloneSetup(this.controller)
@@ -143,7 +157,7 @@ class RuntimeControllerTest {
 
 	private static RuntimeView view(@Nullable String shimKind) {
 		return new RuntimeView(UUID.randomUUID(), "java", "Java", "example/java", "25", "sha256:" + "a".repeat(64),
-				null, "mvn test", ReportFormat.JUNIT_XML, true, Instant.parse("2026-03-01T10:15:30Z"),
+				null, "mvn test", RuntimeReportFormat.JUNIT_XML, true, Instant.parse("2026-03-01T10:15:30Z"),
 				Instant.parse("2026-03-01T10:15:30Z"), shimKind, null);
 	}
 

@@ -1,7 +1,7 @@
 // Copyright the GitGrader contributors.
 // SPDX-License-Identifier: Apache-2.0
 
-import { afterAll, afterEach, beforeAll, expect, test } from 'vitest';
+import { expect, it } from 'vitest';
 import { http, HttpResponse } from 'msw';
 import { fireEvent, screen } from '@testing-library/react';
 import { Route, Routes } from 'react-router';
@@ -9,9 +9,6 @@ import { SubmissionGrading } from '../src/components/SubmissionGrading';
 import { SubmissionDetailPage } from '../src/pages/SubmissionDetailPage';
 import { renderWithProviders, server } from './harness';
 
-beforeAll(() => { server.listen({ onUnhandledFrame: 'error' }); });
-afterEach(() => { server.resetHandlers(); });
-afterAll(() => { server.close(); });
 
 const SUBMISSION = {
   id: 's1',
@@ -39,7 +36,7 @@ function renderDetail(routes = [<Route key="d" path="/submissions/:id" element={
   renderWithProviders(<Routes>{routes}</Routes>, { route: '/submissions/s1' });
 }
 
-test('shows the submission the server returned', async () => {
+it('shows the submission the server returned', async () => {
   server.use(http.get('/api/v1/submissions/s1', () => HttpResponse.json(SUBMISSION)));
   renderDetail();
 
@@ -58,7 +55,7 @@ test('shows the submission the server returned', async () => {
   expect(screen.getAllByText('—').length).toBeGreaterThan(0);
 });
 
-test('leaves the detail page for the list', async () => {
+it('leaves the detail page for the list', async () => {
   server.use(http.get('/api/v1/submissions/s1', () => HttpResponse.json(SUBMISSION)));
   renderDetail([<Route key="l" path="/submissions" element={<div>Submission list</div>} />,
     <Route key="d" path="/submissions/:id" element={<SubmissionDetailPage />} />]);
@@ -69,7 +66,7 @@ test('leaves the detail page for the list', async () => {
   expect(await screen.findByText('Submission list')).toBeInTheDocument();
 });
 
-test('reports a failed load and can be retried', async () => {
+it('reports a failed load and can be retried', async () => {
   server.use(http.get('/api/v1/submissions/s1', () => new HttpResponse(null, { status: 500 })));
   renderDetail();
 
@@ -97,7 +94,7 @@ function gradingReport(submissionId = 's1') {
   };
 }
 
-test('shows zero scores and public test details without disclosing hidden details', async () => {
+it('shows zero scores and public test details without disclosing hidden details', async () => {
   server.use(http.get('/api/v1/reports/courses/c1/classes/cl1/students/st1', () => HttpResponse.json(gradingReport())));
   renderWithProviders(<SubmissionGrading submission={SUBMISSION} classId="cl1" />);
   expect(await screen.findByText('Score: 0%')).toBeInTheDocument();
@@ -108,14 +105,14 @@ test('shows zero scores and public test details without disclosing hidden detail
   expect(screen.queryByText(/Private name|Private details/)).not.toBeInTheDocument();
 });
 
-test("never attributes a newer attempt's results to an older submission", async () => {
+it("never attributes a newer attempt's results to an older submission", async () => {
   server.use(http.get('/api/v1/reports/courses/c1/classes/cl1/students/st1', () => HttpResponse.json(gradingReport('newer'))));
   renderWithProviders(<SubmissionGrading submission={SUBMISSION} classId="cl1" />);
   expect(await screen.findByText(/not the latest attempt/)).toBeInTheDocument();
   expect(screen.queryByText('Score: 0%')).not.toBeInTheDocument();
 });
 
-test('distinguishes infrastructure failure from a graded zero', async () => {
+it('distinguishes infrastructure failure from a graded zero', async () => {
   const report = gradingReport();
   server.use(http.get('/api/v1/reports/courses/c1/classes/cl1/students/st1', () => HttpResponse.json({
     ...report, assignments: report.assignments.map((assignment) => ({ ...assignment, latestGrading: null }))

@@ -6,9 +6,9 @@ use the result link returned after a submission to read feedback.
 
 ## Roles and navigation
 
-Instructors can use Dashboard, Students, Courses, Assignments, Materials, and
-Submissions. Administrators receive the same workspace plus an **Administration**
-navigation group for Audit log, Settings, and Runtimes. The server remains the
+Instructors can use Dashboard, Students, Courses, Assignments, Deadlines, Materials,
+and Submissions. Administrators receive the same workspace plus an
+**Administration** navigation group for Audit log, Settings, and Runtimes. The server remains the
 authority for every route; hiding an administrator item does not grant access.
 
 ## Instructor workflow

@@ -1,7 +1,7 @@
 // Copyright the GitGrader contributors.
 // SPDX-License-Identifier: Apache-2.0
 
-import { afterAll, afterEach, beforeAll, expect, test } from 'vitest';
+import { expect, it } from 'vitest';
 import { http, HttpResponse } from 'msw';
 import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
@@ -9,9 +9,6 @@ import { MaterialsPage } from '../src/pages/MaterialsPage';
 import { AssignmentsPage } from '../src/pages/AssignmentsPage';
 import { page, renderWithProviders, server } from './harness';
 
-beforeAll(() => { server.listen({ onUnhandledFrame: 'error' }); });
-afterEach(() => { server.resetHandlers(); });
-afterAll(() => { server.close(); });
 
 const SUITE = { id: 's1', suiteKey: 'hidden', name: 'Hidden Suite', description: null };
 
@@ -34,7 +31,7 @@ function version(publishedAt: string | null) {
  * Both pages share one client on purpose. Rendered apart, each passes while the other
  * shows nothing, which is exactly how the bug survived.
  */
-test('publishing a test suite version offers it to the assignment form', async () => {
+it('publishing a test suite version offers it to the assignment form', async () => {
   let published = false;
   server.use(
     http.get('/api/v1/test-suites', () => HttpResponse.json(page([SUITE]))),

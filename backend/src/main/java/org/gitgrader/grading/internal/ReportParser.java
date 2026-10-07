@@ -18,7 +18,7 @@ package org.gitgrader.grading.internal;
 
 import java.util.List;
 
-import org.gitgrader.runtimes.ReportFormat;
+import org.gitgrader.runtimes.RuntimeReportFormat;
 
 /**
  * Parses test runner output into structured test results.
@@ -37,7 +37,7 @@ public interface ReportParser {
 	 * @param format the format a runtime declares
 	 * @return whether this parser implements that format
 	 */
-	boolean supports(ReportFormat format);
+	boolean supports(RuntimeReportFormat format);
 
 	/**
 	 * Parses a report from the test runner.

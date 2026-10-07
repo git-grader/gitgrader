@@ -1,10 +1,10 @@
 // Copyright the GitGrader contributors.
 // SPDX-License-Identifier: Apache-2.0
 
-import { expect, test } from "vitest";
+import { expect, it } from "vitest";
 import { createAppTheme } from "../src/theme";
 
-test("gives enabled fields a clear surface and keeps disabled fields distinct", () => {
+it("gives enabled fields a clear surface and keeps disabled fields distinct", () => {
   const lightTheme = createAppTheme("light");
   const darkTheme = createAppTheme("dark");
 
@@ -22,7 +22,7 @@ test("gives enabled fields a clear surface and keeps disabled fields distinct", 
   });
 });
 
-test("keeps buttons easy to identify and tap", () => {
+it("keeps buttons easy to identify and tap", () => {
   expect(
     createAppTheme("light").components?.MuiButton?.styleOverrides?.root,
   ).toMatchObject({ minHeight: 40, borderRadius: 6 });

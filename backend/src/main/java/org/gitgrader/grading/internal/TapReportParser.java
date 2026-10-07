@@ -27,7 +27,7 @@ import java.util.regex.Pattern;
 
 import org.gitgrader.grading.TestOutcome;
 import org.gitgrader.grading.domain.TestResultRecord;
-import org.gitgrader.runtimes.ReportFormat;
+import org.gitgrader.runtimes.RuntimeReportFormat;
 import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -78,8 +78,8 @@ public class TapReportParser implements ReportParser {
 	private static final Logger logger = LoggerFactory.getLogger(TapReportParser.class);
 
 	@Override
-	public boolean supports(ReportFormat format) {
-		return ReportFormat.TAP == format;
+	public boolean supports(RuntimeReportFormat format) {
+		return RuntimeReportFormat.TAP == format;
 	}
 
 	@Override

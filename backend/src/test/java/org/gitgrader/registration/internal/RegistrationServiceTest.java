@@ -34,7 +34,7 @@ import org.gitgrader.identity.StudentDirectory;
 import org.gitgrader.identity.StudentRegistry;
 import org.gitgrader.identity.StudentStatus;
 import org.gitgrader.identity.StudentView;
-import org.gitgrader.registration.web.RegistrationRequest;
+import org.gitgrader.registration.web.RegistrationController.RegistrationRequest;
 import org.gitgrader.security.RateLimiter;
 import org.gitgrader.sshkeys.SshKeyRegistry;
 import org.junit.jupiter.api.BeforeEach;

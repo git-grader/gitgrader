@@ -1,7 +1,7 @@
 // Copyright the GitGrader contributors.
 // SPDX-License-Identifier: Apache-2.0
 
-import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { http, HttpResponse } from 'msw';
 import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
@@ -47,9 +47,7 @@ const CLASS_REPORT = {
   ]
 };
 
-beforeAll(() => { server.listen({ onUnhandledFrame: 'error' }); });
-afterEach(() => { server.resetHandlers(); vi.restoreAllMocks(); });
-afterAll(() => { server.close(); });
+afterEach(() => { vi.restoreAllMocks(); });
 
 function renderClassPage() {
   server.use(http.get('/api/v1/reports/courses/course-1/classes/class-1', () => HttpResponse.json(CLASS_REPORT)));

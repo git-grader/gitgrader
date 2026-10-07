@@ -43,6 +43,17 @@ import org.springframework.test.context.DynamicPropertySource;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+/**
+ * Tests for {@link ReportController}, which builds the progress reports an instructor
+ * exports. Requires Docker: it boots the whole application context against a
+ * Testcontainers PostgreSQL and is skipped by {@link EnabledIfDockerAvailable} where no
+ * engine exists.
+ *
+ * <p>
+ * The query count is the load-bearing assertion. The report once asked per student and
+ * then per assignment, so a class of 300 cost thousands of queries competing with a push
+ * for the same connections; the count is taken at two class sizes and must not grow.
+ */
 @SpringBootTest
 @ActiveProfiles("test")
 @Testcontainers

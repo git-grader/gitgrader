@@ -25,11 +25,29 @@ import java.util.UUID;
 import org.gitgrader.assignments.AdmissionDecision;
 import org.gitgrader.assignments.AssignmentDefinition;
 import org.gitgrader.assignments.AssignmentStatus;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+/**
+ * Tests for the {@link Assignment} admission decision, and for the guard that decides
+ * when one may be published.
+ *
+ * <p>
+ * Every boundary here is a boundary a student's push lands on: the deadline holds to the
+ * nanosecond, a late push is accepted and flagged rather than dropped when the assignment
+ * allows it, and each lifecycle state yields its own distinct outcome so a caller is told
+ * why it was refused. The decision rests on the server's receive time, and the signature
+ * is asserted as well as the behaviour so a parameter carrying the client's own commit
+ * date cannot be added back unnoticed.
+ *
+ * <p>
+ * Publication is guarded from the other side: an assignment cannot open without the
+ * material it needs, and a schedule whose due date precedes its opening is refused rather
+ * than published as an assignment no push could ever satisfy.
+ */
 class AssignmentTest {
 
 	private static final Instant OPENS = Instant.parse("2026-03-01T10:00:00Z");
@@ -39,6 +57,7 @@ class AssignmentTest {
 	private static final Clock CLOCK = Clock.fixed(OPENS, ZoneOffset.UTC);
 
 	@Test
+	@DisplayName("accepts a push exactly on the deadline and rejects one nanosecond later")
 	void exactDeadlineIsAcceptedAndOneNanosecondLaterIsRejected() {
 		Assignment assignment = assignment(AssignmentStatus.OPEN, false);
 
@@ -48,6 +67,7 @@ class AssignmentTest {
 	}
 
 	@Test
+	@DisplayName("accepts and flags a late push when late work is allowed")
 	void latePushIsAcceptedAndFlaggedWhenLateWorkIsAllowed() {
 		AdmissionDecision decision = assignment(AssignmentStatus.OPEN, true).canAccept(DUE.plusSeconds(1), DUE);
 
@@ -56,6 +76,7 @@ class AssignmentTest {
 	}
 
 	@Test
+	@DisplayName("decides on the lifecycle state and the opening time separately")
 	void statesAndOpeningTimeProduceDistinctDecisions() {
 		assertThat(assignment(AssignmentStatus.DRAFT, false).canAccept(OPENS, DUE).outcome())
 			.isEqualTo(AdmissionDecision.Outcome.ASSIGNMENT_DRAFT);
@@ -68,6 +89,7 @@ class AssignmentTest {
 	}
 
 	@Test
+	@DisplayName("does not let a commit date beat the deadline")
 	void commitDateCannotBeatTheDeadline() throws NoSuchMethodException {
 		Assignment assignment = assignment(AssignmentStatus.OPEN, false);
 
@@ -77,6 +99,7 @@ class AssignmentTest {
 	}
 
 	@Test
+	@DisplayName("requires a complete, reproducible configuration and an ordered schedule to publish")
 	void publishingRequiresCompleteReproducibleConfigurationAndOrderedSchedule() {
 		Assignment draft = assignment(AssignmentStatus.DRAFT, false, null, null, null, OPENS, DUE);
 		Assignment reversed = assignment(AssignmentStatus.DRAFT, false, UUID.randomUUID(), UUID.randomUUID(),

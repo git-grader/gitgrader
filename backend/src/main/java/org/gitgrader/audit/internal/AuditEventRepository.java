@@ -22,6 +22,7 @@ import org.gitgrader.audit.domain.AuditEventEntity;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 
+/** Persists audit events. */
 interface AuditEventRepository
 		extends JpaRepository<AuditEventEntity, UUID>, JpaSpecificationExecutor<AuditEventEntity> {
 

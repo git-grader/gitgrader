@@ -46,6 +46,22 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+/**
+ * Tests for {@link StudentResultsOverviewTokenService}, the token behind a student's
+ * standing results link.
+ *
+ * <p>
+ * Every push rotates the token and revokes the link it replaces, because the stored hash
+ * cannot be reversed and re-showing the old value would leave a working credential in
+ * every terminal that ever received it. An unknown token and a revoked one resolve
+ * identically, so the endpoint cannot be asked which links have existed.
+ *
+ * <p>
+ * Minting happens on its own transaction so that a rejected insert cannot poison the
+ * caller's. That is what makes a lost race recoverable: the unique constraint on one
+ * active token per student is retried a bounded number of times instead of failing the
+ * push that lost it.
+ */
 class StudentResultsOverviewTokenServiceTest {
 
 	private static final UUID STUDENT = UUID.fromString("00000000-0000-0000-0000-0000000000a1");

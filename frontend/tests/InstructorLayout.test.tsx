@@ -1,7 +1,7 @@
 // Copyright the GitGrader contributors.
 // SPDX-License-Identifier: Apache-2.0
 
-import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { http, HttpResponse } from 'msw';
 import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
@@ -33,9 +33,7 @@ function problemResponse(status: number) {
 }
 
 describe('the instructor shell', () => {
-  beforeAll(() => { server.listen({ onUnhandledFrame: 'error' }); });
-  afterEach(() => { server.resetHandlers(); vi.unstubAllGlobals(); });
-  afterAll(() => { server.close(); });
+  afterEach(() => { vi.unstubAllGlobals(); });
 
   function renderShell(route = '/dashboard') {
     server.use(http.get('/api/v1/meta', () => HttpResponse.json(meta())));
@@ -163,9 +161,6 @@ describe('the instructor shell', () => {
  * not be loaded - which reads as an outage rather than a refusal.
  */
 describe('the administrator pages', () => {
-  beforeAll(() => { server.listen({ onUnhandledFrame: 'error' }); });
-  afterEach(() => { server.resetHandlers(); });
-  afterAll(() => { server.close(); });
 
   function renderGuard() {
     return renderWithProviders(

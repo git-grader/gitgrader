@@ -23,15 +23,22 @@ import java.util.UUID;
 
 import org.gitgrader.courses.CourseDefinition;
 import org.gitgrader.courses.CourseStatus;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+/**
+ * Pins the invariant that an {@link Enrollment} may only reference a {@link CourseClass}
+ * of its own course, so a lookup that resolves a class by identifier alone cannot enrol a
+ * student into a class belonging to another course's repositories.
+ */
 class EnrollmentTest {
 
 	private static final Clock CLOCK = Clock.fixed(Instant.parse("2026-03-01T10:15:30Z"), ZoneOffset.UTC);
 
 	@Test
+	@DisplayName("requires the class to belong to the enrollment's course")
 	void classMustBelongToEnrollmentCourse() {
 		Course first = course("java-101");
 		Course second = course("java-102");

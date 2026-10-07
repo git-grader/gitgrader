@@ -29,7 +29,7 @@ import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import jakarta.persistence.Version;
 import org.gitgrader.runtimes.NewRuntime;
-import org.gitgrader.runtimes.ReportFormat;
+import org.gitgrader.runtimes.RuntimeReportFormat;
 import org.gitgrader.runtimes.RuntimeView;
 import org.gitgrader.runtimes.ShimTopology;
 import org.jspecify.annotations.Nullable;
@@ -75,7 +75,7 @@ public class RuntimeDefinition {
 
 	@Enumerated(EnumType.STRING)
 	@Column(name = "report_format", nullable = false)
-	private ReportFormat reportFormat;
+	private RuntimeReportFormat reportFormat;
 
 	@Column(nullable = false)
 	private boolean enabled;

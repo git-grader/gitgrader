@@ -23,6 +23,7 @@ import org.gitgrader.templates.PublishedTemplateVersionView;
 import org.gitgrader.templates.PublishedTestSuiteVersionView;
 import org.gitgrader.templates.TemplateCatalog;
 import org.gitgrader.templates.TestSuiteCatalog;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 import org.springframework.test.web.servlet.MockMvc;
@@ -41,6 +42,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 class PublishedMaterialsControllerTest {
 
 	@Test
+	@DisplayName("returns every published choice in a single response")
 	void returnsEveryPublishedChoiceInOneResponse() throws Exception {
 		TemplateCatalog templates = mock(TemplateCatalog.class);
 		TestSuiteCatalog suites = mock(TestSuiteCatalog.class);
@@ -68,6 +70,7 @@ class PublishedMaterialsControllerTest {
 	}
 
 	@Test
+	@DisplayName("reports an empty catalog as empty lists rather than null")
 	void reportsAnEmptyCatalogAsEmptyListsRatherThanNull() throws Exception {
 		TemplateCatalog templates = mock(TemplateCatalog.class);
 		TestSuiteCatalog suites = mock(TestSuiteCatalog.class);

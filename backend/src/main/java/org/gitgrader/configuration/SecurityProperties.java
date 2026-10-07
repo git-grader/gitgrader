@@ -109,6 +109,33 @@ public record SecurityProperties(
 		public boolean isSecure() {
 			return this.url != null && this.url.startsWith("ldaps://");
 		}
+
+		/**
+		 * Renders these settings without the bind password.
+		 *
+		 * <p>
+		 * A record gets a {@code toString} printing every component, so the generated one
+		 * carries {@code managerPassword} in cleartext. That matters because the whole
+		 * properties tree is a plausible thing to log: a startup line, a support bundle,
+		 * or an exception message interpolating it. The password has no reason to appear
+		 * in any of those, and the class Javadoc promises it never reaches a log.
+		 *
+		 * <p>
+		 * Whether a password is set is still reported, because "LDAP is enabled but has
+		 * no bind password" is a real misconfiguration an operator needs to be able to
+		 * see.
+		 * @return these settings with the password reduced to whether one is present
+		 */
+		@Override
+		public String toString() {
+			return "Ldap[enabled=" + this.enabled + ", url=" + this.url + ", baseDn=" + this.baseDn + ", managerDn="
+					+ this.managerDn + ", managerPassword="
+					+ (this.managerPassword == null || this.managerPassword.isEmpty() ? "<unset>" : "<set>")
+					+ ", userSearchBase=" + this.userSearchBase + ", userSearchFilter=" + this.userSearchFilter
+					+ ", groupSearchBase=" + this.groupSearchBase + ", groupSearchFilter=" + this.groupSearchFilter
+					+ ", instructorGroup=" + this.instructorGroup + ", adminGroup=" + this.adminGroup + ", referral="
+					+ this.referral + "]";
+		}
 	}
 
 	/**
@@ -137,6 +164,23 @@ public record SecurityProperties(
 		 * @param roles granted roles, without the {@code ROLE_} prefix
 		 */
 		public record Account(String username, String password, String displayName, List<String> roles) {
+
+			/**
+			 * Renders the account without its password.
+			 *
+			 * <p>
+			 * The same reasoning as {@link Ldap#toString()}: the generated form of a
+			 * record prints every component, and these accounts exist precisely so the
+			 * platform can be demonstrated, so their credentials are the ones most likely
+			 * to end up in a screenshot of a log.
+			 * @return the account with the password reduced to whether one is present
+			 */
+			@Override
+			public String toString() {
+				return "Account[username=" + this.username + ", password="
+						+ (this.password == null || this.password.isEmpty() ? "<unset>" : "<set>") + ", displayName="
+						+ this.displayName + ", roles=" + this.roles + "]";
+			}
 		}
 	}
 

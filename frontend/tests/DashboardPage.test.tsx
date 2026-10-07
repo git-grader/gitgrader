@@ -1,7 +1,7 @@
 // Copyright the GitGrader contributors.
 // SPDX-License-Identifier: Apache-2.0
 
-import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it } from 'vitest';
 import { http, HttpResponse } from 'msw';
 import { screen } from '@testing-library/react';
 import { Route, Routes } from 'react-router';
@@ -55,9 +55,6 @@ function installSummaryHandlers() {
 
 beforeEach(() => { server.use(http.get('/api/v1/students', () => HttpResponse.json(PAGE([])))); });
 
-beforeAll(() => { server.listen({ onUnhandledFrame: 'error' }); });
-afterEach(() => { server.resetHandlers(); });
-afterAll(() => { server.close(); });
 
 function renderDashboard() {
   return renderWithProviders(

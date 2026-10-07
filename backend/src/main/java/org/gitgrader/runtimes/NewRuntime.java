@@ -39,7 +39,7 @@ import org.jspecify.annotations.Nullable;
  * or {@code null} to use the runtime image's canonical one
  */
 public record NewRuntime(String runtimeKey, String displayName, String image, String tag, String imageDigest,
-		@Nullable String installCommand, String testCommand, ReportFormat reportFormat, boolean enabled,
+		@Nullable String installCommand, String testCommand, RuntimeReportFormat reportFormat, boolean enabled,
 		@NotBlank(message = "A runtime must declare its grading topology") String shimKind,
 		@Nullable String shimCommand) {
 }

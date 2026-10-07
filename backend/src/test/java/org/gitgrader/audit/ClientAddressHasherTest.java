@@ -18,13 +18,25 @@ package org.gitgrader.audit;
 
 import java.time.Duration;
 
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+/**
+ * Tests for {@link ClientAddressHasher}, which has to make a client address unusable as
+ * an identifier while still grouping repeat callers.
+ *
+ * <p>
+ * Both halves matter: a hash that varies between calls cannot support the per-address
+ * limits the audit trail is read through, and the value is written into log lines and
+ * paths, so it must be short, unpadded and URL-safe, and must not carry the address it
+ * stands for.
+ */
 class ClientAddressHasherTest {
 
 	@Test
+	@DisplayName("creates a stable, URL-safe, truncated hash under the configured key")
 	void createsStableUrlSafeTruncatedHashWithConfiguredKey() {
 		ClientAddressHasher hasher = new ClientAddressHasher(new AuditProperties("server-key", Duration.ZERO));
 

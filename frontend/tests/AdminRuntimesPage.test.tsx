@@ -1,7 +1,7 @@
 // Copyright the GitGrader contributors.
 // SPDX-License-Identifier: Apache-2.0
 
-import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { http, HttpResponse } from 'msw';
 import { fireEvent, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
@@ -16,9 +16,6 @@ import { renderWithProviders, server } from './harness';
  * and offered free text rather than the list, so nothing on screen said what would be.
  */
 describe('runtime creation', () => {
-  beforeAll(() => { server.listen({ onUnhandledFrame: 'error' }); });
-  afterEach(() => { server.resetHandlers(); });
-  afterAll(() => { server.close(); });
 
   const admin = { username: 'admin', displayName: 'Admin', actorType: 'HUMAN', roles: ['ROLE_ADMIN'] };
 

@@ -4,7 +4,7 @@
 import { render, screen } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter } from 'react-router';
-import { expect, test, vi, beforeEach } from 'vitest';
+import { beforeEach, expect, it, vi } from 'vitest';
 import { AdminSettingsPage } from '../src/pages/AdminSettingsPage';
 import { api } from '../src/api';
 
@@ -35,7 +35,7 @@ beforeEach(() => {
   getMeta.mockReset();
 });
 
-test('shows the deployed version and git commit', async () => {
+it('shows the deployed version and git commit', async () => {
   getMeta.mockResolvedValue({
     name: 'GitGrader',
     organizationName: 'Example Organization',
@@ -58,7 +58,7 @@ test('shows the deployed version and git commit', async () => {
   expect(screen.getByText('Git commit')).toBeInTheDocument();
 });
 
-test('reports a failed meta request instead of rendering half a page', async () => {
+it('reports a failed meta request instead of rendering half a page', async () => {
   getMeta.mockRejectedValue(new Error('service unavailable'));
 
   renderPage();

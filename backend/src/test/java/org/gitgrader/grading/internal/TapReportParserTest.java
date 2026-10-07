@@ -26,6 +26,17 @@ import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+/**
+ * Tests for the TAP reading in {@link TapReportParser}.
+ *
+ * <p>
+ * The reporter's output is not trusted to decide who ran. The manifest is the authority
+ * on which tests exist and what each is worth, so a declared test the output never
+ * mentioned is reported as not executed rather than dropped, and a suite that produced
+ * nothing at all scores as nothing run instead of an empty pass. Diagnostics, durations
+ * and per-test weights are carried through from the parsed blocks, and the outcome counts
+ * keep reporting tests rather than weights so the interface can say how many checks ran.
+ */
 class TapReportParserTest {
 
 	private static final String FIRST_TEST = "h01 truncate preserves text at the maximum length";
@@ -35,6 +46,7 @@ class TapReportParserTest {
 	private final TapReportParser parser = new TapReportParser();
 
 	@Test
+	@DisplayName("parses TAP output, including a diagnostic block, into per-test results")
 	void parsesTapOutputSuccessfully() {
 		String stdout = """
 				TAP version 13
@@ -131,6 +143,7 @@ class TapReportParserTest {
 	 * them may earn a mark.
 	 */
 	@Nested
+	@DisplayName("forged output")
 	class ForgedOutput {
 
 		@Test

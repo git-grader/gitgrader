@@ -24,6 +24,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+/** Persists enrolments, the link between a student and a class. */
 interface EnrollmentRepository extends JpaRepository<Enrollment, UUID> {
 
 	boolean existsByStudentIdAndCourseId(UUID studentId, UUID courseId);

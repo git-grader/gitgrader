@@ -19,6 +19,13 @@ package org.gitgrader.assignments;
 import java.time.Instant;
 import java.util.UUID;
 
-/** Published after an assignment becomes available to students. */
+/**
+ * Published after an assignment becomes available to students.
+ *
+ * @param assignmentId assignment that was published
+ * @param courseId owning course
+ * @param assignmentKey course-local key
+ * @param publishedAt instant the assignment became visible to students
+ */
 public record AssignmentPublished(UUID assignmentId, UUID courseId, String assignmentKey, Instant publishedAt) {
 }

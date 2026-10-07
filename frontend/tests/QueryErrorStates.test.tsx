@@ -4,7 +4,7 @@
 import { render, screen } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter } from 'react-router';
-import { expect, test, vi, beforeEach } from 'vitest';
+import { beforeEach, expect, it, vi } from 'vitest';
 import { DashboardPage } from '../src/pages/DashboardPage';
 import { StudentsPage } from '../src/pages/StudentsPage';
 import { ReportPage } from '../src/pages/ReportPage';
@@ -58,7 +58,7 @@ function renderPage(page: React.ReactElement) {
 // Each of these rendered nothing at all when its request failed: no message, no spinner,
 // and no way to retry, which is indistinguishable from a page that has finished loading
 // and genuinely has nothing on it.
-test.each([
+it.each([
   ['dashboard', <DashboardPage key="d" />, 'The dashboard could not be loaded.'],
   ['students', <StudentsPage key="s" />, 'The student list could not be loaded.'],
   ['report', <ReportPage key="r" />, 'The course report could not be loaded.'],
@@ -70,7 +70,7 @@ test.each([
   expect(screen.getByRole('button', { name: 'Retry' })).toBeInTheDocument();
 });
 
-test('retrying asks the server again', async () => {
+it('retrying asks the server again', async () => {
   renderPage(<DashboardPage />);
   await screen.findByText('The dashboard could not be loaded.');
   const calls = mocked['getDashboard']?.mock.calls.length ?? 0;
@@ -85,7 +85,7 @@ test('retrying asks the server again', async () => {
 // These did something worse than render nothing: they stated something untrue. An empty
 // list and a failed request are indistinguishable once the data is undefined, so each
 // page reported the answer it would have given had the server said there was nothing.
-test.each([
+it.each([
   ['courses', <CoursesPage key="c" />, 'The courses could not be loaded.', 'No courses found.'],
   ['submissions', <SubmissionsPage key="s" />, 'The submissions could not be loaded.', null],
   ['course detail', <CourseDetailPage key="cd" />, 'The course could not be loaded.', 'Course not found']
@@ -98,7 +98,7 @@ test.each([
   }
 });
 
-test('registration does not report itself closed because the check failed', async () => {
+it('registration does not report itself closed because the check failed', async () => {
   // The harm this prevents: a student inside the registration window is told they
   // missed it, and has no reason to try again.
   mocked['getMeta']?.mockResolvedValue({ name: 'GitGrader' });

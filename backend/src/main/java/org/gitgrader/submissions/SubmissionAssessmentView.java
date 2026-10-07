@@ -21,7 +21,19 @@ import java.util.UUID;
 
 import org.jspecify.annotations.Nullable;
 
-/** Score-independent submission columns needed by aggregate reports. */
+/**
+ * Score-independent submission columns needed by aggregate reports.
+ *
+ * @param submissionId submission identifier
+ * @param studentId student who submitted
+ * @param assignmentId assignment submitted to
+ * @param status admission status of the submission
+ * @param commitSha full commit SHA
+ * @param gitRef ref the push targeted
+ * @param commitMessage commit message, or {@code null} when the push carried none
+ * @param receivedAt server-side instant the submission was admitted
+ * @param late whether the submission arrived after the applicable deadline
+ */
 public record SubmissionAssessmentView(UUID submissionId, UUID studentId, UUID assignmentId, SubmissionStatus status,
 		String commitSha, String gitRef, @Nullable String commitMessage, Instant receivedAt, boolean late) {
 }

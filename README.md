@@ -80,7 +80,7 @@ For example, 7 of 10 tests is **70.0 %**.
 - PostgreSQL-backed queue, container runner isolation, opaque result tokens,
   LDAP instructor/admin authentication, audit events, and rate limits.
 - Java 25, Spring Boot 4.1.1, Spring Modulith 2.1.1, Spring Security 7.1,
-  JGit 7.8.0, Apache MINA SSHD 2.19.0, docker-java 3.7.1, Flyway 12.4,
+  JGit 7.8.0, Apache MINA SSHD 2.20.0, docker-java 3.7.1, Flyway 12.4,
   PostgreSQL, Testcontainers 2.0.5; Vite 8, React 19, TypeScript, MUI v9,
   TanStack Query, and React Router 8.
 
@@ -98,6 +98,7 @@ For example, 7 of 10 tests is **70.0 %**.
 - [End-to-end test](docs/e2e-test.md)
 - [Configuration](docs/configuration.md)
 - [API](docs/api.md)
+- [Grading runtime protocol](docs/grading-runtime-protocol.md)
 - [Release process](docs/release-process.md)
 - [Privacy](docs/privacy.md)
 

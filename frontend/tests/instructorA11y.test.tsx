@@ -1,7 +1,7 @@
 // Copyright the GitGrader contributors.
 // SPDX-License-Identifier: Apache-2.0
 
-import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { http, HttpResponse } from 'msw';
 import { screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
@@ -21,9 +21,6 @@ const COURSE = {
  * combobox and unassociated tab panel lived on the instructor side.
  */
 describe('the instructor pages', () => {
-  beforeAll(() => { server.listen({ onUnhandledFrame: 'error' }); });
-  afterEach(() => { server.resetHandlers(); });
-  afterAll(() => { server.close(); });
 
   function stubReads() {
     server.use(

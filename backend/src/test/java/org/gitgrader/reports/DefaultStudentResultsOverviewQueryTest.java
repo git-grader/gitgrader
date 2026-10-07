@@ -54,6 +54,15 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 
+/**
+ * Tests for {@link DefaultStudentResultsOverviewQuery}, which groups a student's attempts
+ * by course and class for the per-student results link.
+ *
+ * <p>
+ * The grouping is only trustworthy if a run that produced no score contributes no numbers
+ * at all: "0 of 10 tests passed" is a claim about a grading run rather than about the
+ * student, and a student can open this link before their first run has finished.
+ */
 class DefaultStudentResultsOverviewQueryTest {
 
 	private static final UUID STUDENT = UUID.fromString("00000000-0000-0000-0000-0000000000a1");

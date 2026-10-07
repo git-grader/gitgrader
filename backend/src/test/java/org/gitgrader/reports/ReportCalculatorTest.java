@@ -27,10 +27,21 @@ import org.gitgrader.reports.ReportCalculator.Assessment;
 import org.gitgrader.reports.ReportCalculator.Assignment;
 import org.gitgrader.reports.ReportCalculator.Student;
 import org.gitgrader.submissions.SubmissionStatus;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+/**
+ * Tests for {@link ReportCalculator}, which turns submissions into the per-student rows
+ * an instructor exports.
+ *
+ * <p>
+ * Two rates are reported side by side, so each is asserted against a fixture where they
+ * disagree: an assignment worth a tenth of the points can still be half the work. An
+ * infrastructure error is excluded for the same reason, because a grading run that failed
+ * is not the student's attempt and must not count as activity either.
+ */
 class ReportCalculatorTest {
 
 	private static final UUID STUDENT_ID = UUID.fromString("00000000-0000-0000-0000-000000000001");
@@ -42,6 +53,7 @@ class ReportCalculatorTest {
 	private static final Clock CLOCK = Clock.fixed(Instant.parse("2026-07-30T12:00:00Z"), ZoneOffset.UTC);
 
 	@Test
+	@DisplayName("calculates the completion rate separately from the points rate")
 	void calculatesCompletionRateSeparatelyFromPointsRate() {
 		Student student = new Student(STUDENT_ID, "s1", "Ada Lovelace");
 		List<Assignment> assignments = List.of(
@@ -58,6 +70,7 @@ class ReportCalculatorTest {
 	}
 
 	@Test
+	@DisplayName("excludes infrastructure errors from the attempts and from the activity")
 	void excludesInfrastructureErrorsFromAttemptsAndActivity() {
 		Student student = new Student(STUDENT_ID, "s1", "Ada Lovelace");
 		List<Assignment> assignments = List
@@ -73,6 +86,7 @@ class ReportCalculatorTest {
 	}
 
 	@Test
+	@DisplayName("carries the points available in totalPoints rather than the points earned")
 	void totalPointsCarriesThePointsAvailableNotThePointsEarned() {
 		// Regression guard. An earlier revision passed pointsEarned into both fields, so
 		// the two columns were silently identical and the points-rate denominator never
@@ -92,6 +106,7 @@ class ReportCalculatorTest {
 	}
 
 	@Test
+	@DisplayName("takes the best attempt rather than the most recent one")
 	void takesTheBestAttemptRatherThanTheMostRecent() {
 		// A student who reaches the threshold and then experiments must not be punished
 		// for whatever their last push happened to score.

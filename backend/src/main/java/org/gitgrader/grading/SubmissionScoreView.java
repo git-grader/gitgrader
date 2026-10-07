@@ -22,7 +22,20 @@ import java.util.UUID;
 
 import org.jspecify.annotations.Nullable;
 
-/** Summary columns from the latest grading run for one submission. */
+/**
+ * Summary columns from the latest grading run for one submission.
+ *
+ * @param submissionId submission these figures describe
+ * @param attempt one-based attempt number for this submission
+ * @param status status of the grading run
+ * @param testsPassed tests that passed
+ * @param testsTotal tests run
+ * @param scorePercent percentage of tests passed, or {@code null} before scoring
+ * @param pointsAwarded points earned, or {@code null} before scoring
+ * @param passed whether the attempt met the pass threshold, or {@code null} before
+ * scoring
+ * @param finishedAt instant the run finished, or {@code null} while it is still running
+ */
 public record SubmissionScoreView(UUID submissionId, int attempt, GradingRunStatus status, int testsPassed,
 		int testsTotal, @Nullable BigDecimal scorePercent, @Nullable BigDecimal pointsAwarded, @Nullable Boolean passed,
 		@Nullable Instant finishedAt) {

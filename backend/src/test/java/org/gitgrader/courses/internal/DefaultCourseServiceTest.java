@@ -23,6 +23,7 @@ import java.util.List;
 import java.util.UUID;
 
 import org.gitgrader.identity.StudentDirectory;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -31,9 +32,20 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+/**
+ * Tests for the enrolment rules of {@link DefaultCourseService}.
+ *
+ * <p>
+ * The duplicate check has to run before a row is written rather than relying on a
+ * database constraint, so a rejected repeat enrollment leaves nothing behind to confuse
+ * an instructor reading the roster. The roster query is verified down to the repository
+ * method it calls, because a lookup scoped only by course would quietly include students
+ * enrolled in a different class.
+ */
 class DefaultCourseServiceTest {
 
 	@Test
+	@DisplayName("rejects a duplicate enrollment before creating a second row")
 	void duplicateEnrollmentIsRejectedBeforeCreatingAnotherRow() {
 		CourseRepository courses = mock(CourseRepository.class);
 		CourseClassRepository classes = mock(CourseClassRepository.class);
@@ -50,6 +62,7 @@ class DefaultCourseServiceTest {
 	}
 
 	@Test
+	@DisplayName("scopes enrolled student ids to the course and to the class ids")
 	void enrolledStudentIdsAreScopedToTheCourseAndClassIds() {
 		CourseRepository courses = mock(CourseRepository.class);
 		CourseClassRepository classes = mock(CourseClassRepository.class);

@@ -21,15 +21,26 @@ import java.time.Instant;
 import java.time.ZoneOffset;
 import java.util.UUID;
 
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+/**
+ * Tests for {@link TemplateVersion}, whose storage path and digest are frozen the moment
+ * it is published.
+ *
+ * <p>
+ * A published version is what a grading run was executed against, so a later change to
+ * either would make a stored mark unreproducible - or point it at different content
+ * without saying so.
+ */
 class TemplateVersionTest {
 
 	private static final Clock CLOCK = Clock.fixed(Instant.parse("2026-03-01T10:15:30Z"), ZoneOffset.UTC);
 
 	@Test
+	@DisplayName("refuses a mutation of a published version")
 	void publishedVersionRejectsMutation() {
 		TemplateVersion version = new TemplateVersion(UUID.randomUUID(), "v1", "java/v1", CLOCK);
 		version.publish("abc", 1, 3, "instructor", CLOCK);

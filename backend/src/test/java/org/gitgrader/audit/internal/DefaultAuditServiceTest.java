@@ -23,6 +23,7 @@ import java.time.ZoneOffset;
 import org.gitgrader.audit.AuditEventType;
 import org.gitgrader.audit.AuditRecord;
 import org.gitgrader.audit.domain.AuditEventEntity;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThatCode;
@@ -30,9 +31,19 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+/**
+ * Tests that {@link DefaultAuditService} never lets a failure to write the trail become a
+ * failure of the operation it was recording.
+ *
+ * <p>
+ * Recording is a bystander: an instructor changing a course, or a student being graded,
+ * must not fail because the audit table was unreachable. The failure has to be logged
+ * instead, which is the one thing this class asserts - that the exception stops here.
+ */
 class DefaultAuditServiceTest {
 
 	@Test
+	@DisplayName("never propagates a persistence failure to the business caller")
 	void persistenceFailureNeverPropagatesToBusinessCaller() {
 		AuditEventRepository repository = mock(AuditEventRepository.class);
 		when(repository.save(any(AuditEventEntity.class))).thenThrow(new IllegalStateException("database unavailable"));

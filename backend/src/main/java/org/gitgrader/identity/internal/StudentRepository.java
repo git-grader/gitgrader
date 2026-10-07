@@ -25,6 +25,7 @@ import org.gitgrader.identity.domain.Student;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 
+/** Persists students. */
 interface StudentRepository extends JpaRepository<Student, UUID>, JpaSpecificationExecutor<Student> {
 
 	Optional<Student> findByStudentUsernameIgnoreCase(String studentUsername);

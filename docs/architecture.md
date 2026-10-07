@@ -179,10 +179,10 @@ attempt history the product promises is unchanged — a superseded submission is
 one that exists and was not graded, not one that was lost.
 
 `GradingRunner` is the only intended path to execute untrusted code. The Docker
-implementation runs a short-lived non-root container with network disabled by
-capabilities, and no-new-privileges. To add a runner, implement the runner
-contract, preserve the run’s timeout/resources/artifact/report semantics, select
-it through `grading.runner`, and add integration tests proving hidden tests and
+implementation runs a short-lived non-root container with the network disabled,
+all capabilities dropped, and `no-new-privileges`. To add a runner, implement the
+runner contract, preserve the run’s timeout/resources/artifact/report semantics,
+select it through `grading.runner`, and add integration tests proving hidden tests and
 student work mounts retain their access controls. Do not spawn processes from the
 application to run untrusted code: the runner contract is the only sanctioned way
 to execute a submission, and the forbidden-apis rules refuse `Runtime.exec` and

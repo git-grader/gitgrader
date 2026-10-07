@@ -20,17 +20,28 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+/**
+ * Tests for {@link ContentHasher}, which fingerprints a template directory so that a
+ * later change to it can be detected.
+ *
+ * <p>
+ * The hash covers the sorted file names as well as the contents, so a rename registers as
+ * a change even though no byte moved. Without that, replacing a hidden test with an
+ * equivalent one leaves the stored fingerprint matching.
+ */
 class ContentHasherTest {
 
 	@TempDir
 	private Path directory;
 
 	@Test
+	@DisplayName("hashes the sorted file names and contents, and reports accurate statistics")
 	void hashIncludesSortedFileNamesAndContentsWithAccurateStatistics() throws IOException {
 		Path first = Files.createDirectories(this.directory.resolve("nested")).resolve("a.txt");
 		Files.writeString(first, "abc");

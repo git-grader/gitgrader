@@ -150,6 +150,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Two-container grading on a shimmed runtime. A runtime now records a grading topology,
+  and a shimmed one grades the submitted repository in a sandbox container that never
+  mounts the hidden tests, talking to a suite container over a shared Unix socket. The
+  two paths return different marks for the same submission, so the topology is required
+  rather than defaulted, and a shimmed runtime refuses a suite that never connects as an
+  infrastructure error instead of scoring it zero.
+- Per-test weights. A manifest test may carry a weight, and the score is the weighted
+  outcome rather than a plain pass count, so a suite can insist that one particular
+  behaviour matters more than the rest.
+- A standing student results-overview link, issued on an accepted push. It shows every
+  course and class the student has results for in one page, and because the stored value
+  is a hash it cannot be shown again: each accepted push rotates the token and revokes
+  the link it replaces, so a value already shared in an old terminal stops working.
+- Storage of result-token hashes rather than the tokens themselves. The plaintext is
+  returned once in the response and never stored; the row keeps the SHA-256 hash and a
+  short prefix an operator can recognise a token by, so a stolen table is not a set of
+  working credentials.
 - A `CODEOWNERS` file routing review of the grading sandbox, the SSH ingress, the security
   configuration and the migrations, which are the paths where a mistake is hardest to undo.
 - Fair grading dispatch. A worker now claims at most one job per student and

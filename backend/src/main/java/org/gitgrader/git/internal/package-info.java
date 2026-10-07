@@ -14,16 +14,16 @@
  * limitations under the License.
  */
 
-package org.gitgrader.runtimes;
+/**
+ * The SSH ingress and repository provisioning: the path a signed push takes.
+ *
+ * <p>
+ * This is the boundary where untrusted content enters. The server, the authentication and
+ * the admission rules all live here, and none of them may be bypassed by calling the
+ * filesystem directly — which is why the admission decision is taken before a repository
+ * is written rather than after.
+ */
+@NullMarked
+package org.gitgrader.git.internal;
 
-/** Describes the machine-readable report emitted by a runtime. */
-public enum ReportFormat {
-
-	/** JUnit-compatible XML. */
-	JUNIT_XML,
-	/** Test Anything Protocol output. */
-	TAP,
-	/** GitGrader JSON summary output. */
-	JSON_SUMMARY
-
-}
+import org.jspecify.annotations.NullMarked;

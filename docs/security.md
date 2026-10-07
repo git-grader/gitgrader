@@ -16,19 +16,21 @@ flowchart TB
   end
 
   subgraph service["Trusted: the service"]
-    app["Application"]:::good
+    app["Application<br/><i>no Docker client at all</i>"]:::good
+    runner["Runner service<br/><i>one job, nothing else</i>"]:::good
     hidden[("Hidden tests<br/><i>instructor-only</i>")]:::secret
   end
 
   subgraph danger["Effectively host root"]
-    engine["Docker Engine<br/><i>via /var/run/docker.sock</i>"]:::risk
+    engine["Docker Engine<br/><i>socket held by the runner alone</i>"]:::risk
   end
 
   sandbox["Grading sandbox<br/><i>non-root, no network, read-only root,<br/>dropped capabilities, CPU/memory/PID limits, timeout</i>"]:::box
 
   student -->|"signed push"| push
   push --> app
-  app -->|"starts a sandbox"| engine
+  app -->|"asks for a sandbox<br/>over an internal API"| runner
+  runner -->|"starts a sandbox"| engine
   engine --> sandbox
   code --> sandbox
   hidden -->|"read-only, one run"| sandbox
@@ -47,15 +49,20 @@ flowchart TB
 ```
 
 **Reading it.** Red is content the service assumes is hostile. Blue is the
-service itself. Grey is material a student must never see. Amber is the one
-edge where a compromise stops being contained.
+service itself, split into the application and the runner that holds the socket.
+Grey is material a student must never see. Amber is the one edge where a
+compromise stops being contained.
 
-Three things this is meant to make obvious. Student code only ever executes
+Four things this is meant to make obvious. Student code only ever executes
 inside the sandbox, never in the application. Hidden tests enter that sandbox
 read-only for a single run and leave it only as a score and a category, never
-as a name or an assertion. And the application holds the Docker socket, so
-compromising the application is compromising the host: the hardening below
-narrows what a submission can do, it does not contain a broken application.
+as a name or an assertion. The application does not hold the Docker socket — it
+builds no Docker client at all, and asks a separate runner service for a
+sandbox over an internal API. So compromising the application is *not*
+compromising the host. What is left to contain is a compromised runner, which is
+a much smaller surface: it claims no jobs, serves no SSH, publishes no port, and
+exists only to start one sandbox. The hardening below narrows what a submission
+can do; the runner's narrow API is what keeps a broken application off the host.
 
 ## Execution isolation
 

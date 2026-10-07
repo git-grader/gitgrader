@@ -1,7 +1,7 @@
 // Copyright the GitGrader contributors.
 // SPDX-License-Identifier: Apache-2.0
 
-import { afterAll, afterEach, beforeAll, expect, test } from 'vitest';
+import { expect, it } from 'vitest';
 import { http, HttpResponse } from 'msw';
 import userEvent from '@testing-library/user-event';
 import { screen, waitFor } from '@testing-library/react';
@@ -9,9 +9,6 @@ import { queryKeys } from '../src/api/queryKeys';
 import { SubmissionsPage } from '../src/pages/SubmissionsPage';
 import { createTestQueryClient, page, renderWithProviders, server } from './harness';
 
-beforeAll(() => { server.listen({ onUnhandledFrame: 'error' }); });
-afterEach(() => { server.resetHandlers(); });
-afterAll(() => { server.close(); });
 
 const SUBMISSION = {
   id: 's1',
@@ -35,7 +32,7 @@ const SUBMISSION = {
   runtimeImageDigest: 'sha256:abcd'
 };
 
-test('shows the student\'s username in the submissions table', async () => {
+it('shows the student\'s username in the submissions table', async () => {
   server.use(
     http.get('/api/v1/courses', () => HttpResponse.json(page([]))),
     http.get('/api/v1/submissions', () => HttpResponse.json(page([SUBMISSION])))
@@ -47,7 +44,7 @@ test('shows the student\'s username in the submissions table', async () => {
   expect(await screen.findByText('alice')).toBeInTheDocument();
 });
 
-test('reuses course choices loaded by Assignments without breaking the page', async () => {
+it('reuses course choices loaded by Assignments without breaking the page', async () => {
   const queryClient = createTestQueryClient();
   queryClient.setQueryData(queryKeys.courses.choices, [{
     id: 'c1', courseKey: 'cs101', name: 'Course One', description: null, semester: null,
@@ -66,7 +63,7 @@ test('reuses course choices loaded by Assignments without breaking the page', as
 });
 
 
-test('passes scoped filters to the REST API and retries only after confirmation', async () => {
+it('passes scoped filters to the REST API and retries only after confirmation', async () => {
   let requested: URL | undefined;
   let retries = 0;
   server.use(
@@ -96,7 +93,7 @@ test('passes scoped filters to the REST API and retries only after confirmation'
   expect(retries).toBe(1);
 });
 
-test('keeps a failed retry visible and allows another try', async () => {
+it('keeps a failed retry visible and allows another try', async () => {
   server.use(
     http.get('/api/v1/courses', () => HttpResponse.json(page([]))),
     http.get('/api/v1/submissions', () => HttpResponse.json(page([{ ...SUBMISSION, status: 'INFRASTRUCTURE_ERROR' }]))),

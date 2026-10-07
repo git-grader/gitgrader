@@ -3,10 +3,10 @@
 
 import { render, screen } from '@testing-library/react';
 import { PublicOverviewSubmissionPage } from '../src/pages/PublicOverviewSubmissionPage';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter, Route, Routes } from 'react-router';
-import { expect, test, vi } from 'vitest';
-import { expectNoAxeViolations } from './harness';
+import { expect, it, vi } from 'vitest';
+import { createTestQueryClient, expectNoAxeViolations } from './harness';
 
 vi.mock('../src/api', async () => {
   const actual = await vi.importActual<typeof import('../src/api')>('../src/api');
@@ -41,7 +41,7 @@ vi.mock('../src/api', async () => {
 
 function renderPage() {
   return render(
-    <QueryClientProvider client={new QueryClient()}>
+    <QueryClientProvider client={createTestQueryClient()}>
       <MemoryRouter initialEntries={['/results/overview/token123/submissions/submission-1']}>
         <Routes>
           <Route
@@ -54,7 +54,7 @@ function renderPage() {
   );
 }
 
-test('PublicOverviewSubmissionPage fetches and redacts the scoped result', async () => {
+it('PublicOverviewSubmissionPage fetches and redacts the scoped result', async () => {
   renderPage();
 
   await screen.findByText('String utilities');
@@ -72,7 +72,7 @@ test('PublicOverviewSubmissionPage fetches and redacts the scoped result', async
   expect(backLinks[0]).toHaveAttribute('href', '/results/overview/token123');
 });
 
-test('PublicOverviewSubmissionPage has no a11y violations', async () => {
+it('PublicOverviewSubmissionPage has no a11y violations', async () => {
   const { container } = renderPage();
   await screen.findByText('String utilities');
   await expectNoAxeViolations(container);

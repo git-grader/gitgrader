@@ -25,7 +25,7 @@ public interface ReportExporter {
 	 * Returns the representation produced by this exporter.
 	 * @return representation produced by this exporter
 	 */
-	ReportFormat format();
+	ExportFormat format();
 
 	/**
 	 * Serializes a report.

@@ -20,7 +20,7 @@ import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;
 
-import org.gitgrader.runtimes.ReportFormat;
+import org.gitgrader.runtimes.RuntimeReportFormat;
 import org.gitgrader.runtimes.NewRuntime;
 import org.gitgrader.runtimes.ShimTopology;
 import org.junit.jupiter.api.DisplayName;
@@ -30,6 +30,15 @@ import org.jspecify.annotations.Nullable;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+/**
+ * Tests for {@link RuntimeDefinition}, the image and topology a grading run is pinned to.
+ *
+ * <p>
+ * The sandbox reference is always built from the digest and never from the tag, because a
+ * tag is mutable and a moving one would silently change what student code runs against.
+ * The grading topology is mandatory for the same reason: the shim and legacy paths return
+ * different marks for the same submission.
+ */
 class RuntimeDefinitionTest {
 
 	private static final Clock CLOCK = Clock.fixed(Instant.parse("2026-03-01T10:15:30Z"), ZoneOffset.UTC);
@@ -37,6 +46,7 @@ class RuntimeDefinitionTest {
 	private static final String DIGEST = "sha256:" + "a".repeat(64);
 
 	@Test
+	@DisplayName("always builds the sandbox reference from the digest rather than the tag")
 	void sandboxReferenceAlwaysUsesTheDigestRatherThanTheTag() {
 		RuntimeDefinition runtime = runtime("25", DIGEST);
 
@@ -45,12 +55,14 @@ class RuntimeDefinitionTest {
 	}
 
 	@Test
+	@DisplayName("rejects a malformed digest")
 	void malformedDigestIsRejected() {
 		assertThatThrownBy(() -> runtime("25", "sha256:ABC")).isInstanceOf(IllegalArgumentException.class)
 			.hasMessageContaining("digest");
 	}
 
 	@Test
+	@DisplayName("rejects the moving latest tag regardless of case")
 	void movingLatestTagIsRejectedRegardlessOfCase() {
 		assertThatThrownBy(() -> runtime("LATEST", DIGEST)).isInstanceOf(IllegalArgumentException.class)
 			.hasMessageContaining("latest");
@@ -110,7 +122,7 @@ class RuntimeDefinitionTest {
 	private static RuntimeDefinition runtime(String tag, String digest, @Nullable String shimKind,
 			@Nullable String shimCommand) {
 		return new RuntimeDefinition(new NewRuntime("java-25", "Java 25", "ghcr.io/git-grader/java", tag, digest, null,
-				"./mvnw test", ReportFormat.JUNIT_XML, true, shimKind, shimCommand), CLOCK);
+				"./mvnw test", RuntimeReportFormat.JUNIT_XML, true, shimKind, shimCommand), CLOCK);
 	}
 
 }

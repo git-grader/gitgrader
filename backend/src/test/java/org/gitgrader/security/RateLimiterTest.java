@@ -19,15 +19,26 @@ package org.gitgrader.security;
 import org.gitgrader.audit.AuditProperties;
 import org.gitgrader.audit.ClientAddressHasher;
 import org.gitgrader.configuration.SecurityProperties;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+/**
+ * Tests for {@link RateLimiter}, the bucket that stands between a public endpoint and a
+ * script that keeps trying it.
+ *
+ * <p>
+ * Buckets are keyed on a hash of the client address rather than on the address, so a
+ * registry of tracked callers holds no network identifiers. The assertion pins the
+ * arithmetic that decides who is refused: the call after the configured capacity fails.
+ */
 class RateLimiterTest {
 
 	@Test
+	@DisplayName("consumes tokens and refuses once the bucket is empty")
 	void consumesTokensAndRefusesWhenEmpty() {
 		ClientAddressHasher hasher = new ClientAddressHasher(
 				new AuditProperties("secret-key", java.time.Duration.ofDays(1)));

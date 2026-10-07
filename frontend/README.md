@@ -19,6 +19,9 @@ raising `typescript` ahead of typescript-eslint breaks linting.
 - `npm run build`: Typecheck and build for production
 - `npm run lint`: Run ESLint
 - `npm run test:ci`: Run Vitest test suite with coverage
+- `npm run typecheck`: Typecheck without emitting
+- `npm run test:shim`: Run the grading-shim checks
+- `npm run test:browser`: Run the Playwright layout regression checks
 - `npm run preview`: Preview built production build locally
 
 ## Browser layout regression checks

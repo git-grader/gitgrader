@@ -25,6 +25,23 @@ import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+/**
+ * Tests for the score arithmetic of {@link GradingScorer}.
+ *
+ * <p>
+ * Percentages are rounded to one decimal place and awarded points to two, so a student
+ * can neither gain nor lose a mark to the order the arithmetic happens in. Points are
+ * derived from the exact ratio and rounded only afterwards; rounding first and scaling
+ * afterwards would hand a submission of a few hundredths of a point either the full mark
+ * or none of it.
+ *
+ * <p>
+ * The second half of the class pins the contract that makes per-test weights safe to
+ * introduce. A manifest that declares nothing must score identically to the count-based
+ * formula, skipped tests keep their weight in the denominator, and an unusable weight is
+ * read as one, so no manifest can manufacture marks. An infrastructure error yields no
+ * score at all, because a broken harness must never be recorded as a student's failure.
+ */
 class GradingScorerTest {
 
 	@Test
@@ -109,6 +126,7 @@ class GradingScorerTest {
 	}
 
 	@Test
+	@DisplayName("scores seven of ten as exactly 70.0 %")
 	void scoresSevenOfTenAsExactlySeventy() {
 		List<TestOutcome> outcomes = List.of(TestOutcome.PASSED, TestOutcome.PASSED, TestOutcome.PASSED,
 				TestOutcome.PASSED, TestOutcome.PASSED, TestOutcome.PASSED, TestOutcome.PASSED, TestOutcome.FAILED,
@@ -121,6 +139,7 @@ class GradingScorerTest {
 	}
 
 	@Test
+	@DisplayName("scores zero of ten")
 	void scoresZeroOfTen() {
 		List<TestOutcome> outcomes = Collections.nCopies(10, TestOutcome.FAILED);
 
@@ -131,6 +150,7 @@ class GradingScorerTest {
 	}
 
 	@Test
+	@DisplayName("scores ten of ten")
 	void scoresTenOfTen() {
 		List<TestOutcome> outcomes = Collections.nCopies(10, TestOutcome.PASSED);
 
@@ -141,6 +161,7 @@ class GradingScorerTest {
 	}
 
 	@Test
+	@DisplayName("scores one of three")
 	void scoresOneOfThree() {
 		List<TestOutcome> outcomes = List.of(TestOutcome.PASSED, TestOutcome.FAILED, TestOutcome.FAILED);
 
@@ -151,6 +172,7 @@ class GradingScorerTest {
 	}
 
 	@Test
+	@DisplayName("scores two of three")
 	void scoresTwoOfThree() {
 		List<TestOutcome> outcomes = List.of(TestOutcome.PASSED, TestOutcome.PASSED, TestOutcome.FAILED);
 
@@ -162,6 +184,7 @@ class GradingScorerTest {
 	}
 
 	@Test
+	@DisplayName("rounds the awarded points only after applying the exact ratio")
 	void roundsPointsOnlyAfterApplyingTheExactRatio() {
 		List<TestOutcome> outcomes = List.of(TestOutcome.PASSED, TestOutcome.PASSED, TestOutcome.FAILED);
 
@@ -174,6 +197,7 @@ class GradingScorerTest {
 	}
 
 	@Test
+	@DisplayName("returns no score at all when an infrastructure error took part")
 	void returnsNullForInfrastructureError() {
 		List<TestOutcome> outcomes = List.of(TestOutcome.PASSED, TestOutcome.PASSED, TestOutcome.PASSED,
 				TestOutcome.PASSED, TestOutcome.PASSED, TestOutcome.PASSED, TestOutcome.PASSED, TestOutcome.FAILED,

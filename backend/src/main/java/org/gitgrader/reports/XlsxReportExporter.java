@@ -77,8 +77,8 @@ public class XlsxReportExporter implements ReportExporter {
 	}
 
 	@Override
-	public ReportFormat format() {
-		return ReportFormat.XLSX;
+	public ExportFormat format() {
+		return ExportFormat.XLSX;
 	}
 
 	@Override

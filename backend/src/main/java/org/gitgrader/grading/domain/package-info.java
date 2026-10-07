@@ -14,21 +14,17 @@
  * limitations under the License.
  */
 
-package org.gitgrader.registration.web;
-
-import java.util.UUID;
-
-import org.gitgrader.identity.StudentStatus;
-
 /**
- * Response after successful self-registration.
+ * Persistence entities describing grading work: the queue entry, the run, and the
+ * per-test outcome.
  *
- * @param studentId the generated internal id
- * @param studentUsername institutional id
- * @param fullName display name
- * @param status current lifecycle status (usually SELF_REGISTERED)
- * @param keyFingerprint fingerprint of the accepted SSH key
+ * <p>
+ * These are the entities rather than the public vocabulary of the grading module. A
+ * {@code GradingRun} here is a stored row with its own lifecycle and status, distinct
+ * from the run the module reports to callers; the mapping between the two lives in the
+ * module's own package, so nothing here depends on how a run is presented.
  */
-public record RegistrationResponse(UUID studentId, String studentUsername, String fullName, StudentStatus status,
-		String keyFingerprint) {
-}
+@NullMarked
+package org.gitgrader.grading.domain;
+
+import org.jspecify.annotations.NullMarked;
