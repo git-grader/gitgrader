@@ -19,6 +19,7 @@ package org.gitgrader.api;
 import java.util.List;
 
 import jakarta.persistence.EntityNotFoundException;
+import org.gitgrader.configuration.ProblemTypes;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -62,7 +63,7 @@ public class GlobalExceptionHandler {
 	 */
 	@ExceptionHandler(MethodArgumentNotValidException.class)
 	public ProblemDetail handleValidation(MethodArgumentNotValidException ex) {
-		ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST,
+		ProblemDetail problem = ProblemTypes.of(HttpStatus.BAD_REQUEST, "validation-failed",
 				"The request could not be accepted.");
 		problem.setTitle("Validation failed");
 
@@ -90,7 +91,7 @@ public class GlobalExceptionHandler {
 	 */
 	@ExceptionHandler(EntityNotFoundException.class)
 	public ProblemDetail handleNotFound(EntityNotFoundException ex) {
-		ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND,
+		ProblemDetail problem = ProblemTypes.of(HttpStatus.NOT_FOUND, "not-found",
 				"The requested resource does not exist.");
 		problem.setTitle("Not found");
 		logger.debug("Request referenced a missing resource", ex);
@@ -104,7 +105,7 @@ public class GlobalExceptionHandler {
 	 */
 	@ExceptionHandler(IllegalArgumentException.class)
 	public ProblemDetail handleBadRequest(IllegalArgumentException ex) {
-		ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, "The request was not valid.");
+		ProblemDetail problem = ProblemTypes.of(HttpStatus.BAD_REQUEST, "bad-request", "The request was not valid.");
 		problem.setTitle("Bad request");
 		logger.debug("Request carried an argument the domain refused", ex);
 		return problem;
@@ -122,7 +123,7 @@ public class GlobalExceptionHandler {
 	 */
 	@ExceptionHandler(AccessDeniedException.class)
 	public ProblemDetail handleAccessDenied(AccessDeniedException ex) {
-		ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.FORBIDDEN,
+		ProblemDetail problem = ProblemTypes.of(HttpStatus.FORBIDDEN, "forbidden",
 				"You do not have access to this resource.");
 		problem.setTitle("Forbidden");
 		logger.debug("Denied a request on authorization grounds", ex);
@@ -136,7 +137,7 @@ public class GlobalExceptionHandler {
 	 */
 	@ExceptionHandler(IllegalStateException.class)
 	public ProblemDetail handleConflict(IllegalStateException ex) {
-		ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT,
+		ProblemDetail problem = ProblemTypes.of(HttpStatus.CONFLICT, "conflict",
 				"That operation is not possible in the current state.");
 		problem.setTitle("Conflict");
 		logger.warn("Rejected an operation because of the object's state", ex);
@@ -150,7 +151,7 @@ public class GlobalExceptionHandler {
 	 */
 	@ExceptionHandler(DataIntegrityViolationException.class)
 	public ProblemDetail handleDataIntegrity(DataIntegrityViolationException ex) {
-		ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT,
+		ProblemDetail problem = ProblemTypes.of(HttpStatus.CONFLICT, "conflict",
 				"That conflicts with something that already exists. A key may already be in use.");
 		problem.setTitle("Conflict");
 		// The constraint name would name tables and columns, so it stays in the log.
@@ -165,7 +166,7 @@ public class GlobalExceptionHandler {
 	 */
 	@ExceptionHandler(Exception.class)
 	public ProblemDetail handleUnexpected(Exception ex) {
-		ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.INTERNAL_SERVER_ERROR,
+		ProblemDetail problem = ProblemTypes.of(HttpStatus.INTERNAL_SERVER_ERROR, "internal-error",
 				"Something went wrong on our side.");
 		problem.setTitle("Internal error");
 		// The detail stays here, in the log, where an operator can correlate it. It is

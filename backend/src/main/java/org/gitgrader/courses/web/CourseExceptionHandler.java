@@ -16,6 +16,7 @@
 
 package org.gitgrader.courses.web;
 
+import org.gitgrader.configuration.ProblemTypes;
 import org.gitgrader.courses.CourseIdentityMismatchException;
 import org.springframework.core.Ordered;
 import org.springframework.core.annotation.Order;
@@ -36,7 +37,8 @@ public class CourseExceptionHandler {
 	 */
 	@ExceptionHandler(CourseIdentityMismatchException.class)
 	public ProblemDetail handleIdentityMismatch(CourseIdentityMismatchException exception) {
-		ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, exception.getMessage());
+		ProblemDetail problem = ProblemTypes.of(HttpStatus.BAD_REQUEST, "course-identity-mismatch",
+				exception.getMessage());
 		problem.setTitle("Course identity cannot change");
 		return problem;
 	}

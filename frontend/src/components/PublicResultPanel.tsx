@@ -42,7 +42,7 @@ export function PublicResultPanel({ result }: { result: PublicResult }) {
       <BrandMark />
       <Paper variant="outlined" sx={{ p: { xs: 2, sm: 3, md: 4 }, minWidth: 0 }}>
         <Typography variant="h4" component="h1" sx={{ overflowWrap: 'anywhere' }}>{result.assignmentTitle}</Typography>
-        <Typography variant="h6" component="p" color="text.secondary" sx={{ mt: 0.5, overflowWrap: 'anywhere' }}>{result.courseName}</Typography>
+        <Typography variant="h6" component="h2" color="text.secondary" sx={{ mt: 0.5, fontWeight: 400, overflowWrap: 'anywhere' }}>{result.courseName}</Typography>
 
         <Box sx={{ display: 'grid', gridTemplateColumns: { xs: 'minmax(0, 1fr)', md: 'minmax(0, 1.6fr) minmax(280px, 0.85fr)' }, gap: { xs: 3, md: 4 }, alignItems: 'start', mt: 3 }}>
           <Box component="section" aria-labelledby="test-details-heading" sx={{ minWidth: 0 }}>
@@ -104,7 +104,7 @@ export function PublicResultPanel({ result }: { result: PublicResult }) {
             )}
             {typeof result.score === 'number' ? (
               <>
-                <Typography variant="h4" component="p" sx={{ fontWeight: 700, mt: 1 }}>Score: {result.score.toFixed(1)} %</Typography>
+                <Typography variant="h4" component="h3" sx={{ fontWeight: 700, mt: 1 }}>Score: {result.score.toFixed(1)} %</Typography>
                 <LinearProgress
                   variant="determinate"
                   value={result.score}

@@ -16,6 +16,7 @@
 
 package org.gitgrader.templates.web;
 
+import org.gitgrader.configuration.ProblemTypes;
 import org.gitgrader.templates.TemplateContentRejectedException;
 import org.springframework.core.Ordered;
 import org.springframework.core.annotation.Order;
@@ -36,7 +37,7 @@ public class ArchiveUploadExceptionHandler {
 	 */
 	@ExceptionHandler(ArchiveUploadException.class)
 	public ProblemDetail handleInvalidArchive(ArchiveUploadException exception) {
-		ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, exception.getMessage());
+		ProblemDetail problem = ProblemTypes.of(HttpStatus.BAD_REQUEST, "invalid-archive", exception.getMessage());
 		problem.setTitle("Invalid ZIP upload");
 		return problem;
 	}
@@ -48,7 +49,8 @@ public class ArchiveUploadExceptionHandler {
 	 */
 	@ExceptionHandler(TemplateContentRejectedException.class)
 	public ProblemDetail handleRejectedTemplateContent(TemplateContentRejectedException exception) {
-		ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, exception.getMessage());
+		ProblemDetail problem = ProblemTypes.of(HttpStatus.BAD_REQUEST, "template-content-rejected",
+				exception.getMessage());
 		problem.setTitle("Template content rejected");
 		return problem;
 	}

@@ -17,6 +17,7 @@
 package org.gitgrader.assignments.web;
 
 import org.gitgrader.assignments.AssignmentIdentityMismatchException;
+import org.gitgrader.configuration.ProblemTypes;
 import org.springframework.core.Ordered;
 import org.springframework.core.annotation.Order;
 import org.springframework.http.HttpStatus;
@@ -36,7 +37,8 @@ public class AssignmentExceptionHandler {
 	 */
 	@ExceptionHandler(AssignmentIdentityMismatchException.class)
 	public ProblemDetail handleIdentityMismatch(AssignmentIdentityMismatchException exception) {
-		ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, exception.getMessage());
+		ProblemDetail problem = ProblemTypes.of(HttpStatus.BAD_REQUEST, "assignment-identity-mismatch",
+				exception.getMessage());
 		problem.setTitle("Assignment identity cannot change");
 		return problem;
 	}
