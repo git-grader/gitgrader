@@ -90,13 +90,20 @@ public class WebSecurityConfig {
 		// /results/overview/<token>
 		// is the page listing all of a student's graded work: the token in the address is
 		// the only credential, so both pages must open without a session. A student has
-		// no login - they registered an SSH key - and one that misses the plural page's path
+		// no login - they registered an SSH key - and one that misses the plural page's
+		// path
 		// lands in the default chain, whose sign-in redirect they can never pass.
 		http.securityMatcher("/result/**", "/results/**")
 			.authorizeHttpRequests((authz) -> authz.anyRequest().permitAll())
-			// Safe here: both pages are read-only and have no state-changing operation to
-			// forge. Every chain that accepts a POST keeps CSRF on with a cookie token.
-			.csrf((csrf) -> csrf.disable())
+			// These pages are read-only - nothing on them accepts a POST - so CSRF
+			// protection is deliberately not switched off here as it is on a form login
+			// chain. Enabling it costs one filter on requests that already run at order
+			// 0,
+			// and it closes the door on a future state-changing endpoint under either
+			// prefix inheriting a chain that would not have checked its token.
+			.csrf((csrf) -> csrf.csrfTokenRepository(CookieCsrfTokenRepository.withHttpOnlyFalse())
+				.csrfTokenRequestHandler(new SpaCsrfTokenRequestHandler()))
+			.addFilterAfter(new CsrfCookieFilter(), BasicAuthenticationFilter.class)
 			.headers((headers) -> headers.xssProtection((xss) -> xss.disable())
 				.contentSecurityPolicy((csp) -> csp.policyDirectives(this.properties.resultContentSecurityPolicy()))
 				.contentTypeOptions((contentType) -> {

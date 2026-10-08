@@ -33,7 +33,9 @@ import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 /**
  * Verifies the security headers actually served on the public result page.
@@ -122,6 +124,19 @@ class ResultPageHeadersIT {
 			.andExpect(header().string("Content-Security-Policy",
 					org.hamcrest.Matchers.containsString("default-src 'none'")))
 			.andExpect(header().string("X-Frame-Options", "DENY"));
+	}
+
+	@Test
+	@DisplayName("rejects a state-changing request that carries no CSRF token")
+	void resultChainStillRequiresCsrfTokenForWrites() throws Exception {
+		// Nothing on these pages accepts a POST today, but the chain covers the whole
+		// prefix, so a future endpoint under it must inherit a chain that checks the
+		// token rather than one where it was switched off.
+		this.mockMvc.perform(post("/result/some-unguessable-token")).andExpect(status().isForbidden());
+
+		this.mockMvc
+			.perform(post("/results/overview/some-unguessable-token/submissions/00000000-0000-0000-0000-000000000000"))
+			.andExpect(status().isForbidden());
 	}
 
 }
