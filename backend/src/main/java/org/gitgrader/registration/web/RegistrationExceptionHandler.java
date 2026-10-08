@@ -18,6 +18,7 @@ package org.gitgrader.registration.web;
 
 import java.util.List;
 
+import org.gitgrader.configuration.ProblemTypes;
 import org.gitgrader.registration.internal.DuplicateRegistrationException;
 import org.gitgrader.registration.internal.RateLimitExceededException;
 import org.gitgrader.registration.internal.RegistrationClosedException;
@@ -45,7 +46,8 @@ public class RegistrationExceptionHandler {
 	 */
 	@ExceptionHandler(MethodArgumentNotValidException.class)
 	public ProblemDetail handleValidationException(MethodArgumentNotValidException ex) {
-		ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, "Validation failed");
+		ProblemDetail problem = ProblemTypes.of(HttpStatus.BAD_REQUEST, "validation-failed", "Validation failed");
+		problem.setTitle("Validation failed");
 
 		List<ValidationError> errors = ex.getBindingResult()
 			.getFieldErrors()
@@ -59,25 +61,25 @@ public class RegistrationExceptionHandler {
 
 	@ExceptionHandler(SshKeyRejectedException.class)
 	public ProblemDetail handleSshKeyRejected(SshKeyRejectedException ex) {
-		return ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, ex.publicMessage());
+		return ProblemTypes.of(HttpStatus.BAD_REQUEST, "ssh-key-rejected", ex.publicMessage());
 	}
 
 	@ExceptionHandler(DuplicateRegistrationException.class)
 	public ProblemDetail handleDuplicateRegistration(DuplicateRegistrationException ex) {
 		// Generic conflict message to avoid enumeration oracle
-		return ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT,
+		return ProblemTypes.of(HttpStatus.CONFLICT, "duplicate-registration",
 				"A registration with these details already exists. Please contact support if you need assistance.");
 	}
 
 	@ExceptionHandler(RateLimitExceededException.class)
 	public ProblemDetail handleRateLimitExceeded(RateLimitExceededException ex) {
-		return ProblemDetail.forStatusAndDetail(HttpStatus.TOO_MANY_REQUESTS,
+		return ProblemTypes.of(HttpStatus.TOO_MANY_REQUESTS, "rate-limit-exceeded",
 				"Too many registration attempts. Please try again later.");
 	}
 
 	@ExceptionHandler(RegistrationClosedException.class)
 	public ProblemDetail handleRegistrationClosed(RegistrationClosedException ex) {
-		return ProblemDetail.forStatusAndDetail(HttpStatus.FORBIDDEN, "Registration is currently closed.");
+		return ProblemTypes.of(HttpStatus.FORBIDDEN, "registration-closed", "Registration is currently closed.");
 	}
 
 	/**

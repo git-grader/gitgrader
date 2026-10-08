@@ -257,6 +257,8 @@ export function InstructorLayout() {
               edge="start"
               onClick={() => { setMobileOpen((open) => !open); }}
               aria-label="Open navigation"
+              aria-expanded={mobileOpen}
+              aria-controls="instructor-navigation-drawer"
               sx={{ mr: 1 }}
             >
               <MenuIcon />
@@ -300,6 +302,7 @@ export function InstructorLayout() {
         variant={isDesktop ? 'permanent' : 'temporary'}
         open={isDesktop || mobileOpen}
         onClose={() => { setMobileOpen(false); }}
+        id="instructor-navigation-drawer"
         ModalProps={{ keepMounted: true }}
         sx={{
           width: { md: DRAWER_WIDTH },

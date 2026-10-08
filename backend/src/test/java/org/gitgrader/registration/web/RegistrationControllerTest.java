@@ -105,6 +105,7 @@ class RegistrationControllerTest {
 					}
 				"""))
 			.andExpect(status().isBadRequest())
+			.andExpect(jsonPath("$.type").value("/errors/ssh-key-rejected"))
 			.andExpect(jsonPath("$.detail").value(SshKeyRejectionReason.PRIVATE_KEY_SUBMITTED.publicMessage()));
 	}
 

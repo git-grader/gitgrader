@@ -49,7 +49,8 @@ class GlobalExceptionHandlerTest {
 	void aMissingEntityIsNotFoundRatherThanAServerFault() throws Exception {
 		this.mockMvc.perform(get("/missing-entity"))
 			.andExpect(status().isNotFound())
-			.andExpect(jsonPath("$.title").value("Not found"));
+			.andExpect(jsonPath("$.title").value("Not found"))
+			.andExpect(jsonPath("$.type").value("/errors/not-found"));
 	}
 
 	@Test
@@ -61,7 +62,8 @@ class GlobalExceptionHandlerTest {
 		// not exist", which is the opposite of what happened.
 		this.mockMvc.perform(get("/missing-argument"))
 			.andExpect(status().isBadRequest())
-			.andExpect(jsonPath("$.title").value("Bad request"));
+			.andExpect(jsonPath("$.title").value("Bad request"))
+			.andExpect(jsonPath("$.type").value("/errors/bad-request"));
 	}
 
 	/**
@@ -75,6 +77,19 @@ class GlobalExceptionHandlerTest {
 			.andExpect(jsonPath("$.detail").value("The requested resource does not exist."));
 	}
 
+	/**
+	 * docs/api.md tells clients to branch on the problem type, so every document needs
+	 * one that is not Spring's default {@code about:blank}.
+	 */
+	@Test
+	@DisplayName("every problem document carries a type other than about:blank")
+	void everyProblemDocumentCarriesAType() throws Exception {
+		this.mockMvc.perform(get("/unexpected"))
+			.andExpect(status().isInternalServerError())
+			.andExpect(jsonPath("$.type").value("/errors/internal-error"))
+			.andExpect(jsonPath("$.type").value(org.hamcrest.Matchers.not("about:blank")));
+	}
+
 	@RestController
 	static final class ThrowingController {
 
@@ -86,6 +101,11 @@ class GlobalExceptionHandlerTest {
 		@GetMapping("/missing-argument")
 		String missingArgument() {
 			throw new IllegalArgumentException("Assignment not found");
+		}
+
+		@GetMapping("/unexpected")
+		String unexpected() {
+			throw new RuntimeException("boom");
 		}
 
 	}

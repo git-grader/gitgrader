@@ -6,7 +6,11 @@ where a body is present.
 
 Errors use the RFC 9457 `application/problem+json` representation. Clients
 should branch on the HTTP status and problem `type`, not on a localized detail
-message. Validation errors may include field-level detail.
+message. Every problem document carries a relative `type` reference resolved
+against the request's own origin, for example
+`/errors/validation-failed` or `/errors/ssh-key-rejected`; `detail` is
+prose for display and not a stable contract. Validation errors may include
+field-level detail in an `errors` array.
 
 List endpoints conventionally use pagination, filtering, and sorting query
 parameters. Treat pagination as a bounded view rather than a stable export;
