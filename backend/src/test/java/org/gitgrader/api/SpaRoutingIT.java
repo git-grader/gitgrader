@@ -172,6 +172,25 @@ class SpaRoutingIT {
 	}
 
 	@Test
+	@DisplayName("serves the results overview page anonymously, like the result page")
+	void resultsOverviewPageIsServedAnonymously() throws Exception {
+		// The push prints /results/overview/<token> and the token is the whole
+		// credential:
+		// a student has no login, so this page matching the default chain redirected them
+		// to a sign-in page they can never pass.
+		this.mockMvc.perform(get("/results/overview/some-unguessable-token"))
+			.andExpect(status().isOk())
+			.andExpect(content().string(containsString(SHELL_MARKER)))
+			.andExpect(header().string("Content-Security-Policy", containsString("default-src 'none'")))
+			.andExpect(header().string("X-Robots-Tag", "noindex, nofollow"));
+
+		this.mockMvc
+			.perform(get("/results/overview/some-unguessable-token/submissions/00000000-0000-0000-0000-000000000000"))
+			.andExpect(status().isOk())
+			.andExpect(content().string(containsString(SHELL_MARKER)));
+	}
+
+	@Test
 	@DisplayName("names script-src explicitly rather than leaving it to default-src")
 	void shellPolicyNamesScriptSrc() throws Exception {
 		// Falling back to default-src protects the same thing, but every browser reports

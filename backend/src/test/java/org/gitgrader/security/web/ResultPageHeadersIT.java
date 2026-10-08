@@ -109,4 +109,19 @@ class ResultPageHeadersIT {
 			.andExpect(header().string("X-Frame-Options", "DENY"));
 	}
 
+	@Test
+	@DisplayName("serves the results overview page through the same chain")
+	void resultsOverviewPageCarriesTheSameHeaders() throws Exception {
+		// /results/overview/** serves the same kind of page - bearer token in the URL,
+		// opened anonymously - so it must get the identical hardening, not the looser
+		// application-wide policy the default chain would have applied.
+		this.mockMvc.perform(get("/results/overview/some-unguessable-token"))
+			.andExpect(header().string("X-Content-Type-Options", "nosniff"))
+			.andExpect(header().string("Referrer-Policy", "no-referrer"))
+			.andExpect(header().string("X-Robots-Tag", "noindex, nofollow"))
+			.andExpect(header().string("Content-Security-Policy",
+					org.hamcrest.Matchers.containsString("default-src 'none'")))
+			.andExpect(header().string("X-Frame-Options", "DENY"));
+	}
+
 }

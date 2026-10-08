@@ -86,9 +86,15 @@ public class WebSecurityConfig {
 	@Bean
 	@Order(0)
 	public SecurityFilterChain resultFilterChain(HttpSecurity http) throws Exception {
-		http.securityMatcher("/result/**")
+		// /result/<token> is the page a single push points at and
+		// /results/overview/<token>
+		// is the page listing all of a student's graded work: the token in the address is
+		// the only credential, so both pages must open without a session. A student has
+		// no login - they registered an SSH key - and one that misses the plural page's path
+		// lands in the default chain, whose sign-in redirect they can never pass.
+		http.securityMatcher("/result/**", "/results/**")
 			.authorizeHttpRequests((authz) -> authz.anyRequest().permitAll())
-			// Safe here: /result/** is read-only and has no state-changing operation to
+			// Safe here: both pages are read-only and have no state-changing operation to
 			// forge. Every chain that accepts a POST keeps CSRF on with a cookie token.
 			.csrf((csrf) -> csrf.disable())
 			.headers((headers) -> headers.xssProtection((xss) -> xss.disable())
