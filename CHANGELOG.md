@@ -32,6 +32,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Serve the results overview page to anonymous visitors. The overview URL printed after a
+  push (`/results/overview/<token>`) matched no dedicated security chain and fell through
+  to the default one, which redirected to the sign-in page - a page a student cannot
+  pass, since students register an SSH key and have no login. The plural path now joins
+  the single-result page's chain, which serves both with the same hardened headers.
 - Take a row lock before writing a submission's cached status. Two grading runs for one
   submission finish independently - a regrade landing beside the original is enough - and
   the status is a read-then-write behind an `@Version` column, so the second writer found
