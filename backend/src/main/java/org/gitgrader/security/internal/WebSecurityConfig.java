@@ -57,6 +57,19 @@ public class WebSecurityConfig {
 	}
 
 	/**
+	 * Issues the CSRF token as a cookie the SPA can read and accepts the plain cookie
+	 * value back in a header.
+	 * @param http the chain being built
+	 * @return the same builder, with CSRF wired for single-page application clients
+	 */
+	private static HttpSecurity spaCsrf(HttpSecurity http) {
+		return http
+			.csrf((csrf) -> csrf.csrfTokenRepository(CookieCsrfTokenRepository.withHttpOnlyFalse())
+				.csrfTokenRequestHandler(new SpaCsrfTokenRequestHandler()))
+			.addFilterAfter(new CsrfCookieFilter(), BasicAuthenticationFilter.class);
+	}
+
+	/**
 	 * The runner role's one endpoint, which authenticates a peer rather than a person.
 	 *
 	 * <p>
@@ -77,7 +90,10 @@ public class WebSecurityConfig {
 			.authorizeHttpRequests((authz) -> authz.anyRequest().permitAll())
 			// No browser reaches this: it is a service-to-service call on an internal
 			// network, published on no host port, carrying a secret rather than a cookie.
-			// There is no ambient authority for a forged request to borrow.
+			// There is no ambient authority for a forged request to borrow, and the one
+			// client - RemoteGradingRunner - reads no cookie and can never know a CSRF
+			// token, so a check here would 403 every grading run before its secret was
+			// even looked at.
 			.csrf((csrf) -> csrf.disable())
 			.sessionManagement((session) -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS));
 		return http.build();
@@ -93,7 +109,7 @@ public class WebSecurityConfig {
 		// no login - they registered an SSH key - and one that misses the plural page's
 		// path
 		// lands in the default chain, whose sign-in redirect they can never pass.
-		http.securityMatcher("/result/**", "/results/**")
+		spaCsrf(http).securityMatcher("/result/**", "/results/**")
 			.authorizeHttpRequests((authz) -> authz.anyRequest().permitAll())
 			// These pages are read-only - nothing on them accepts a POST - so CSRF
 			// protection is deliberately not switched off here as it is on a form login
@@ -101,9 +117,6 @@ public class WebSecurityConfig {
 			// 0,
 			// and it closes the door on a future state-changing endpoint under either
 			// prefix inheriting a chain that would not have checked its token.
-			.csrf((csrf) -> csrf.csrfTokenRepository(CookieCsrfTokenRepository.withHttpOnlyFalse())
-				.csrfTokenRequestHandler(new SpaCsrfTokenRequestHandler()))
-			.addFilterAfter(new CsrfCookieFilter(), BasicAuthenticationFilter.class)
 			.headers((headers) -> headers.xssProtection((xss) -> xss.disable())
 				.contentSecurityPolicy((csp) -> csp.policyDirectives(this.properties.resultContentSecurityPolicy()))
 				.contentTypeOptions((contentType) -> {
@@ -126,10 +139,8 @@ public class WebSecurityConfig {
 		http.securityMatcher("/register/**", "/api/v1/registration/**", "/api/v1/results/**", "/api/v1/meta",
 				"/index.html", "/assets/**", "/favicon.ico", "/apple-touch-icon.png", "/*.svg", "/*.png", "/css/**",
 				"/js/**", "/images/**", "/actuator/health/**", "/actuator/info")
-			.authorizeHttpRequests((authz) -> authz.anyRequest().permitAll())
-			.csrf((csrf) -> csrf.csrfTokenRepository(CookieCsrfTokenRepository.withHttpOnlyFalse())
-				.csrfTokenRequestHandler(new SpaCsrfTokenRequestHandler()))
-			.addFilterAfter(new CsrfCookieFilter(), BasicAuthenticationFilter.class)
+			.authorizeHttpRequests((authz) -> authz.anyRequest().permitAll());
+		spaCsrf(http)
 			// Registration is a JSON POST with a CSRF token, so a stale token here has to
 			// read as 403 rather than as a redirect to a sign-in page the caller cannot
 			// use.
@@ -154,11 +165,8 @@ public class WebSecurityConfig {
 			// unreadable parse error.
 			.exceptionHandling(
 					(exceptions) -> exceptions.authenticationEntryPoint(new ProblemDetailAuthenticationEntryPoint())
-						.accessDeniedHandler(new ProblemDetailAccessDeniedHandler()))
-			.csrf((csrf) -> csrf.csrfTokenRepository(CookieCsrfTokenRepository.withHttpOnlyFalse())
-				.csrfTokenRequestHandler(new SpaCsrfTokenRequestHandler()))
-			.addFilterAfter(new CsrfCookieFilter(), BasicAuthenticationFilter.class)
-			.sessionManagement((session) -> session.sessionFixation((fixation) -> fixation.migrateSession()))
+						.accessDeniedHandler(new ProblemDetailAccessDeniedHandler()));
+		spaCsrf(http).sessionManagement((session) -> session.sessionFixation((fixation) -> fixation.migrateSession()))
 			.headers((headers) -> headers
 				.contentSecurityPolicy((csp) -> csp.policyDirectives(this.properties.contentSecurityPolicy()))
 				.contentTypeOptions((contentType) -> {
@@ -183,13 +191,8 @@ public class WebSecurityConfig {
 			unauthorized.commence(request, response, exception);
 		};
 
-		http.securityMatcher("/actuator/**")
-			.authorizeHttpRequests((authz) -> authz.anyRequest().hasRole("ADMIN"))
-			// Safe here: this chain authenticates with HTTP Basic, not with an ambient
-			// session cookie, so a cross-site request cannot borrow the caller's
-			// credentials. Only read-only endpoints are exposed (see application.yaml).
-			.csrf((csrf) -> csrf.disable())
-			.httpBasic((basic) -> basic.authenticationEntryPoint(challenge))
+		http.securityMatcher("/actuator/**").authorizeHttpRequests((authz) -> authz.anyRequest().hasRole("ADMIN"));
+		spaCsrf(http).httpBasic((basic) -> basic.authenticationEntryPoint(challenge))
 			// Named explicitly, or an unauthenticated scrape is answered with a redirect
 			// to the sign-in page: Prometheus follows it, stores an HTML page as the
 			// metrics response, and never learns that credentials were wanted.
@@ -215,16 +218,13 @@ public class WebSecurityConfig {
 				.addLogoutHandler(this.loginAuditRecorder.logoutHandler())
 				.invalidateHttpSession(true)
 				.deleteCookies(this.properties.session().cookieName()))
-			.sessionManagement((session) -> session.sessionFixation((fixation) -> fixation.migrateSession()))
-			.csrf((csrf) -> csrf.csrfTokenRepository(CookieCsrfTokenRepository.withHttpOnlyFalse())
-				.csrfTokenRequestHandler(new SpaCsrfTokenRequestHandler()))
-			.addFilterAfter(new CsrfCookieFilter(), BasicAuthenticationFilter.class)
-			.headers((headers) -> headers
-				.contentSecurityPolicy((csp) -> csp.policyDirectives(this.properties.contentSecurityPolicy()))
-				.contentTypeOptions((contentType) -> {
-				})
-				.referrerPolicy((referrer) -> referrer.policy(ReferrerPolicyHeaderWriter.ReferrerPolicy.NO_REFERRER))
-				.frameOptions((frame) -> frame.deny()));
+			.sessionManagement((session) -> session.sessionFixation((fixation) -> fixation.migrateSession()));
+		spaCsrf(http).headers((headers) -> headers
+			.contentSecurityPolicy((csp) -> csp.policyDirectives(this.properties.contentSecurityPolicy()))
+			.contentTypeOptions((contentType) -> {
+			})
+			.referrerPolicy((referrer) -> referrer.policy(ReferrerPolicyHeaderWriter.ReferrerPolicy.NO_REFERRER))
+			.frameOptions((frame) -> frame.deny()));
 
 		return http.build();
 	}
