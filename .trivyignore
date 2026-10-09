@@ -1,0 +1,13 @@
+# CVE-2026-78667 and CVE-2026-97031 sit in the Go standard library compiled into
+# the CNB lifecycle launcher and the Paketo buildpack helper binaries that the
+# builder image (paketobuildpacks/builder-noble-java-tiny) brings into every
+# build. None of them is reachable from the application: the launcher and the
+# helpers only run inside the build sandbox, and the run image's Java process
+# never serves their HTTP or TLS surfaces.
+#
+# Fixes exist in Go 1.26.9 / 1.27.2, and lifecycle v0.21.23 ships them, but
+# Paketo has not rebuilt this builder against that lifecycle yet - its newest
+# tag (0.0.197) still carries lifecycle v0.21.22. Remove these entries once the
+# builder picks up the patched lifecycle.
+CVE-2026-78667
+CVE-2026-97031
