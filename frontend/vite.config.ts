@@ -33,7 +33,7 @@ export default defineConfig({
     // what is avoided is shipping a debug artifact to every operator. Build locally with
     // `npx vite build --sourcemap` when a production stack trace needs resolving.
     sourcemap: false,
-    rollupOptions: {
+    rolldownOptions: {
       output: {
         // Rolldown replaced the object form of manualChunks with named groups matched
         // against the module id, so the split is expressed as paths rather than as a
