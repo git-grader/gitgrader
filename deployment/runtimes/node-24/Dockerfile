@@ -4,7 +4,7 @@
 # /opt/hidden-tests and reaches the submission over the shim socket. The shared
 # Node shim is baked at /opt/gitgrader-shim, outside /workspace; never mount the
 # test suite inside the student tree.
-FROM node:24-bookworm-slim@sha256:a5f4366e834695d5f363b920c104953a535d3a9864d1bdf74566a0ebe01daee5
+FROM node:24-bookworm-slim@sha256:55fb5f5a527ea2c5c4a95f963e48ef90aa38c7b346054fdc8ee9957a2b55d205
 
 # Jasmine is baked into the runtime so read-only operator test-suite mounts can
 # execute Jasmine specs without installing dependencies at grading time.
