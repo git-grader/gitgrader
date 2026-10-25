@@ -8,7 +8,7 @@ name: gitgrader
 
 services:
   app:
-    image: ghcr.io/git-grader/gitgrader:${GITGRADER_VERSION:-0.1.0}
+    image: ghcr.io/git-grader/gitgrader:${GITGRADER_VERSION:-0.2.0-SNAPSHOT}
     restart: unless-stopped
     depends_on:
       database:
@@ -169,7 +169,7 @@ services:
   # from the queue, and it serves no SSH. It publishes no host port, so nothing outside
   # the internal network can ask it for anything at all.
   runner:
-    image: ghcr.io/git-grader/gitgrader:${GITGRADER_VERSION:-0.1.0}
+    image: ghcr.io/git-grader/gitgrader:${GITGRADER_VERSION:-0.2.0-SNAPSHOT}
     restart: unless-stopped
     depends_on:
       database:
