@@ -2,14 +2,13 @@
 
 ## Supported versions
 
-Security fixes are made on the latest released minor version. No release has been
-published yet, so `main` is the supported line and the version table below changes
-when the first tag is cut.
+Security fixes are made on the latest released minor version. The default branch is
+the development line for the next release; run a tagged release in production.
 
 | Version | Supported |
 | --- | --- |
-| `main` (no release yet) | Yes |
-| 0.1.x | Once 0.1.0 is tagged |
+| 0.1.x | Yes |
+| `main` (unreleased 0.2.x) | Development only |
 | Earlier versions | No |
 
 ## Reporting a vulnerability

@@ -1,6 +1,7 @@
 # GitGrader
 
 [![Build](https://github.com/git-grader/gitgrader/actions/workflows/build.yml/badge.svg)](https://github.com/git-grader/gitgrader/actions/workflows/build.yml)
+[![Release](https://img.shields.io/github/v/release/git-grader/gitgrader)](https://github.com/git-grader/gitgrader/releases)
 [![License](https://img.shields.io/github/license/git-grader/gitgrader)](LICENSE)
 
 GitGrader is an open-source, self-hostable platform for courses that accept
@@ -102,6 +103,7 @@ For example, 7 of 10 tests is **70.0 %**.
 - [Release process](docs/release-process.md)
 - [Privacy](docs/privacy.md)
 
-See [CONTRIBUTING.md](CONTRIBUTING.md), [SECURITY.md](SECURITY.md), and
-[CHANGELOG.md](CHANGELOG.md) for contribution, vulnerability, and release
-policy.
+See [CONTRIBUTING.md](CONTRIBUTING.md), [SECURITY.md](SECURITY.md),
+[CHANGELOG.md](CHANGELOG.md), and the
+[published releases](https://github.com/git-grader/gitgrader/releases) for
+contribution, vulnerability, and release policy.

@@ -25,11 +25,12 @@ jobs:
           distribution: temurin
           java-version: '25'
           cache: maven
-      # The plugin sets outputName to gitgrader-sbom, so the aggregate lands at
-      # backend/target/gitgrader-sbom.{xml,json} and not at target/bom.*. The previous
-      # bom.* paths matched nothing: upload-artifact's if-no-files-found: error failed
-      # the job, and the release upload below named two files that were never written.
-      - run: ./mvnw -B org.cyclonedx:cyclonedx-maven-plugin:makeAggregateBom
+      # The plugin configuration (outputName, formats) lives in backend/pom.xml,
+      # so the goal has to run against that module. Invoked from the root it runs
+      # on the aggregator, which has none of that configuration: it writes the
+      # default target/bom.{xml,json} and skips the backend, so the upload below
+      # found nothing.
+      - run: ./mvnw -B -pl backend org.cyclonedx:cyclonedx-maven-plugin:makeAggregateBom
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: cyclonedx-sbom
