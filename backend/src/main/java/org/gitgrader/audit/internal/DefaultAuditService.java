@@ -17,6 +17,7 @@
 package org.gitgrader.audit.internal;
 
 import java.time.Clock;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
@@ -24,6 +25,7 @@ import java.util.List;
 import jakarta.persistence.criteria.Predicate;
 
 import org.gitgrader.audit.AuditEntry;
+import org.gitgrader.audit.AuditProperties;
 import org.gitgrader.audit.AuditQuery;
 import org.gitgrader.audit.AuditRecord;
 import org.gitgrader.audit.AuditService;
@@ -47,9 +49,12 @@ public class DefaultAuditService implements AuditService {
 
 	private final Clock clock;
 
-	DefaultAuditService(AuditEventRepository repository, Clock clock) {
+	private final AuditProperties properties;
+
+	DefaultAuditService(AuditEventRepository repository, Clock clock, AuditProperties properties) {
 		this.repository = repository;
 		this.clock = clock;
+		this.properties = properties;
 	}
 
 	@Override
@@ -67,6 +72,27 @@ public class DefaultAuditService implements AuditService {
 	@Transactional(readOnly = true)
 	public Page<AuditEntry> find(AuditQuery query, Pageable pageable) {
 		return this.repository.findAll(specification(query), pageable).map(AuditEventEntity::toEntry);
+	}
+
+	/**
+	 * Deletes audit events that are older than the configured retention period.
+	 * @return the number of events removed
+	 */
+	@Transactional
+	public int purgeExpiredEvents() {
+		Duration retention = this.properties.retention();
+		if (!retention.isPositive()) {
+			// "Keep nothing" is not the meaning of a zero retention here: deleting
+			// everything on every tick would be a misconfiguration, not a policy.
+			logger.warn("audit.retention is {} - not purging", retention);
+			return 0;
+		}
+		Instant cutoff = Instant.now(this.clock).minus(retention);
+		int removed = this.repository.deleteOlderThan(cutoff);
+		if (removed > 0) {
+			logger.info("Purged {} audit events older than {} (cutoff {})", removed, retention, cutoff);
+		}
+		return removed;
 	}
 
 	private static Specification<AuditEventEntity> specification(AuditQuery query) {
