@@ -31,7 +31,10 @@ checks readiness, `/api/v1/meta` and the SSH port.
 
 There is no Dockerfile. The image is produced by buildpacks, which is what
 `install.sh` runs and what `./mvnw spring-boot:build-image -pl backend` does on
-its own. The published image is only available once a release has been tagged.
+its own. Each release publishes its image to
+`ghcr.io/git-grader/gitgrader` under the version tag, for example `0.1.0`.
+Only `linux/amd64` is published. Deploy a version tag rather than `latest`, and
+record the digest printed by the release workflow.
 
 The application container carries no health check. The image it is built on has
 no shell for one to run in, and a check that can never pass hides a crash loop

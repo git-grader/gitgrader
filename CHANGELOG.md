@@ -7,28 +7,85 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Security
+## [0.1.0] - 2026-10-25
 
-- Pin every GitHub Actions step to a commit SHA instead of a moving major tag. A tag is
-  writable by whoever owns the action, and `container.yml` runs with `packages: write`
-  and an attestation identity, so a retagged `v7` would have been enough to publish an
-  image under this project's name. Dependabot keeps the pins current through the
-  `github-actions` ecosystem it already watches.
-- Pin the PostgreSQL image by digest, as the alpine helper beside it already was. The
-  database is the one component holding state, and it was the one pulled by a tag that
-  can be moved underneath a running deployment. The development directory image is
-  pinned for the same reason.
-- Stop writing the fingerprint of an unregistered SSH key into the log at info. A key
-  that resolves to nobody belongs to whoever tried it, which on a public SSH port is
-  mostly scanners, so the operational log accumulated public key material for people
-  with no relationship to the service. Registered-key events are unchanged; the
-  fingerprint is still there at debug for anyone diagnosing a refused push.
-- Rename `GRADING_RUNNER_SECRET` to `GRADING_RUNNER_API_SECRET` in `.env`, the install
-  script and the documentation. The property has always been `grading.runner-api.secret`
-  and Compose bridged the two names, so anyone deploying without the shipped Compose file
-  set a variable that bound to nothing and then read a startup failure naming a variable
-  they had never seen. Existing `.env` files fail loudly with the new name in the
-  message.
+### Added
+
+- Two-container grading on a shimmed runtime. A runtime now records a grading topology,
+  and a shimmed one grades the submitted repository in a sandbox container that never
+  mounts the hidden tests, talking to a suite container over a shared Unix socket. The
+  two paths return different marks for the same submission, so the topology is required
+  rather than defaulted, and a shimmed runtime refuses a suite that never connects as an
+  infrastructure error instead of scoring it zero.
+- Per-test weights. A manifest test may carry a weight, and the score is the weighted
+  outcome rather than a plain pass count, so a suite can insist that one particular
+  behaviour matters more than the rest.
+- A standing student results-overview link, issued on an accepted push. It shows every
+  course and class the student has results for in one page, and because the stored value
+  is a hash it cannot be shown again: each accepted push rotates the token and revokes
+  the link it replaces, so a value already shared in an old terminal stops working.
+- Storage of result-token hashes rather than the tokens themselves. The plaintext is
+  returned once in the response and never stored; the row keeps the SHA-256 hash and a
+  short prefix an operator can recognise a token by, so a stolen table is not a set of
+  working credentials.
+- A `CODEOWNERS` file routing review of the grading sandbox, the SSH ingress, the security
+  configuration and the migrations, which are the paths where a mistake is hardest to undo.
+- Fair grading dispatch. A worker now claims at most one job per student and
+  skips students who already occupy one, so a single student can no longer put
+  an arbitrarily long queue in front of the rest of a course.
+- Newest-wins coalescing. Only the most recent unstarted submission for a
+  student and assignment is graded; older queued work is marked `CANCELLED`.
+  Every push is still recorded, so attempt history is unchanged.
+- Rolling hourly push allowances per assignment and per student, counted in the
+  database so they hold across restarts and across instances.
+- Rejection of a commit that was already submitted to the same repository.
+- Queue ceilings per student, per course and per instance.
+- `gitgrader.throttle` counter, tagged only with the limit and the decision, and
+  a `RATE_LIMIT_TRIGGERED` audit record for every throttling decision.
+- Initial self-hostable GitGrader release: Git-over-SSH submission admission,
+  assignment grading, instructor and student web interfaces, and PostgreSQL
+  persistence.
+- Container deployment assets, operational documentation, CI workflows, and
+  community policies.
+
+### Changed
+
+- Four response fields that were declared as `List<Object>` and always empty are gone: `recentActivity` from the dashboard, `progress` from a student, the
+  test/log placeholders from a submission detail, and `repositories` from a registration.
+  The registration one was visible: the success page rendered clone URLs from a list the
+  server never filled, so a student saw an empty "Your Assignments". The page now builds
+  the clone command from the course key and student number it already has.
+- `IllegalArgumentException` no longer maps to 404. An argument the domain
+  refuses is a 400; only `EntityNotFoundException` is a 404. A rejected export format and
+  a path that escaped its root both used to answer "the requested resource does not
+  exist".
+- `PATCH /api/v1/students/{id}/status` accepts only the three statuses an instructor can
+  move a student to. It previously accepted the whole lifecycle enum and
+  answered 409 for the one value it does not implement.
+- The runtime request record is named `NewRuntime`, matching `NewSubmission`. It shared a name with the JPA entity, which forced fully qualified
+  names at every call site.
+- The course report is served by a fixed number of queries. It asked per student, then
+  per student and assignment, then per graded submission - roughly 9,300 queries for a
+  class of 300 - and materialised every test-result row to read a score it did not need.
+- A result that has not been graded reports `passed` and `total` as null rather than 0. "0 of 10 tests passed" is a sentence about a run that happened, and an
+  ungraded submission has not had one; the score was already null for the same reason.
+- The production profile no longer falls back to the standalone `gitgrader`/`gitgrader`
+  database credentials. `SPRING_DATASOURCE_USERNAME` and `SPRING_DATASOURCE_PASSWORD`
+  must be set under it; an instance without them fails to start rather than reaching a
+  real database with credentials anyone can guess. Compose already required both.
+- Shutdown is now ordered and returns work rather than stranding it. The SSH
+  endpoint stops accepting pushes first, the dispatcher then stops claiming,
+  waits up to `grading.queue.drain-timeout` for a running sandbox, and hands
+  back whatever is still executing. `spring.lifecycle.timeout-per-shutdown-phase`
+  and the Compose `stop_grace_period` were raised above that window; previously
+  Compose sent `SIGKILL` ten seconds after `SIGTERM`.
+- Submission listings filter in the database. Every filter was previously applied to a
+  page that had already been read, so matches on other pages were dropped and the
+  reported total counted only the matches on the page in hand.
+- The Compose project is named explicitly, so the volume names the grading sandbox is
+  bind-mounted from no longer depend on what the checkout directory is called.
+- Production bundles no longer carry source maps, which were 5.6 MB of the 7.4 MB the
+  application served.
 
 ### Fixed
 
@@ -153,86 +210,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   a lost race rolls back whole and the retry re-reads, and the retire is flushed before
   the insert so the insert never meets the row it is replacing.
 
-### Added
-
-- Two-container grading on a shimmed runtime. A runtime now records a grading topology,
-  and a shimmed one grades the submitted repository in a sandbox container that never
-  mounts the hidden tests, talking to a suite container over a shared Unix socket. The
-  two paths return different marks for the same submission, so the topology is required
-  rather than defaulted, and a shimmed runtime refuses a suite that never connects as an
-  infrastructure error instead of scoring it zero.
-- Per-test weights. A manifest test may carry a weight, and the score is the weighted
-  outcome rather than a plain pass count, so a suite can insist that one particular
-  behaviour matters more than the rest.
-- A standing student results-overview link, issued on an accepted push. It shows every
-  course and class the student has results for in one page, and because the stored value
-  is a hash it cannot be shown again: each accepted push rotates the token and revokes
-  the link it replaces, so a value already shared in an old terminal stops working.
-- Storage of result-token hashes rather than the tokens themselves. The plaintext is
-  returned once in the response and never stored; the row keeps the SHA-256 hash and a
-  short prefix an operator can recognise a token by, so a stolen table is not a set of
-  working credentials.
-- A `CODEOWNERS` file routing review of the grading sandbox, the SSH ingress, the security
-  configuration and the migrations, which are the paths where a mistake is hardest to undo.
-- Fair grading dispatch. A worker now claims at most one job per student and
-  skips students who already occupy one, so a single student can no longer put
-  an arbitrarily long queue in front of the rest of a course.
-- Newest-wins coalescing. Only the most recent unstarted submission for a
-  student and assignment is graded; older queued work is marked `CANCELLED`.
-  Every push is still recorded, so attempt history is unchanged.
-- Rolling hourly push allowances per assignment and per student, counted in the
-  database so they hold across restarts and across instances.
-- Rejection of a commit that was already submitted to the same repository.
-- Queue ceilings per student, per course and per instance.
-- `gitgrader.throttle` counter, tagged only with the limit and the decision, and
-  a `RATE_LIMIT_TRIGGERED` audit record for every throttling decision.
-- Initial self-hostable GitGrader release: Git-over-SSH submission admission,
-  assignment grading, instructor and student web interfaces, and PostgreSQL
-  persistence.
-- Container deployment assets, operational documentation, CI workflows, and
-  community policies.
-
-### Changed
-
-- Four response fields that were declared as `List<Object>` and always empty are gone: `recentActivity` from the dashboard, `progress` from a student, the
-  test/log placeholders from a submission detail, and `repositories` from a registration.
-  The registration one was visible: the success page rendered clone URLs from a list the
-  server never filled, so a student saw an empty "Your Assignments". The page now builds
-  the clone command from the course key and student number it already has.
-- `IllegalArgumentException` no longer maps to 404. An argument the domain
-  refuses is a 400; only `EntityNotFoundException` is a 404. A rejected export format and
-  a path that escaped its root both used to answer "the requested resource does not
-  exist".
-- `PATCH /api/v1/students/{id}/status` accepts only the three statuses an instructor can
-  move a student to. It previously accepted the whole lifecycle enum and
-  answered 409 for the one value it does not implement.
-- The runtime request record is named `NewRuntime`, matching `NewSubmission`. It shared a name with the JPA entity, which forced fully qualified
-  names at every call site.
-- The course report is served by a fixed number of queries. It asked per student, then
-  per student and assignment, then per graded submission - roughly 9,300 queries for a
-  class of 300 - and materialised every test-result row to read a score it did not need.
-- A result that has not been graded reports `passed` and `total` as null rather than 0. "0 of 10 tests passed" is a sentence about a run that happened, and an
-  ungraded submission has not had one; the score was already null for the same reason.
-- The production profile no longer falls back to the standalone `gitgrader`/`gitgrader`
-  database credentials. `SPRING_DATASOURCE_USERNAME` and `SPRING_DATASOURCE_PASSWORD`
-  must be set under it; an instance without them fails to start rather than reaching a
-  real database with credentials anyone can guess. Compose already required both.
-- Shutdown is now ordered and returns work rather than stranding it. The SSH
-  endpoint stops accepting pushes first, the dispatcher then stops claiming,
-  waits up to `grading.queue.drain-timeout` for a running sandbox, and hands
-  back whatever is still executing. `spring.lifecycle.timeout-per-shutdown-phase`
-  and the Compose `stop_grace_period` were raised above that window; previously
-  Compose sent `SIGKILL` ten seconds after `SIGTERM`.
-- Submission listings filter in the database. Every filter was previously applied to a
-  page that had already been read, so matches on other pages were dropped and the
-  reported total counted only the matches on the page in hand.
-- The Compose project is named explicitly, so the volume names the grading sandbox is
-  bind-mounted from no longer depend on what the checkout directory is called.
-- Production bundles no longer carry source maps, which were 5.6 MB of the 7.4 MB the
-  application served.
-
-### Fixed
-
 - Open the assignments page in a fixed number of requests. The form listed the templates
   and the test suites and then asked each one for its versions, so an established course
   issued several hundred requests on a cold load and the form waited on all of them. The
@@ -336,4 +313,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   empty it underneath the server. The database is captured and restored through the
   logical dump alone.
 
-[Unreleased]: https://github.com/git-grader/gitgrader/commits/main
+### Security
+
+- Pin every GitHub Actions step to a commit SHA instead of a moving major tag. A tag is
+  writable by whoever owns the action, and `container.yml` runs with `packages: write`
+  and an attestation identity, so a retagged `v7` would have been enough to publish an
+  image under this project's name. Dependabot keeps the pins current through the
+  `github-actions` ecosystem it already watches.
+- Pin the PostgreSQL image by digest, as the alpine helper beside it already was. The
+  database is the one component holding state, and it was the one pulled by a tag that
+  can be moved underneath a running deployment. The development directory image is
+  pinned for the same reason.
+- Stop writing the fingerprint of an unregistered SSH key into the log at info. A key
+  that resolves to nobody belongs to whoever tried it, which on a public SSH port is
+  mostly scanners, so the operational log accumulated public key material for people
+  with no relationship to the service. Registered-key events are unchanged; the
+  fingerprint is still there at debug for anyone diagnosing a refused push.
+- Rename `GRADING_RUNNER_SECRET` to `GRADING_RUNNER_API_SECRET` in `.env`, the install
+  script and the documentation. The property has always been `grading.runner-api.secret`
+  and Compose bridged the two names, so anyone deploying without the shipped Compose file
+  set a variable that bound to nothing and then read a startup failure naming a variable
+  they had never seen. Existing `.env` files fail loudly with the new name in the
+  message.
+
+[Unreleased]: https://github.com/git-grader/gitgrader/compare/v0.1.0...HEAD
+[0.1.0]: https://github.com/git-grader/gitgrader/releases/tag/v0.1.0

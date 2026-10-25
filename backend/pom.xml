@@ -20,7 +20,7 @@
 
   <groupId>org.gitgrader</groupId>
   <artifactId>gitgrader</artifactId>
-  <version>0.1.0-SNAPSHOT</version>
+  <version>0.1.0</version>
   <packaging>jar</packaging>
 
   <name>GitGrader Backend</name>
@@ -887,6 +887,12 @@
                  silently wins over -Dspring-boot.build-image.imageName, which
                  makes a tagged build publish the snapshot name instead. -->
             <name>${spring-boot.build-image.imageName}</name>
+            <!-- Not `latest`. On 2026-10-23 Paketo moved the `latest` tag of
+                 this builder to an arm64-only manifest, so every amd64 host
+                 pulled it and the lifecycle died with "exec format error".
+                 Versioned tags are still multi-arch; this digest is 0.0.200's
+                 index, which lets each host pick its own architecture. -->
+            <builder>paketobuildpacks/builder-noble-java-tiny:0.0.200@sha256:7c62dd7e66b277ec9fa2b60d0ad74c4e9ef15db7910dcdf51126e62a02a31463</builder>
             <env>
               <BP_JVM_VERSION>${java.version}</BP_JVM_VERSION>
               <BPE_DEFAULT_TZ>UTC</BPE_DEFAULT_TZ>

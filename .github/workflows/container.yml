@@ -107,6 +107,10 @@ jobs:
         env:
           HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
         run: |
+          # The builder's multi-arch index can resolve to linux/arm64 even on an
+          # amd64 runner, and the lifecycle then dies with "exec format error".
+          # Pin the platform so the image is always the linux/amd64 target the
+          # documentation promises.
           version="$(awk '/<artifactId>gitgrader<\/artifactId>/ { seen = 1; next }
                          seen && match($0, /<version>[^<]+<\/version>/) {
                            print substr($0, RSTART + 9, RLENGTH - 19); exit
@@ -116,7 +120,8 @@ jobs:
             exit 1
           fi
           short_sha="${HEAD_SHA:0:10}"
-          ./mvnw -B package -DskipTests spring-boot:build-image -pl backend
+          ./mvnw -B package -DskipTests spring-boot:build-image -pl backend \
+            -Dspring-boot.build-image.imagePlatform=linux/amd64
           docker tag "${IMAGE}:${version}" "${IMAGE}:snapshot"
           docker tag "${IMAGE}:${version}" "${IMAGE}:snapshot-${short_sha}"
           docker push "${IMAGE}:snapshot-${short_sha}"
@@ -220,8 +225,12 @@ jobs:
         env:
           VERSION: ${{ steps.release.outputs.version }}
         run: |
+          # Pinned for the same reason as the snapshot job: the builder's
+          # multi-arch index can otherwise resolve to linux/arm64 and the
+          # lifecycle fails with "exec format error" on an amd64 runner.
           ./mvnw -B -Plicense verify spring-boot:build-image -pl backend \
-            -Dspring-boot.build-image.imageName="${IMAGE}:${VERSION}"
+            -Dspring-boot.build-image.imageName="${IMAGE}:${VERSION}" \
+            -Dspring-boot.build-image.imagePlatform=linux/amd64
       - name: Push image
         id: push
         env:
