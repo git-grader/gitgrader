@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Implemented
+
+- `audit.retention` (default `P365D`) is now enforced. A daily scheduled job
+  deletes audit events older than the configured period. Retention must be a
+  positive duration; a zero or absent value logs a warning and skips the purge.
+  A purge failure is caught and logged rather than halting the scheduler.
+
 ### Fixed
 
 - Queue shutdown no longer aborts when a student pushed again while their previous job was
