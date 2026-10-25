@@ -142,4 +142,17 @@
 		<Class name="org.gitgrader.grading.internal.ShimmedGradingContainer" />
 		<Bug pattern="OVERLY_PERMISSIVE_FILE_PERMISSION" />
 	</Match>
+
+	<!--
+	  SpotBugs flags any slf4j warn whose message template interpolates values with CRLF
+	  injection risk. The values here are a hex commit sha, a UUID, and a repository path
+	  the server itself generated (never user input); none can carry a carriage return or
+	  newline, and slf4j only writes them into the log line, not into any structured sink
+	  a forged line could corrupt. Scoped to this single class so new unsafe log calls
+	  elsewhere still fail the build.
+	-->
+	<Match>
+		<Class name="org.gitgrader.submissions.internal.SubmissionContentService" />
+		<Bug pattern="CRLF_INJECTION_LOGS" />
+	</Match>
 </FindBugsFilter>

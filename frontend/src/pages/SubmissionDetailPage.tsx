@@ -5,6 +5,7 @@ import { Link as RouterLink, useNavigate, useParams, useSearchParams } from 'rea
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Box, Button, Chip, CircularProgress, Divider, Paper, Typography } from '@mui/material';
 import { SubmissionGrading } from '../components/SubmissionGrading';
+import { SubmissionFiles } from '../components/SubmissionFiles';
 import { api } from '../api';
 import { queryKeys } from '../api/queryKeys';
 import { QueryErrorNotice } from '../components/QueryErrorNotice';
@@ -49,5 +50,6 @@ export function SubmissionDetailPage() {
       </Box>
     </Paper>
     <SubmissionGrading key={`${submission.id}:${classId}`} submission={submission} classId={classId} />
+    <SubmissionFiles submissionId={submission.id} />
   </Box>;
 }

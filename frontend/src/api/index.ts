@@ -515,6 +515,27 @@ export const SubmissionSchema = z.object({
 });
 export type Submission = z.infer<typeof SubmissionSchema>;
 
+// Mirrors SubmissionContentEntry. `binary` is always null on directory entries and
+// until a file has been sniffed, which is why it is nullish rather than boolean.
+export const SubmissionContentEntrySchema = z.object({
+  path: z.string(),
+  name: z.string(),
+  type: z.string(),
+  size: z.number().nullish(),
+  binary: z.boolean().nullish(),
+});
+export type SubmissionContentEntry = z.infer<typeof SubmissionContentEntrySchema>;
+
+// Mirrors SubmissionFileContent. `content` is null for binary files: the server
+// sniffs a nul byte and strict UTF-8 and refuses to guess an encoding, so the viewer
+// shows a placeholder rather than mojibake.
+export const SubmissionFileContentSchema = z.object({
+  path: z.string(),
+  content: z.string().nullish(),
+  binary: z.boolean().nullish(),
+});
+export type SubmissionFileContent = z.infer<typeof SubmissionFileContentSchema>;
+
 const RegradeAcceptedSchema = z.object({ gradingRunId: z.string() });
 
 export const DeadlineExtensionSchema = z.object({
@@ -966,6 +987,18 @@ export const api = {
     readJson(`/api/v1/submissions${queryString(params)}`, SubmissionPageSchema),
   getSubmission: (id: string) =>
     readJson(`/api/v1/submissions/${encodeURIComponent(id)}`, SubmissionSchema),
+  // `path` is a repository-internal path, not an id, so it is encoded per segment
+  // rather than whole: `src/main.js` must stay two segments.
+  getSubmissionFiles: (id: string, path?: string) =>
+    readJson(
+      `/api/v1/submissions/${encodeURIComponent(id)}/files${queryString(path ? { path } : undefined)}`,
+      z.array(SubmissionContentEntrySchema),
+    ),
+  getSubmissionFileContent: (id: string, path: string) =>
+    readJson(
+      `/api/v1/submissions/${encodeURIComponent(id)}/files/content${queryString({ path })}`,
+      SubmissionFileContentSchema,
+    ),
   regradeSubmission: (id: string) =>
     sendJson(
       "POST",

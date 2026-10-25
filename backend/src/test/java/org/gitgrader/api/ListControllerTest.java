@@ -90,7 +90,9 @@ class ListControllerTest {
 		SubmissionService submissions = mock(SubmissionService.class);
 		StudentDirectory students = mock(StudentDirectory.class);
 		when(submissions.search(any(), any())).thenReturn(new PageImpl<>(List.of(), PageRequest.of(0, 20), 0));
-		MockMvc mockMvc = MockMvcBuilders.standaloneSetup(new SubmissionController(submissions, students))
+		MockMvc mockMvc = MockMvcBuilders
+			.standaloneSetup(new SubmissionController(submissions, students,
+					mock(org.gitgrader.submissions.internal.SubmissionContentService.class)))
 			.setCustomArgumentResolvers(new PageableHandlerMethodArgumentResolver())
 			.build();
 		UUID courseId = UUID.randomUUID();
@@ -116,7 +118,9 @@ class ListControllerTest {
 		when(submissions.search(any(), any()))
 			.thenReturn(new PageImpl<>(List.of(submission), PageRequest.of(0, 20), 1));
 		when(students.findByIds(any())).thenReturn(List.of(student));
-		MockMvc mockMvc = MockMvcBuilders.standaloneSetup(new SubmissionController(submissions, students))
+		MockMvc mockMvc = MockMvcBuilders
+			.standaloneSetup(new SubmissionController(submissions, students,
+					mock(org.gitgrader.submissions.internal.SubmissionContentService.class)))
 			.setCustomArgumentResolvers(new PageableHandlerMethodArgumentResolver())
 			.build();
 
@@ -136,7 +140,10 @@ class ListControllerTest {
 		SubmissionView submission = submission(submissionId, studentId);
 		when(submissions.findById(submissionId)).thenReturn(Optional.of(submission));
 		when(students.findById(studentId)).thenReturn(Optional.of(student(studentId)));
-		MockMvc mockMvc = MockMvcBuilders.standaloneSetup(new SubmissionController(submissions, students)).build();
+		MockMvc mockMvc = MockMvcBuilders
+			.standaloneSetup(new SubmissionController(submissions, students,
+					mock(org.gitgrader.submissions.internal.SubmissionContentService.class)))
+			.build();
 
 		mockMvc.perform(get("/api/v1/submissions/{id}", submissionId))
 			.andExpect(status().isOk())
@@ -169,7 +176,9 @@ class ListControllerTest {
 		SubmissionService submissions = mock(SubmissionService.class);
 		StudentDirectory students = mock(StudentDirectory.class);
 		when(submissions.search(any(), any())).thenReturn(new PageImpl<>(List.of(), PageRequest.of(0, 20), 0));
-		MockMvc mockMvc = MockMvcBuilders.standaloneSetup(new SubmissionController(submissions, students))
+		MockMvc mockMvc = MockMvcBuilders
+			.standaloneSetup(new SubmissionController(submissions, students,
+					mock(org.gitgrader.submissions.internal.SubmissionContentService.class)))
 			.setCustomArgumentResolvers(new PageableHandlerMethodArgumentResolver())
 			.build();
 		UUID courseId = UUID.randomUUID();
