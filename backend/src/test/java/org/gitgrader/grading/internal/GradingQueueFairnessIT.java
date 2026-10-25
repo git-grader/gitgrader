@@ -343,6 +343,28 @@ class GradingQueueFairnessIT {
 	}
 
 	@Test
+	@DisplayName("shutdown withdraws work a newer push has already replaced")
+	void shutdownWithdrawsWorkReplacedByANewerPush() {
+		Student student = enrol("s109");
+		SubmissionView older = push(student, this.first, sha('a'));
+		assertThat(claimIds("worker-shutdown-replaced")).contains(jobFor(older).id());
+
+		SubmissionView newer = push(student, this.first, sha('b'));
+		assertThat(jobFor(newer).status()).isEqualTo(GradingJobStatus.PENDING);
+
+		this.queue.requeueHeldJobs("worker-shutdown-replaced");
+
+		// Returning the older job would sit a second pending job behind the newer one and
+		// violate grading_jobs_one_pending_per_assignment_idx. The newer push wins.
+		GradingJob withdrawn = jobFor(older);
+		assertThat(withdrawn.status()).isEqualTo(GradingJobStatus.CANCELLED);
+		assertThat(this.runs.findById(withdrawn.gradingRunId()).orElseThrow().status())
+			.isEqualTo(GradingRunStatus.CANCELLED);
+		assertThat(this.submissions.findById(older.id()).orElseThrow().status()).isEqualTo(SubmissionStatus.CANCELLED);
+		assertThat(jobFor(newer).status()).isEqualTo(GradingJobStatus.PENDING);
+	}
+
+	@Test
 	@DisplayName("the same commit cannot be submitted twice")
 	void refusesADuplicateCommit() {
 		Student student = enrol("s106");

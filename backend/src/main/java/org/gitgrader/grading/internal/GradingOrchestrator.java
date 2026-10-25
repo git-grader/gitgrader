@@ -65,9 +65,6 @@ public class GradingOrchestrator {
 
 	private static final Logger logger = LoggerFactory.getLogger(GradingOrchestrator.class);
 
-	/** Rotation applied to one half of the lock key so the two ids do not cancel out. */
-	private static final int KEY_HALF_BITS = 32;
-
 	/** A job in any of these is either running or about to be. */
 	private static final Set<GradingJobStatus> ACTIVE_JOB_STATUSES = EnumSet.of(GradingJobStatus.CLAIMED,
 			GradingJobStatus.RUNNING);
@@ -154,7 +151,7 @@ public class GradingOrchestrator {
 	@Transactional
 	public Optional<GradingRun> enqueue(UUID submissionId, UUID studentId, UUID courseId, UUID assignmentId,
 			String trigger) {
-		this.jobs.lockForEnqueue(lockKey(studentId, assignmentId));
+		this.jobs.lockForEnqueue(QueueLockKey.of(studentId, assignmentId));
 
 		if (PUSH_TRIGGER.equals(trigger)) {
 			// Spring Modulith replays a publication it never saw marked complete, which
@@ -274,24 +271,6 @@ public class GradingOrchestrator {
 
 	private void count(String limit, String decision) {
 		this.meters.counter(THROTTLE_COUNTER, "limit", limit, "decision", decision).increment();
-	}
-
-	/**
-	 * Derives the advisory lock key that serialises enqueues for one student and
-	 * assignment.
-	 *
-	 * <p>
-	 * A collision between two unrelated pairs only makes them take turns, which costs a
-	 * little contention and nothing else: the partial unique index, not this key, is what
-	 * guarantees a student never ends up with two queued runs for one assignment.
-	 * @param studentId the student
-	 * @param assignmentId the assignment
-	 * @return a stable key for {@code pg_advisory_xact_lock}
-	 */
-	private static long lockKey(UUID studentId, UUID assignmentId) {
-		long student = studentId.getMostSignificantBits() ^ studentId.getLeastSignificantBits();
-		long assignment = assignmentId.getMostSignificantBits() ^ assignmentId.getLeastSignificantBits();
-		return student ^ Long.rotateLeft(assignment, KEY_HALF_BITS);
 	}
 
 }

@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Queue shutdown no longer aborts when a student pushed again while their previous job was
+  held by a worker. Returning the held job collided with the newer pending job on the
+  one-pending-per-assignment index and rolled back the whole requeue, so every job that
+  worker held stayed claimed until its lease expired. The older job is now withdrawn and
+  the newer submission is graded.
+
 ## [0.1.0] - 2026-10-25
 
 ### Added

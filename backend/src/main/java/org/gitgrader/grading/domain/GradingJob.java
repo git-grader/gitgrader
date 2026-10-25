@@ -270,6 +270,33 @@ public class GradingJob {
 	}
 
 	/**
+	 * Withdraws work a worker still holds because a newer submission for the same student
+	 * and assignment is already queued.
+	 *
+	 * <p>
+	 * Unlike {@link #cancel}, this accepts a claimed or running job: the worker is
+	 * shutting down, so the sandbox is going away either way. Returning the job instead
+	 * would put a second unstarted job behind the newer push and violate the partial
+	 * unique index that allows one pending job per student and assignment. The newer push
+	 * wins, exactly as it does when it supersedes queued work.
+	 * @param clock the application clock
+	 * @throws IllegalStateException if the job is neither claimed nor running
+	 */
+	public void withdrawAfterShutdown(Clock clock) {
+		if (!this.status.isClaimed()) {
+			throw new IllegalStateException(
+					"Only a claimed or running job can be withdrawn at shutdown, but this one is " + this.status);
+		}
+		Instant now = Instant.now(clock);
+		this.status = GradingJobStatus.CANCELLED;
+		this.claimedBy = null;
+		this.claimedAt = null;
+		this.claimExpiresAt = null;
+		this.finishedAt = now;
+		this.updatedAt = now;
+	}
+
+	/**
 	 * Records a failed attempt and decides whether to retry.
 	 *
 	 * <p>

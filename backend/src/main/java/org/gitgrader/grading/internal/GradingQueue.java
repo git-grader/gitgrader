@@ -136,6 +136,11 @@ public class GradingQueue {
 	 * doing. That is the difference between this and {@link #reapAbandonedClaims}: an
 	 * expired lease might belong to a job that hangs its worker and must stay bounded,
 	 * but an orderly shutdown says nothing at all about the job.
+	 *
+	 * <p>
+	 * A job that a newer push has already replaced is withdrawn rather than returned: the
+	 * queue allows one unstarted job per student and assignment, and the newer submission
+	 * is the one worth grading.
 	 * @param worker the worker that is stopping
 	 * @return how many jobs were returned
 	 */
@@ -143,17 +148,51 @@ public class GradingQueue {
 	public int requeueHeldJobs(String worker) {
 		List<GradingJob> held = this.jobs.findByClaimedByAndStatusIn(worker,
 				List.of(GradingJobStatus.CLAIMED, GradingJobStatus.RUNNING));
+		int requeued = 0;
 		for (GradingJob job : held) {
+			if (withdrawWhenAlreadyReplaced(job)) {
+				continue;
+			}
 			job.requeueAfterShutdown(this.clock);
 			this.runs.findById(job.gradingRunId()).ifPresent((run) -> {
 				run.requeue();
 				this.submissions.markStatus(run.submissionId(), SubmissionStatus.QUEUED);
 			});
+			requeued++;
 		}
-		if (!held.isEmpty()) {
-			logger.info("Returned {} in-flight grading job(s) to the queue for {}", held.size(), worker);
+		if (requeued > 0) {
+			logger.info("Returned {} in-flight grading job(s) to the queue for {}", requeued, worker);
 		}
-		return held.size();
+		return requeued;
+	}
+
+	/**
+	 * Withdraws a held job when a newer submission for the same student and assignment is
+	 * already queued.
+	 *
+	 * <p>
+	 * The pending lookup and the state change have to share the enqueue lock: a push
+	 * arriving between them would insert its job and make the return a constraint
+	 * violation instead of a supersede. The newer submission wins, matching the rule
+	 * {@code GradingOrchestrator#enqueue} applies to work that has not started.
+	 * @param job the job this worker holds
+	 * @return true when the job was withdrawn rather than returned
+	 */
+	private boolean withdrawWhenAlreadyReplaced(GradingJob job) {
+		this.jobs.lockForEnqueue(QueueLockKey.of(job.studentId(), job.assignmentId()));
+		Optional<GradingJob> queued = this.jobs.findByStudentIdAndAssignmentIdAndStatus(job.studentId(),
+				job.assignmentId(), GradingJobStatus.PENDING);
+		if (queued.isEmpty()) {
+			return false;
+		}
+		job.withdrawAfterShutdown(this.clock);
+		this.runs.findById(job.gradingRunId()).ifPresent((run) -> run.cancel(this.clock));
+		if (!queued.get().submissionId().equals(job.submissionId())) {
+			this.submissions.markStatus(job.submissionId(), SubmissionStatus.CANCELLED);
+		}
+		logger.info("Withdrew held grading job {}; submission {} is already queued for the same assignment", job.id(),
+				queued.get().submissionId());
+		return true;
 	}
 
 	/**
@@ -172,7 +211,11 @@ public class GradingQueue {
 	public void releaseClaim(UUID jobId, String worker) {
 		this.jobs.findById(jobId)
 			.filter((job) -> job.status() == GradingJobStatus.CLAIMED && worker.equals(job.claimedBy()))
-			.ifPresent((job) -> job.requeueAfterShutdown(this.clock));
+			.ifPresent((job) -> {
+				if (!withdrawWhenAlreadyReplaced(job)) {
+					job.requeueAfterShutdown(this.clock);
+				}
+			});
 	}
 
 	/**
