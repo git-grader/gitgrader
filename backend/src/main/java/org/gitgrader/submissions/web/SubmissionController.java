@@ -16,8 +16,9 @@
 
 package org.gitgrader.submissions.web;
 
-import java.util.UUID;
+import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 import jakarta.persistence.EntityNotFoundException;
@@ -28,6 +29,7 @@ import org.gitgrader.submissions.SubmissionSearch;
 import org.gitgrader.submissions.SubmissionService;
 import org.gitgrader.submissions.SubmissionStatus;
 import org.gitgrader.submissions.SubmissionView;
+import org.gitgrader.submissions.internal.SubmissionContentService;
 import org.jspecify.annotations.Nullable;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -40,7 +42,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-/** Serves instructor submission searches and detail. */
+/** Serves instructor submission searches, detail, and submitted file browsing. */
 @RestController
 @RequestMapping("/api/v1/submissions")
 @PreAuthorize("hasAnyRole('INSTRUCTOR','ADMIN')")
@@ -50,9 +52,13 @@ public class SubmissionController {
 
 	private final StudentDirectory students;
 
-	public SubmissionController(SubmissionService submissions, StudentDirectory students) {
+	private final SubmissionContentService content;
+
+	public SubmissionController(SubmissionService submissions, StudentDirectory students,
+			SubmissionContentService content) {
 		this.submissions = submissions;
 		this.students = students;
+		this.content = content;
 	}
 
 	@GetMapping
@@ -77,6 +83,27 @@ public class SubmissionController {
 			.orElseThrow(() -> new EntityNotFoundException("Submission not found"));
 		String username = this.students.findById(submission.studentId()).map(StudentView::studentUsername).orElse(null);
 		return new InstructorSubmission(submission, username);
+	}
+
+	/**
+	 * Lists the file tree at the graded commit of the given submission.
+	 * @param id submission UUID
+	 * @param path optional subtree path within the repository; omit for the root
+	 */
+	@GetMapping("/{id}/files")
+	public List<SubmissionContentEntry> listFiles(@PathVariable UUID id,
+			@RequestParam(required = false) @Nullable String path) {
+		return this.content.listTree(id, path);
+	}
+
+	/**
+	 * Returns the content of one file at the graded commit.
+	 * @param id submission UUID
+	 * @param path the repository path of the file, e.g. {@code src/main.js}
+	 */
+	@GetMapping("/{id}/files/content")
+	public SubmissionFileContent readFile(@PathVariable UUID id, @RequestParam String path) {
+		return this.content.readFile(id, path);
 	}
 
 	private record InstructorSubmission(@JsonUnwrapped SubmissionView submission, @Nullable String studentUsername) {

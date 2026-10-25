@@ -54,6 +54,8 @@ export const queryKeys = {
       assignmentId = "",
     ) => ["submissions", "list", courseId, status, page, size, sort, studentId, assignmentId] as const,
     detail: (id: string) => ["submissions", "detail", id] as const,
+    files: (id: string, path: string) =>
+      ["submissions", "detail", id, "files", path] as const,
   },
 
   students: {
