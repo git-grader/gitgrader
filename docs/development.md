@@ -2,7 +2,7 @@
 
 ## Prerequisites
 
-Use JDK 25 and Maven Wrapper. The build requires Maven 3.9 or newer and
+Use JDK 25 and the Maven wrapper. The build requires Maven 3.9 or newer and
 downloads Node v24.18.1/npm 11.16.0 through `frontend-maven-plugin`; Docker is
 required for Testcontainers integration tests and for container-image builds.
 
@@ -36,6 +36,11 @@ scripts/dev-up.sh
 scripts/dev-down.sh
 ```
 
+Running the application directly with `./mvnw spring-boot:run
+-Dspring-boot.run.profiles=dev` enables local accounts: `instructor` /
+`instructor` and `admin` / `admin`, defined in
+`backend/src/main/resources/application-dev.yaml`.
+
 ## Tests and quality gate
 
 `./mvnw clean verify` runs the required checks. Integration tests named `*IT`
@@ -59,7 +64,7 @@ backup, not editing migration history.
 
 ## Module boundaries
 
-The root packages are Spring Modulith application modules. Each module’s
+The root packages are Spring Modulith application modules. Each module's
 `package-info.java` declares which other modules it may use and why. The
 `ApplicationModules.verify()` test rejects an undeclared dependency. Keep
 domain state and repositories within their owning module; communicate across a

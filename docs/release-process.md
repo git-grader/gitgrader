@@ -11,13 +11,13 @@ features increment the minor version; fixes increment the patch version.
    security, and operational changes under Keep a Changelog headings. When the
    release is cut, rename the section to the version and date, add the new
    comparison links, and leave a fresh empty `[Unreleased]` section behind.
-2. Set the release version in every place that names it:
-   - `pom.xml` and `backend/pom.xml`, with no `-SNAPSHOT` suffix;
-   - the `GITGRADER_VERSION` defaults in `compose.yaml` and `.env.example`;
+2. Set the release version everywhere it is named:
+   - `pom.xml` and `backend/pom.xml`, without a `-SNAPSHOT` suffix;
+   - `GITGRADER_VERSION` defaults in `compose.yaml` and `.env.example`;
    - the supported-versions table in `SECURITY.md`.
 3. Run `./mvnw -Plicense clean verify`. The `license` profile is not part of a
-   plain `verify`, and it is what CI runs, so a plain `verify` can pass locally
-   and fail the build.
+   plain `verify`; it is what CI runs, so a plain `verify` can pass locally and
+   fail the build.
 4. Commit the release, then create and push an annotated tag:
 
    ```sh
@@ -33,14 +33,13 @@ The tag triggers two workflows:
 - **Container image** builds with
   `./mvnw -B -Plicense verify spring-boot:build-image -pl backend`, publishes a
   `linux/amd64` image to GHCR, scans it, emits its digest, and creates a
-  provenance attestation. The `-pl backend` is required: the aggregator skips
-  the Boot goals. There is no `arm64` image: buildpacks build for the runner's
-  architecture only. A stable release also moves `:latest`; a pre-release does
-  not.
+  provenance attestation. `-pl backend` is required: the aggregator skips the
+  Boot goals. There is no `arm64` image: buildpacks build for the runner's
+  architecture only. A stable release moves `:latest`; a pre-release does not.
 - **SBOM** generates the aggregate CycloneDX report
-  (`gitgrader-sbom.json` and `gitgrader-sbom.xml`, named by the plugin's
-  `outputName`) and attaches it to the GitHub release for the same tag. It
-  creates the release with generated notes if one does not exist yet.
+  (`gitgrader-sbom.json` and `gitgrader-sbom.xml`) and attaches it to the GitHub
+  release for the same tag, creating the release with generated notes if one
+  does not exist yet.
 
 Publish release notes from the changelog, including upgrade and rollback
 requirements, as soon as the tag is pushed:

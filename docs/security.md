@@ -53,22 +53,27 @@ service itself, split into the application and the runner that holds the socket.
 Grey is material a student must never see. Amber is the one edge where a
 compromise stops being contained.
 
-Four things this is meant to make obvious. Student code only ever executes
-inside the sandbox, never in the application. Hidden tests enter that sandbox
-read-only for a single run and leave it only as a score and a category, never
-as a name or an assertion. The application does not hold the Docker socket — it
-builds no Docker client at all, and asks a separate runner service for a
-sandbox over an internal API. So compromising the application is *not*
-compromising the host. What is left to contain is a compromised runner, which is
-a much smaller surface: it claims no jobs, serves no SSH, publishes no port, and
-exists only to start one sandbox. The hardening below narrows what a submission
-can do; the runner's narrow API is what keeps a broken application off the host.
+Student code only ever executes inside the sandbox, never in the application.
+Hidden tests enter that sandbox read-only for a single run and leave it only as
+a score and a category, never as a name or an assertion. In the shipped Compose
+deployment the application does not hold the Docker socket — it builds no Docker
+client at all — and asks a separate runner service for a sandbox over an
+internal API, so compromising the application is *not* compromising the host.
+What is left to contain is a compromised runner, a much smaller surface: it
+claims no jobs, serves no SSH, publishes no port, and exists only to start one
+sandbox. The hardening below narrows what a submission can do; the runner's
+narrow API is what keeps a broken application off the host.
+
+> A single-process deployment that starts the application with
+> `grading.runner=docker` (the default) gives the application direct socket
+> access and collapses this boundary. It is a development convenience only;
+> never use it where students can reach the instance.
 
 ## Execution isolation
 
-The Docker runner is configured to run as a non-root user, with network disabled
-by default, a read-only root filesystem, bounded tmpfs, dropped capabilities,
-`no-new-privileges`, PID/CPU/memory limits, a timeout, log-size limit, and
+The Docker runner runs sandboxes as a non-root user with the network disabled,
+a read-only root filesystem, bounded tmpfs, dropped capabilities,
+`no-new-privileges`, PID/CPU/memory limits, a timeout, a log-size limit, and
 short-lived container cleanup. These reduce risk; they do not make kernel or
 Docker vulnerabilities impossible. Patch the host and runner images promptly.
 
@@ -84,28 +89,24 @@ grading-runtime protocol: the sandbox container (S) holds the submitted
 repository and never mounts the hidden tests; the suite container (T) mounts
 them read-only. S and T communicate only over a shared Unix socket, and the
 protocol pins what crosses that socket to JSON values — assertions, expected
-values, and sources are never transmitted, and a stack trace is never
-transmitted either. A hidden suite is therefore unreadable by a determined
-student, not merely withheld from the result.
+values, sources, and stack traces are never transmitted. A hidden suite is
+therefore unreadable by a determined student, not merely withheld from the
+result.
 
-The split does not change the manifest's authority. T's process runs the suite's
-own code and emits the report the runner parses, so undeclared tests and forged
-passes are ruled out exactly as before. Legacy single-container runtimes (no
-shim kind) retain the earlier caveat: in a shared interpreter a test callback's
-source is available from the function object itself, so such a suite is withheld
-from the result while a run is in progress. Set assessment policy for a shimmed
-runtime accordingly: treat the hidden suite as unreadable by a determined
-student.
+The split does not change the manifest's authority (below). Legacy
+single-container runtimes (no shim kind) retain an earlier caveat: in a shared
+interpreter a test callback's source is available from the function object
+itself, so such a suite is withheld from the result while a run is in progress.
+Set assessment policy for a shimmed runtime accordingly: treat the hidden suite
+as unreadable by a determined student.
 
 ## Grading integrity: the manifest decides what exists
 
 In a legacy single-container run, the reporter and the submission share standard
 output: nothing distinguishes a line the test reporter emitted from one the
-submission printed itself, and a submission containing
-`process.stdout.write("ok 1 - anything\n")` produces output that reads exactly
-like a passing test. A shimmed run has already separated them — only the suite
-container T writes to the stream the runner parses — but the manifest stays the
-authority in both topologies, because a suite can miscount its own runs.
+submission printed itself. A shimmed run has already separated them — only T
+writes to the stream the runner parses — but the manifest stays the authority in
+both topologies, because a suite can miscount its own runs.
 
 `manifest.json` is therefore the authority on which tests exist, not the output.
 Exactly one result is recorded per declared test, in manifest order; a line
@@ -129,7 +130,8 @@ asked for a privileged container with the host filesystem mounted, so anything
 holding that socket can take the machine. No amount of container hardening
 changes that; it is a property of the API, not of the container asking.
 
-The application therefore does not hold it. The topology is:
+The application therefore does not hold it in the shipped topology. The
+deployment is:
 
 **Web app → internal API → runner service → Docker Engine**
 
@@ -138,7 +140,8 @@ as the application with two things switched off — it claims no jobs from the
 queue and serves no SSH — and it publishes no host port, so only the internal
 network can reach it. The web application is configured with
 `grading.runner=remote` and builds no Docker client at all: there is no code path
-from a request to the daemon.
+from a request to the daemon. (A single-process deployment with the default
+`grading.runner=docker` does hold the socket; see the warning at the top.)
 
 What the runner will do is deliberately one thing: *grade this submission*. It is
 not a proxy for the Docker API, and the request does not get to decide the
@@ -192,16 +195,14 @@ Basic scrape over an actuator endpoint or a runner-API call authenticates a
 peer, not a person, and must not crowd the trail.
 
 Those limits count the address the servlet container reports, never an
-`X-Forwarded-For` header read straight off the request. A client sets that header
-itself, so counting it would let one caller land in a new bucket on every attempt
-and spend an unlimited number of sign-ins, registrations or token guesses.
-
-The consequence is operational: behind a reverse proxy, every client arrives as
-the proxy and shares one bucket unless `server.forward-headers-strategy` is set
-to `framework` or `native`, which makes the container resolve the real client
-first. Set it when, and only when, the proxy is trusted to overwrite the header
-it forwards. Leaving it at `none` behind a proxy is safe but blunt: the limits
-then apply to everyone at once.
+`X-Forwarded-For` header read straight off the request: a client sets that
+header itself, so counting it would let one caller land in a new bucket on every
+attempt. Behind a reverse proxy, every client arrives as the proxy and shares
+one bucket unless `server.forward-headers-strategy` is set to `framework` or
+`native`, which makes the container resolve the real client first. Set it when,
+and only when, the proxy is trusted to overwrite the header it forwards.
+Leaving it at `none` behind a proxy is safe but blunt: the limits then apply to
+everyone at once.
 
 ## Push admission and abuse limits
 
@@ -214,24 +215,23 @@ required — has an acceptable SSHSIG on **every** commit it introduces.
 
 The account behind the SSH key must also still be active. The profile is looked
 up again at admission rather than trusted from the handshake, so a suspension or
-archive that lands mid-session takes effect on the next push and the source of a
-refusal is the student's own status: suspended and archived profiles cannot push,
-and a self-registration that is still unverified cannot push under a deployment
-that sets `app.registration.require-instructor-verification` (it can anywhere
-else — see the registration policy in configuration.md).
+archive that lands mid-session takes effect on the next push, and the source of
+a refusal is the student's own status: suspended and archived profiles cannot
+push, and a self-registration that is still unverified cannot push under a
+deployment that sets `app.registration.require-instructor-verification` (it can
+anywhere else — see the registration policy in configuration.md).
 
-The commit ceiling refuses the push rather than truncating the walk. Truncating
-would leave the commits past the ceiling unverified while still admitting them,
-which would let a large enough push carry unsigned history in behind a signed
-tip. Treat the ceiling as part of the signature guarantee, not just as a load
-control.
+The commit ceiling refuses the push rather than truncating the walk: truncating
+would leave commits past the ceiling unverified while still admitting them,
+letting a large enough push carry unsigned history in behind a signed tip.
+Treat the ceiling as part of the signature guarantee, not just load control.
 
 Non-fast-forwards are refused. JGit permits them unless told otherwise, and a
 student who rewrites a branch can orphan commits that recorded submissions still
 reference, leaving a re-grade unable to find the tree it is supposed to score.
-The size limits are applied by the receive-pack itself rather than by the
-admission hook, because a pack is fully received and parsed before the hook
-runs: refusing there would happen only after the bytes had already been written.
+The size limits are applied by the receive-pack itself rather than the admission
+hook, because a pack is fully received and parsed before the hook runs: refusing
+there would happen only after the bytes had already been written.
 
 Sustained load is bounded per student rather than per address, because a student
 is identified by a registered key and an address is not. A student may make

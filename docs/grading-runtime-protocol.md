@@ -137,18 +137,15 @@ instructor-only diagnostics and never parses as a report.
 ## Lifecycle and failure semantics
 
 - The runner starts S first, then T. T's client retries its connect until
-  `SHIM_CONNECT_TIMEOUT_MS` passes, which absorbs the short gap while S creates
-  the socket.
-- A submission whose process never appears, or whose server dies mid-suite,
-  fails its tests with `connect-timeout` / `connection-closed` — the same
-  outcome class as a solution that throws while loading today, and the run is
-  still bounded by the runner's one overall timeout, which kills both
-  containers.
-- A submitted function that never returns fails the call with
-  `invocation-timeout` after `SHIM_CALL_TIMEOUT_MS`, so one hung call cannot
-  wedge the suite until the runner's timeout.
-- The runner tears both containers down on every exit path and removes the
-  shared socket volume with them.
+  `SHIM_CONNECT_TIMEOUT_MS` passes, absorbing the short gap while S creates the
+  socket.
+- A submission whose server never appears, or dies mid-suite, fails with
+  `connect-timeout` / `connection-closed` — bounded by the runner's overall
+  timeout, which kills both containers.
+- A submitted function that never returns fails with `invocation-timeout` after
+  `SHIM_CALL_TIMEOUT_MS`, so one hung call cannot wedge the suite.
+- The runner tears both containers down on every exit path and removes the shared
+  socket volume with them.
 
 ## Declaring a runtime's topology
 

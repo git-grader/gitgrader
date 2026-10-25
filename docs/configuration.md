@@ -2,8 +2,9 @@
 
 Environment variables override external `/config/application.yaml`, which
 overrides packaged defaults. The product properties below are exhaustive for
-`app`, `git`, `grading`, `storage`, `security`, and `audit`; framework keys are
-listed in the second table.
+`app`, `git`, `grading`, `storage`, `security`, and `audit`; common framework
+keys are listed in the second table. A dash in the environment column means the
+key has no environment-variable mapping and can only be set in YAML.
 
 | YAML path | Environment variable | Default | Purpose |
 | --- | --- | --- | --- |
@@ -36,7 +37,7 @@ listed in the second table.
 | `grading.network-enabled` | `GRADING_NETWORK_ENABLED` | `false` | Permit runner network access. |
 | `grading.log-size-limit` | `GRADING_LOG_SIZE_LIMIT` | `1MB` | Captured log limit. |
 | `grading.retain-workspaces` | `GRADING_RETAIN_WORKSPACES` | `false` | Retain workspaces for diagnosis. |
-| `grading.runner` | `GRADING_RUNNER` | `docker` | Where sandboxes come from. `remote` asks the runner service and builds no Docker client at all; the shipped Compose file sets it on the application. |
+| `grading.runner` | `GRADING_RUNNER` | `docker` | Where sandboxes come from. `remote` asks the runner service and builds no Docker client at all; the shipped Compose file sets it on the application. Leave it at `docker` only where the process may safely hold the Docker socket (local development). |
 | `grading.runner-api.enabled` | `GRADING_RUNNER_API_ENABLED` | `false` | Serve the grading API. This is what makes a container the runner, and it is the only one given the Docker socket. |
 | `grading.runner-api.url` | `GRADING_RUNNER_API_URL` | empty | Where the application reaches the runner. Required when `grading.runner` is `remote`; startup fails without it. |
 | `grading.runner-api.secret` | `GRADING_RUNNER_API_SECRET` | empty | Shared secret both sides present and check, compared in constant time. Required on either side; a runner without one would accept a run from anything that reached it, so it refuses to start. |
@@ -66,7 +67,7 @@ listed in the second table.
 | `security.local-accounts.accounts[].username` / `password` / `display-name` / `roles` | `SECURITY_LOCAL_ACCOUNTS_ACCOUNTS_0_USERNAME` and the matching `_PASSWORD`, `_DISPLAY_NAME`, `_ROLES` per index | none | The accounts created in memory when the above is on: a login name, a plain-text password, a name for the UI, and granted roles without the `ROLE_` prefix. Development only; nothing here reaches a database. |
 | `security.rate-limits.*` | `SECURITY_RATE_REGISTRATION_IP`, `SECURITY_RATE_REGISTRATION_GLOBAL`, `SECURITY_RATE_RESULT_IP`, `SECURITY_RATE_LOGIN_IP`, `SECURITY_RATE_SSH_IP` | `5`, `200`, `60`, `10`, `30` | Per-address abuse limits, held in memory. They reset on restart and are counted per instance. Block duration is `15m`. |
 | `security.rate-limits.submissions-per-hour-per-assignment` / `submissions-per-hour-per-student` | `SECURITY_RATE_SUBMISSIONS_ASSIGNMENT` / `SECURITY_RATE_SUBMISSIONS_STUDENT` | `20` / `60` | Rolling hourly push allowances. Counted in the database, so unlike the limits above they survive a restart and hold across instances. Exceeding one refuses the push with an explanation on the Git side band. |
-| `security.session.timeout` / `cookie-name` / `secure-cookie` / `same-site` | `SECURITY_SESSION_TIMEOUT` / `SECURITY_SESSION_COOKIE_NAME` / `SECURITY_SESSION_SECURE_COOKIE` | `8h` / `GITGRADER_SESSION` / `true` / `Lax` | Session behavior. |
+| `security.session.timeout` / `cookie-name` / `secure-cookie` | `SECURITY_SESSION_TIMEOUT` / `SECURITY_SESSION_COOKIE_NAME` / `SECURITY_SESSION_SECURE_COOKIE` | `8h` / `GITGRADER_SESSION` / `true` | Session behavior. `same-site` is fixed at `Lax` and has no environment mapping. |
 | `security.content-security-policy` | — | See packaged YAML | CSP sent with the application shell. Loosen only deliberately; the SPA is served from the same origin as the API. |
 | `security.result-content-security-policy` | — | See packaged YAML | Stricter CSP sent with the public result page, which is reachable without signing in. |
 | `audit.ip-hash-key` | `AUDIT_IP_HASH_KEY` | empty | HMAC key for client-address hashes in audit records. Leaving it empty generates a fresh key at every startup, which is safe but makes address hashes incomparable across restarts, so an address cannot be followed through one. Set a long random value and treat it as a secret; changing it invalidates correlation with existing records. |
