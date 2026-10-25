@@ -7,63 +7,43 @@ commits, or pull requests.
 
 ## Local workflow
 
-Install JDK 25 and use the Maven wrapper. The build installs Node v24.18.1 and
-npm 11.16.0 into `backend/target/frontend-toolchain`; a separately installed
-Node is useful only for frontend-only work.
-
 ```sh
 ./mvnw -Plicense clean verify
 ./mvnw spring-javaformat:apply
 ./mvnw spring-boot:run
-./mvnw spring-boot:build-image
 ```
 
-Run `./mvnw -Plicense clean verify` before opening a pull request, because
-that is the command CI runs. A plain `verify` leaves the license profile out,
-so it can pass locally and fail the pull request on a missing SPDX header. It
-runs formatting
-validation, Checkstyle, frontend lint/test/build (unless skipped), unit and
-integration tests, PMD and CPD, SpotBugs with FindSecBugs, forbidden-apis,
-JaCoCo, and module architecture tests. The integration tests need a reachable
-Docker engine; without one they are skipped rather than failed, so the command
-still completes. CI sets `CI`, where the same tests run regardless and a missing
-engine fails the build instead of quietly proving nothing. An editor can
-disrupt the run in a similar way. m2e does not give the language server a
-private `bin/` directory: it derives the Eclipse class output from Maven's
-build directory, so the generated `.classpath` sets `output="target/classes"`
-and m2e's `workspacestate.properties` maps `org.gitgrader:gitgrader` onto
-`backend/target/classes`. The editor's compiler therefore writes into the very
-directory Maven is using. If it recompiles after the tests have already
-executed, it rewrites the `.class` files, which invalidates JaCoCo's execution
-data and makes `jacoco-check` fail with `Classes in bundle ... do not match
-with execution data` and zero coverage even though every test passed. Close the
-editor and re-run when that happens. The optional native build is:
+`-Plicense clean verify` is the same gate CI runs. The `license` profile
+validates SPDX headers (the most common first PR failure), formatting,
+Checkstyle, PMD/CPD, SpotBugs with FindSecBugs, forbidden-apis, JaCoCo,
+frontend lint/test/build, Spring Modulith verification, and ArchUnit tests.
+A plain `verify` skips the license profile, so it can pass locally and fail on
+a missing header in CI.
 
-```sh
-./mvnw -Pnative native:compile
-```
+Integration tests (`*IT` / `*IntegrationTest`) need Docker/Testcontainers.
+Without Docker they are skipped rather than failed, so the command still
+completes. When `CI` is set the same tests run regardless and a missing engine
+fails the build.
 
-For local frontend iteration, run `npm ci`, `npm run dev`, `npm run lint`,
-`npm run test:ci`, or `npm run build` in `frontend/`. Maven's frontend profile
+> **JaCoCo and IDE recompilation.** m2e derives its class output from
+> Maven's build directory, so an editor that recompiles after the tests have
+> already executed rewrites `.class` files and invalidates JaCoCo's execution
+> data. `jacoco-check` then fails with zero coverage even though every test
+> passed. Close the editor and re-run when that happens.
+
+For frontend-only iteration, run `npm ci`, `npm run dev`, `npm run lint`,
+`npm run test:ci`, or `npm run build` in `frontend/`; Maven's frontend profile
 uses the same scripts. Use `-DskipFrontend=true` only when intentionally
-excluding frontend work; do not use `-DskipQuality` for a pull request.
+excluding frontend work, and never `-DskipQuality` for a pull request. The
+optional native build is `./mvnw -Pnative native:compile`.
 
 ## Quality gate
 
-`spring-javaformat` owns Java layout. Apply it rather than hand-formatting:
-
-```sh
-./mvnw spring-javaformat:apply
-```
-
-Checkstyle runs during `validate` for production and test Java. PMD and CPD run
-at `verify` (CPD minimum token count 120), as do SpotBugs/FindSecBugs and
-forbidden-apis. JaCoCo requires 55% bundle line and 45% branch coverage, which
-is the floor for the unit tests alone. Where `CI` is set the integration tests
-are guaranteed to have run and the floor is 75% line and 60% branch, so a change
-that passes locally without Docker can still be short in CI. The `license`
-profile checks the SPDX headers and is not part of a plain `verify`; CI runs it,
-so add the header to every new file. The `security` profile runs OWASP
+`spring-javaformat` owns Java layout; apply it, never hand-format. The JaCoCo
+floor is 55% line and 45% branch for the unit tests alone; with `CI` set the
+integration tests are guaranteed to have run and the floor is 75% line and 60%
+branch, so a change that passes locally without Docker can still be short in
+CI. Add the SPDX header to every new file. The `security` profile runs OWASP
 Dependency-Check and fails at CVSS 7 or above; set an NVD API key in CI for
 reliable scans:
 
@@ -71,10 +51,10 @@ reliable scans:
 ./mvnw -Psecurity verify
 ```
 
-Spring Modulith’s `ApplicationModules.verify()` and the Taikai/ArchUnit tests
+Spring Modulith's `ApplicationModules.verify()` and the Taikai/ArchUnit tests
 enforce module boundaries. A module may depend only on packages declared in its
 `package-info.java`; do not fix a violation with a cross-module repository or
-service call. Use the published application event/API boundary instead.
+service call — use the published application event/API boundary instead.
 
 ## Rules that commonly surprise contributors
 
@@ -94,12 +74,11 @@ only through the grading runner abstraction.
 
 ## Database and modules
 
-Add database changes as a new, forward-only Flyway migration in
-`backend/src/main/resources/db/migration/`; never edit an applied migration.
-Add the entity/model, migration, tests, and documentation in the same change.
-Review the module’s `package-info.java` before adding an import outside its
-boundary. The architecture test intentionally makes accidental coupling a build
-failure.
+Add database changes as a new, forward-only Flyway migration; never edit an
+applied one. Review the module's `package-info.java` before adding an import
+outside its boundary — the architecture test intentionally makes accidental
+coupling a build failure. See [docs/development.md](docs/development.md) for the
+full Flyway and module-boundary guidance.
 
 ## Commits and pull requests
 

@@ -4,7 +4,7 @@ GitGrader is a modular monolith: one deployable Spring Boot application with
 explicit, tested module boundaries. This keeps installation, transactional
 integrity, and operational ownership simple while preventing the unstructured
 coupling typical of a monolith. Spring Modulith verifies the dependencies
-declared by each module’s `package-info.java`.
+declared by each module's `package-info.java`.
 
 ```mermaid
 flowchart TB
@@ -37,14 +37,14 @@ flowchart TB
   style gg fill:#F5F7FA,stroke:#DCE3EA
 ```
 
-**Reading it.** A rounded dark box is a person. Inside the shaded boundary is
-what this project runs: a plain box is a process, a cylinder is where state
-lives. A pale box outside the boundary is something it talks to but does not
-own. Each arrow is labelled with what crosses it and over which protocol.
+A rounded dark box is a person. Inside the shaded boundary is what this project
+runs: a plain box is a process, a cylinder is where state lives. A pale box
+outside the boundary is something it talks to but does not own. Each arrow names
+what crosses it and over which protocol.
 
-The single application box is the point. HTTP, SSH and grading are one process,
+The single application box is the point. HTTP, SSH, and grading are one process,
 not three services, so a submission is recorded and queued in one transaction
-and there is one thing to install and back up. The sandbox is outside the
+and there is one thing to install and back up. The sandbox sits outside the
 boundary because it is deliberately not ours: it is created per submission,
 given no network, and destroyed.
 
@@ -56,7 +56,7 @@ was not declared, so the table below is enforced rather than aspirational.
 
 ```mermaid
 C4Component
-  title Components: the modules, by what they are allowed to depend on
+  title Components: the modules, by layer
   Container_Boundary(entry, "Entry points") {
     Component(git, "git", "SSH and JGit", "Admits pushes, provisions repositories")
     Component(api, "api", "Spring MVC", "REST API and the SPA shell")
@@ -68,31 +68,33 @@ C4Component
     Component(security, "security", "", "Authentication, result tokens, rate limits")
     Component(submissions, "submissions", "", "Immutable record of every push")
     Component(assignments, "assignments", "", "Assignments and deadlines")
-  }
-  Container_Boundary(foundation, "Foundation: depend on nothing") {
-    Component(identity, "identity", "", "Students")
     Component(courses, "courses", "", "Courses and classes")
+    Component(sshkeys, "sshkeys", "", "Registered public keys")
+  }
+  Container_Boundary(foundation, "Foundation") {
+    Component(identity, "identity", "", "Students")
     Component(templates, "templates", "", "Starter projects, hidden tests")
     Component(runtimes, "runtimes", "", "Pinned grading images")
-    Component(sshkeys, "sshkeys", "", "Registered public keys")
     Component(audit, "audit", "", "Append-only trail")
     Component(configuration, "configuration", "", "Typed settings")
   }
+  Rel(grading, submissions, "Grades")
+  Rel(submissions, assignments, "Belongs to")
+  Rel(assignments, courses, "Belongs to")
+  Rel(courses, identity, "Identifies")
+  Rel(sshkeys, identity, "Belongs to")
+  Rel(security, identity, "Resolves who is asking")
   Rel(git, submissions, "Records an accepted push")
   Rel(git, registration, "Reacts to a new student")
   Rel(api, reports, "Reads course progress")
   Rel(api, grading, "Reads a result")
-  Rel(grading, submissions, "Grades")
-  Rel(submissions, assignments, "Belongs to")
-  Rel(assignments, courses, "Belongs to")
-  Rel(security, identity, "Resolves who is asking")
   UpdateLayoutConfig($c4ShapeInRow="3", $c4BoundaryInRow="1")
 ```
 
 **Reading it.** Boxes are modules, grouped by how far they sit from the outside
-world. The three arrows are the direction dependencies are allowed to run:
-downward only. Nothing in Foundation may reach up, which is why those seven
-modules have no declared dependencies at all.
+world. Arrows show representative allowed dependencies, all running downward.
+The five Foundation modules have no declared dependencies at all; `courses` and
+`sshkeys` depend only on `identity`.
 
 The diagram shows the shape; this table is the contract, and matches each
 `package-info.java` exactly:
@@ -181,7 +183,7 @@ one that exists and was not graded, not one that was lost.
 `GradingRunner` is the only intended path to execute untrusted code. The Docker
 implementation runs a short-lived non-root container with the network disabled,
 all capabilities dropped, and `no-new-privileges`. To add a runner, implement the
-runner contract, preserve the run’s timeout/resources/artifact/report semantics,
+runner contract, preserve the run's timeout/resources/artifact/report semantics,
 select it through `grading.runner`, and add integration tests proving hidden tests and
 student work mounts retain their access controls. Do not spawn processes from the
 application to run untrusted code: the runner contract is the only sanctioned way
@@ -204,5 +206,6 @@ a new attempt. Published templates and test suites retain their content-addresse
 version, and runtimes retain the immutable image digest. This makes a historical
 grade explainable from the accepted commit, versions, runner image, and run.
 
-Score percentage is `tests_passed / tests_total × 100`. For example, 7 passing
-tests out of 10 is `7 / 10 × 100 = 70.0 %`.
+Score is `earned weight / total weight × 100`. The default weight is one per
+test, so 7 of 10 passing is `7 / 10 × 100 = 70.0 %`. Assignments may declare
+different weights; the formula accounts for them consistently.

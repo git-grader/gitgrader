@@ -315,27 +315,32 @@ docker volume ls | grep gitgrader
 
 ## What this run has proven
 
-Signed-push admission and each of its refusals; registration validation, enrolment and
-repository provisioning; a grading run split across a sandbox container and a suite
+Signed-push admission and each of its refusals; registration validation, enrolment
+and repository provisioning; a grading run split across a sandbox and a suite
 container where the hidden tests reach only the suite and never the sandbox; the
-submission record keeping the signing key and the real ref; instructor authentication,
-authorisation and the admin boundary; the token-only result page with its headers; and
-that a restart changes neither the host key nor the data.
+submission record keeping the signing key and the real ref; instructor
+authentication, authorisation and the admin boundary; the token-only result page
+with its security headers; and that a restart changes neither the host key nor
+the data.
 
-It does not cover: LDAP over TLS (the demo directory is plaintext on purpose), a restore
-onto a running instance, upgrades across versions, or more than one grading worker under
-load. Those need their own runs.
+It does not cover: LDAP over TLS (the demo directory uses plaintext), a restore
+onto a running instance, upgrades, or more than one grading worker under load.
+Those need their own runs.
 
-## Defects this playbook has found
+## Defects this playbook has caught
 
-Each was found by running the steps above against a real deployment, and each is fixed.
-They are listed because they are the shapes of failure this test exists to catch.
+Every defect below was found by running these steps against a real deployment,
+and every one had passed the unit and integration suites. They are listed
+because they are the shapes of failure this test exists to catch — and because
+each is now a step or expectation above that would fail if it regressed.
 
-| # | Step | Defect |
-|---|---|---|
-| 1 | 2 | `compose.yaml` forwarded none of the documented `SECURITY_*`, `APP_*`, `GIT_*` or `GRADING_*` settings. An operator following `docs/installation.md` to configure LDAP got an application that never saw the URL, base DN or credentials. |
-| 2 | 3 | Repository provisioning refused a directory that already existed, so anything failing after the directory was created — or a database restored from an older backup — left the student permanently unprovisionable: the registration event retried onto the same directory forever. |
-| 3 | 3 | A CSRF failure answered `302` to the sign-in page with the session id in the URL path, instead of `403 problem+json`. `fetch` follows the redirect and parses a login page as the answer. |
-| 4 | 2 | `/actuator/health` was permanently `503`: Boot's LDAP indicator reads `spring.ldap.urls`, which this application does not use, so it probed `localhost:389` on every deployment that did configure a directory. |
-| 5 | 9 | `/actuator/metrics` answered an unauthenticated scrape with a redirect rather than a `401` challenge, so Prometheus stored the sign-in page as the metrics response and reported nothing. |
-| 6 | 3, 7 | A self-registered student was never enrolled on the course. `CourseAdministration.enroll` existed with no caller and no endpoint, so every course report — the instructor's only view of how a class is doing — listed nobody. |
+1. Compose forwarded none of the documented settings (step 2).
+2. Repository provisioning could not recover from a pre-existing directory,
+   leaving a student permanently unprovisionable (step 3).
+3. A CSRF failure answered `302` to the sign-in page with the session id in the
+   URL instead of `403 problem+json` (step 3).
+4. `/actuator/health` was permanently `503` on LDAP deployments (step 2).
+5. `/actuator/metrics` answered unauthenticated scrapes with a redirect rather
+   than a `401` challenge (step 9).
+6. A self-registered student was never enrolled; course reports listed nobody
+   (steps 3, 7).

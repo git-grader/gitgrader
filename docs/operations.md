@@ -3,43 +3,41 @@
 ## Health and observability
 
 Use `/actuator/health/readiness` to decide whether the instance can receive
-traffic. The Compose file carries no in-container health check, because the
-buildpack run image has no shell to run one with; probe the endpoint from
-outside the container instead. Do not route
-traffic to a process that has not become ready. Treat a process-level liveness
-check separately from readiness: liveness answers whether a restart may help;
-readiness answers whether dependencies required for requests are usable.
+traffic; probe it from outside the container, because the image has no shell for
+an in-container check. Do not route traffic to a process that has not become
+ready. Treat liveness and readiness as separate questions: liveness answers
+whether a restart may help; readiness answers whether the dependencies required
+for requests are usable.
 
-`/actuator/health` deliberately does not include the directory. Boot's LDAP indicator
-reads `spring.ldap.urls`, which this application does not use, so it reported every
-LDAP deployment as DOWN while the instance was serving normally. A directory outage
-stops instructors signing in; it does not stop a push being accepted or graded, so it
-must not mark the instance unhealthy. Monitor the directory itself.
+`/actuator/health` deliberately excludes the directory. Boot's LDAP indicator
+reads `spring.ldap.urls`, which this application does not use, so enabling it
+reported every LDAP deployment as DOWN while the instance was serving normally.
+A directory outage stops instructors signing in; it does not stop a push being
+accepted or graded, so it must not mark the instance unhealthy. Monitor the
+directory itself.
 
-The application exposes Spring Boot Actuator endpoints subject to its security
-configuration. Confirm the endpoint exposure policy in the deployed
-configuration before scraping metrics or publishing health data. Keep metrics
-and actuator endpoints on an administrator-only network where they reveal
-operational information.
+Actuator endpoints are subject to the deployed security configuration; confirm
+the exposure policy before scraping metrics or publishing health data, and keep
+them on an administrator-only network.
 
 Logs are the primary incident record. Preserve the correlation ID supplied by
 the application or edge proxy across HTTP requests, grading work, and support
 records; never use a student name, key, result token, or source contents as a
-correlation ID. Centralize structured logs and restrict access because error
+correlation ID. Centralize structured logs and restrict access, because error
 context may contain assignment identifiers or controlled output.
 
 Classify grading-related errors consistently:
 
 1. **Student test failure** — a completed runner produced failing tests; record
    the result, do not page an operator.
-2. **Invalid submission** — admission rejected a push or submission due to a
-   domain rule; return the actionable validation reason.
+2. **Invalid submission** — admission rejected a push for a domain reason;
+   return the actionable validation reason.
 3. **Runner error** — the isolated runner could not execute, timed out, or
-   produced unusable output; retain technical diagnostics and retry only after
-   assessing reproducibility.
-4. **Infrastructure error** — database, Docker engine, storage, DNS, or network
-   dependency failed; page the platform operator.
-5. **Internal application error** — an unexpected application defect; preserve
+   produced unusable output; retain diagnostics, retry only after assessing
+   reproducibility.
+4. **Infrastructure error** — a database, Docker engine, storage, DNS, or
+   network dependency failed; page the platform operator.
+5. **Internal application error** — an unexpected defect; preserve the
    correlation ID and stack trace in protected logs, then open an incident.
 
 ## Runtimes and grading runs
