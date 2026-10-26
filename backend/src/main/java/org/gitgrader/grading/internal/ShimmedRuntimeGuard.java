@@ -61,9 +61,10 @@ final class ShimmedRuntimeGuard {
 		if (ShimTopology.isDeclared(runtime.shimKind()) && !hasShimHarness(hiddenTests)) {
 			throw new IllegalStateException("The runtime '" + runtime.runtimeKey() + "' is shimmed but the hidden "
 					+ "test suite at " + hiddenTests
-					+ " never connects to the sandbox. A suite graded in two containers must import the shim "
-					+ "client (createShimClient) from /opt/gitgrader-shim/client.js; without it no check could "
-					+ "reach the submission.");
+					+ " never connects to the sandbox. A suite graded in two containers must reach the sandbox "
+					+ "through the shim client in /opt/gitgrader-shim (createShimClient in client.js, "
+					+ "create_shim_client in client.py, or new ShimClient(...) in ShimClient.java); "
+					+ "without it no check could reach the submission.");
 		}
 	}
 
@@ -89,13 +90,16 @@ final class ShimmedRuntimeGuard {
 	}
 
 	/**
-	 * Reports whether some script in the suite imports the shim client.
+	 * Reports whether some script in the suite references the shim client.
 	 *
 	 * <p>
 	 * The shim client is the only thing that opens the socket, and the sandbox trusts the
-	 * marker because a working suite has to write the same reference. Requiring it is
-	 * what stops a shimmed runtime from silently regressing to grading in one shared
-	 * process, where the submission could once again read the hidden sources (issue #40).
+	 * marker because a working suite has to write the same reference. The reference is
+	 * language-specific: the Node client is created through {@code createShimClient}, the
+	 * Python client through {@code create_shim_client}, and the Java client is
+	 * constructed. Requiring it is what stops a shimmed runtime from silently regressing
+	 * to grading in one shared process, where the submission could once again read the
+	 * hidden sources (issue #40).
 	 * @param hiddenTests the mounted hidden suite directory
 	 * @return whether some script in the suite references the shim client
 	 */
@@ -117,12 +121,24 @@ final class ShimmedRuntimeGuard {
 			return false;
 		}
 		String name = fileName.toString();
-		return name.endsWith(".js") || name.endsWith(".cjs") || name.endsWith(".mjs");
+		return name.endsWith(".js") || name.endsWith(".cjs") || name.endsWith(".mjs") || name.endsWith(".py")
+				|| name.endsWith(".java");
 	}
 
 	private static boolean referencesShimClient(Path script) {
 		try {
-			return Files.readString(script, StandardCharsets.UTF_8).contains("createShimClient");
+			String content = Files.readString(script, StandardCharsets.UTF_8);
+			String name = script.getFileName().toString();
+			if (name.endsWith(".js") || name.endsWith(".cjs") || name.endsWith(".mjs")) {
+				return content.contains("createShimClient");
+			}
+			if (name.endsWith(".py")) {
+				return content.contains("create_shim_client");
+			}
+			if (name.endsWith(".java")) {
+				return content.contains("new ShimClient") || content.contains("ShimClient(");
+			}
+			return false;
 		}
 		catch (IOException ex) {
 			return false;

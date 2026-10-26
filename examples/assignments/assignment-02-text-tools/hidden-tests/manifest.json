@@ -1,0 +1,76 @@
+{
+  "suiteKey": "assignment-02-text-tools",
+  "version": "1.0.0",
+  "tests": [
+    {
+      "id": "h01",
+      "name": "test_h01_truncate_preserves_text_at_the_maximum_length",
+      "category": "Truncation - boundary conditions",
+      "hint": "Check what happens when the text is exactly the maximum length.",
+      "weight": 1
+    },
+    {
+      "id": "h02",
+      "name": "test_h02_truncate_counts_unicode_characters_rather_than_utf_16_units",
+      "category": "Truncation - Unicode handling",
+      "hint": "Count user-perceived characters rather than storage units.",
+      "weight": 1
+    },
+    {
+      "id": "h03",
+      "name": "test_h03_slugify_normalises_accented_letters",
+      "category": "Slug generation - character normalisation",
+      "hint": "Consider how letters with marks should appear in a URL label.",
+      "weight": 1
+    },
+    {
+      "id": "h04",
+      "name": "test_h04_slugify_collapses_punctuation_and_whitespace",
+      "category": "Slug generation - separators",
+      "hint": "Ensure runs of separators produce one clean separator.",
+      "weight": 1
+    },
+    {
+      "id": "h05",
+      "name": "test_h05_title_case_capitalises_hyphenated_words",
+      "category": "Title casing - word boundaries",
+      "hint": "Treat punctuation that joins words as a word boundary when appropriate.",
+      "weight": 1
+    },
+    {
+      "id": "h06",
+      "name": "test_h06_word_count_returns_zero_for_empty_text",
+      "category": "Word counting - empty input",
+      "hint": "Decide what an input with no words should return.",
+      "weight": 1
+    },
+    {
+      "id": "h07",
+      "name": "test_h07_word_count_accepts_mixed_whitespace",
+      "category": "Word counting - whitespace",
+      "hint": "Do not assume that every separator is an ordinary space.",
+      "weight": 1
+    },
+    {
+      "id": "h08",
+      "name": "test_h08_reverse_words_normalises_repeated_whitespace",
+      "category": "Word reversal - whitespace",
+      "hint": "Define the output spacing after separating the words.",
+      "weight": 1
+    },
+    {
+      "id": "h09",
+      "name": "test_h09_is_palindrome_ignores_case_and_punctuation",
+      "category": "Palindrome checking - normalisation",
+      "hint": "Compare the meaningful characters, not the presentation characters.",
+      "weight": 1
+    },
+    {
+      "id": "h10",
+      "name": "test_h10_is_palindrome_rejects_a_non_palindrome",
+      "category": "Palindrome checking - negative case",
+      "hint": "Make sure the comparison can return False as well as True.",
+      "weight": 1
+    }
+  ]
+}

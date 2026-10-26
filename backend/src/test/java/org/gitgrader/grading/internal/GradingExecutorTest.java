@@ -108,8 +108,8 @@ class GradingExecutorTest {
 						Duration.ofSeconds(30), 3, 500, 1000, Duration.ofSeconds(30)));
 		Clock clock = Clock.fixed(Instant.parse("2026-04-01T10:00:00Z"), ZoneOffset.UTC);
 
-		this.executor = new GradingExecutor(this.runner, this.workspaces, this.plans, this.reportParser, testResults,
-				properties, new tools.jackson.databind.ObjectMapper(), clock);
+		this.executor = new GradingExecutor(this.runner, this.workspaces, this.plans, List.of(this.reportParser),
+				testResults, properties, new tools.jackson.databind.ObjectMapper(), clock);
 
 		this.run = new GradingRun(UUID.randomUUID(), 1, "PUSH", UUID.randomUUID(), "sha256:" + "a".repeat(64),
 				UUID.randomUUID(), "corr-1", clock);
@@ -258,7 +258,7 @@ class GradingExecutorTest {
 		this.plans = mock(GradingPlanResolver.class);
 		when(this.plans.resolve(any())).thenReturn(planWithWeightedAssignment());
 		GradingExecutor weightedExecutor = new GradingExecutor(this.runner, this.workspaces, this.plans,
-				this.reportParser, mock(TestResultRepository.class), defaultProperties(),
+				List.of(this.reportParser), mock(TestResultRepository.class), defaultProperties(),
 				new tools.jackson.databind.ObjectMapper(),
 				Clock.fixed(Instant.parse("2026-04-01T10:00:00Z"), ZoneOffset.UTC));
 
@@ -307,7 +307,7 @@ class GradingExecutorTest {
 				new GradingProperties.RunnerApi(false, "", "", Duration.ofSeconds(10), Duration.ofSeconds(30)),
 				new GradingProperties.Queue(true, Duration.ofSeconds(2), Duration.ofMinutes(15), 3,
 						Duration.ofSeconds(30), 3, 500, 1000, Duration.ofSeconds(30)));
-		return new GradingExecutor(this.runner, this.workspaces, plans, this.reportParser,
+		return new GradingExecutor(this.runner, this.workspaces, plans, List.of(this.reportParser),
 				mock(TestResultRepository.class), retaining, new tools.jackson.databind.ObjectMapper(),
 				Clock.fixed(Instant.parse("2026-04-01T10:00:00Z"), ZoneOffset.UTC));
 	}

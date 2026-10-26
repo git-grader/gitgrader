@@ -112,7 +112,7 @@ class HiddenTestSecrecyTest {
 		GradingRun run = new GradingRun(UUID.randomUUID(), 1, "PUSH", null, null, null, "correlation",
 				java.time.Clock.systemUTC());
 		GradingExecutor executor = new GradingExecutor(mock(org.gitgrader.grading.GradingRunner.class),
-				mock(GradingWorkspaceFactory.class), mock(GradingPlanResolver.class), mock(ReportParser.class),
+				mock(GradingWorkspaceFactory.class), mock(GradingPlanResolver.class), List.of(mock(ReportParser.class)),
 				this.results, mock(org.gitgrader.configuration.GradingProperties.class),
 				new tools.jackson.databind.ObjectMapper(), java.time.Clock.systemUTC());
 

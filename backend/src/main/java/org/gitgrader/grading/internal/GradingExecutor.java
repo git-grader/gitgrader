@@ -72,7 +72,7 @@ public class GradingExecutor {
 
 	private final GradingPlanResolver plans;
 
-	private final ReportParser reportParser;
+	private final List<ReportParser> reportParsers;
 
 	private final TestResultRepository testResults;
 
@@ -83,12 +83,12 @@ public class GradingExecutor {
 	private final Clock clock;
 
 	public GradingExecutor(GradingRunner runner, GradingWorkspaceFactory workspaces, GradingPlanResolver plans,
-			ReportParser reportParser, TestResultRepository testResults, GradingProperties properties,
+			List<ReportParser> reportParsers, TestResultRepository testResults, GradingProperties properties,
 			ObjectMapper objectMapper, Clock clock) {
 		this.runner = runner;
 		this.workspaces = workspaces;
 		this.plans = plans;
-		this.reportParser = reportParser;
+		this.reportParsers = List.copyOf(reportParsers);
 		this.testResults = testResults;
 		this.properties = properties;
 		this.objectMapper = objectMapper;
@@ -131,6 +131,27 @@ public class GradingExecutor {
 	}
 
 	/**
+	 * Finds the parser that reads the format a runtime declares.
+	 *
+	 * <p>
+	 * A runtime stores the format its reporter emits, but the formats the enum names are
+	 * not all implemented. Parsing the wrong grammar does not fail: it matches nothing,
+	 * every declared test comes back unexecuted, and the scorer divides those into a
+	 * confident zero. That is indistinguishable on a student's page from a student who
+	 * passed nothing, so a format with no parser is refused instead of guessed at.
+	 * @param format the format a runtime declares
+	 * @return the parser implementing that format, or {@code null} when none does
+	 */
+	private @Nullable ReportParser parserFor(RuntimeReportFormat format) {
+		for (ReportParser parser : this.reportParsers) {
+			if (parser.supports(format)) {
+				return parser;
+			}
+		}
+		return null;
+	}
+
+	/**
 	 * Writes the outcome of a run.
 	 * @param run the run being completed
 	 * @param outcome what the run produced
@@ -169,7 +190,8 @@ public class GradingExecutor {
 		}
 
 		RuntimeReportFormat format = runtime.reportFormat();
-		if (!this.reportParser.supports(format)) {
+		ReportParser reportParser = parserFor(format);
+		if (reportParser == null) {
 			// The sandbox succeeded, but nothing here can read the report it produced.
 			// Handing it to a parser for a different grammar matches no line, every
 			// declared test comes back NOT_EXECUTED, and the scorer records a confident
@@ -184,7 +206,7 @@ public class GradingExecutor {
 		}
 
 		Manifest manifest = readManifest(hiddenTests);
-		List<ParsedResult> parsed = this.reportParser.parse(result.stdout(), result.stderr(), manifest);
+		List<ParsedResult> parsed = reportParser.parse(result.stdout(), result.stderr(), manifest);
 		GradingScore score = score(parsed, assignment);
 
 		logger.debug("Run {} produced {} test result(s) [correlationId={}]", run.id(), parsed.size(),
