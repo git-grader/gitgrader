@@ -56,6 +56,11 @@ export const queryKeys = {
     detail: (id: string) => ["submissions", "detail", id] as const,
     files: (id: string, path: string) =>
       ["submissions", "detail", id, "files", path] as const,
+    // Separate key from `files`: a path can only be a directory or a file, but
+    // keeping listings and content under distinct namespaces means no query can
+    // ever read another's cached shape.
+    fileContent: (id: string, path: string) =>
+      ["submissions", "detail", id, "file-content", path] as const,
   },
 
   students: {

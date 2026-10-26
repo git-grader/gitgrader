@@ -14,6 +14,8 @@ import {
   Tooltip,
   Typography,
 } from '@mui/material';
+import ChevronRightIcon from '@mui/icons-material/ChevronRight';
+import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import { useState } from 'react';
 import { api } from '../api';
 import type { SubmissionContentEntry } from '../api';
@@ -22,12 +24,31 @@ import { QueryErrorNotice } from './QueryErrorNotice';
 
 /**
  * Navigable file tree + viewer for one submission's committed files.
- * Only the text content of the graded commit is shown; binary files get a
- * placeholder. This component is intentionally read-only: an instructor can
- * review the submitted code but never change it.
+ *
+ * The tree loads one directory level at a time: only the root is fetched up
+ * front, and expanding a directory fetches its children lazily. React Query
+ * caches every listing by path, so a directory opened once re-expands without
+ * another request. Only the text content of the graded commit is shown; binary
+ * files get a placeholder. This component is intentionally read-only: an
+ * instructor can review the submitted code but never change it.
  */
 export function SubmissionFiles({ submissionId }: { submissionId: string }) {
   const [selectedPath, setSelectedPath] = useState<string | null>(null);
+  // One set of expanded directories, owned here rather than per row: children
+  // render their own rows, and per-row state would forget a parent's expansion
+  // whenever React remounts the row after a refetch.
+  const [expandedPaths, setExpandedPaths] = useState<Set<string>>(new Set());
+
+  const toggleExpanded = (path: string) =>
+    setExpandedPaths((current) => {
+      const next = new Set(current);
+      if (next.has(path)) {
+        next.delete(path);
+      } else {
+        next.add(path);
+      }
+      return next;
+    });
 
   const treeQuery = useQuery({
     queryKey: queryKeys.submissions.files(submissionId, ''),
@@ -68,7 +89,7 @@ export function SubmissionFiles({ submissionId }: { submissionId: string }) {
       {/* ── Tree panel ─────────────────────────────────────────── */}
       <Paper
         variant="outlined"
-        sx={{ width: 240, minWidth: 0, flexShrink: 0, overflow: 'auto', maxHeight: 600 }}
+        sx={{ width: 260, minWidth: 0, flexShrink: 0, overflow: 'auto', maxHeight: 600 }}
       >
         <Box sx={{ p: 1, borderBottom: 1, borderColor: 'divider' }}>
           <Typography variant="caption" color="text.secondary">
@@ -80,6 +101,10 @@ export function SubmissionFiles({ submissionId }: { submissionId: string }) {
             <FileTreeItem
               key={entry.path}
               entry={entry}
+              submissionId={submissionId}
+              depth={0}
+              expandedPaths={expandedPaths}
+              onToggle={toggleExpanded}
               selectedPath={selectedPath}
               onSelect={setSelectedPath}
             />
@@ -98,23 +123,77 @@ export function SubmissionFiles({ submissionId }: { submissionId: string }) {
   );
 }
 
-/** One row in the file tree sidebar. Files open for viewing. */
+/** Horizontal indent, in MUI spacing units, per level of nesting. */
+const INDENT_STEP = 1.5;
+
+/**
+ * One row in the file tree sidebar.
+ *
+ * Files select for viewing. Directories toggle: the first expansion triggers a
+ * request for that subtree, and React Query keeps it cached under the
+ * directory's own path, so collapsing and re-expanding never refetches.
+ */
 function FileTreeItem({
   entry,
+  submissionId,
+  depth,
+  expandedPaths,
+  onToggle,
   selectedPath,
   onSelect,
 }: {
   entry: SubmissionContentEntry;
+  submissionId: string;
+  depth: number;
+  expandedPaths: Set<string>;
+  onToggle: (path: string) => void;
   selectedPath: string | null;
   onSelect: (path: string) => void;
 }) {
   const isFile = entry.type === 'file';
   const isSelected = selectedPath === entry.path;
 
-  if (!isFile) {
+  const childrenQuery = useQuery({
+    queryKey: queryKeys.submissions.files(submissionId, entry.path),
+    queryFn: () => api.getSubmissionFiles(submissionId, entry.path),
+    // Fetched once, on first expand; the cache serves every later expansion.
+    enabled: !isFile && expandedPaths.has(entry.path),
+  });
+
+  const indent = depth * INDENT_STEP;
+
+  if (isFile) {
     return (
       <ListItem disablePadding>
-        <ListItemButton sx={{ py: 0.25, pl: 1 }}>
+        <ListItemButton
+          selected={isSelected}
+          onClick={() => onSelect(entry.path)}
+          sx={{ py: 0.25, pl: indent + 1 }}
+        >
+          <FileIcon entry={entry} />
+          <Typography
+            variant="body2"
+            sx={{ ml: 0.5, fontFamily: 'monospace', fontSize: '0.75rem' }}
+          >
+            {entry.name}
+          </Typography>
+        </ListItemButton>
+      </ListItem>
+    );
+  }
+
+  const isExpanded = expandedPaths.has(entry.path);
+  const children = childrenQuery.data ?? [];
+
+  return (
+    <>
+      <ListItem disablePadding>
+        <ListItemButton
+          onClick={() => onToggle(entry.path)}
+          aria-expanded={isExpanded}
+          sx={{ py: 0.25, pl: indent + 1 }}
+        >
+          {isExpanded ? <ExpandMoreIcon /> : <ChevronRightIcon />}
           <FileIcon entry={entry} />
           <Typography
             variant="body2"
@@ -124,25 +203,47 @@ function FileTreeItem({
           </Typography>
         </ListItemButton>
       </ListItem>
-    );
-  }
-
-  return (
-    <ListItem disablePadding>
-      <ListItemButton
-        selected={isSelected}
-        onClick={() => onSelect(entry.path)}
-        sx={{ py: 0.25, pl: 1 }}
-      >
-        <FileIcon entry={entry} />
-        <Typography
-          variant="body2"
-          sx={{ ml: 0.5, fontFamily: 'monospace', fontSize: '0.75rem' }}
-        >
-          {entry.name}
-        </Typography>
-      </ListItemButton>
-    </ListItem>
+      {isExpanded &&
+        (childrenQuery.isLoading ? (
+          <ListItem disablePadding>
+            <Box sx={{ pl: indent + 3, py: 0.5 }}>
+              <CircularProgress size={14} aria-label={`Loading ${entry.name}`} />
+            </Box>
+          </ListItem>
+        ) : childrenQuery.isError ? (
+          <ListItem disablePadding>
+            <Box sx={{ px: indent + 1, py: 0.5 }}>
+              <QueryErrorNotice
+                message={`Contents of ${entry.name} could not be loaded.`}
+                onRetry={() => void childrenQuery.refetch()}
+              />
+            </Box>
+          </ListItem>
+        ) : children.length === 0 ? (
+          <ListItem disablePadding>
+            <Typography
+              variant="caption"
+              color="text.secondary"
+              sx={{ pl: indent + 3, py: 0.25 }}
+            >
+              Empty
+            </Typography>
+          </ListItem>
+        ) : (
+          children.map((child) => (
+            <FileTreeItem
+              key={child.path}
+              entry={child}
+              submissionId={submissionId}
+              depth={depth + 1}
+              expandedPaths={expandedPaths}
+              onToggle={onToggle}
+              selectedPath={selectedPath}
+              onSelect={onSelect}
+            />
+          ))
+        ))}
+    </>
   );
 }
 
@@ -183,7 +284,7 @@ function FileContent({
   selectedPath: string | null;
 }) {
   const contentQuery = useQuery({
-    queryKey: queryKeys.submissions.files(submissionId, selectedPath ?? ''),
+    queryKey: queryKeys.submissions.fileContent(submissionId, selectedPath ?? ''),
     queryFn: () => api.getSubmissionFileContent(submissionId, selectedPath ?? ''),
     enabled: !!selectedPath,
   });
