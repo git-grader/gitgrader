@@ -43,6 +43,23 @@ updates:
     ignore:
       - dependency-name: "node"
         update-types: ["version-update:semver-major"]
+  # The Python and Java runtimes pin their base images by digest as well, and
+  # the same major-is-identity rule applies: a new major is a new runtime, not a
+  # change to an existing one, so the major version is excluded from updates.
+  - package-ecosystem: docker
+    directory: "/deployment/runtimes/python-3.14"
+    schedule:
+      interval: weekly
+    ignore:
+      - dependency-name: "python"
+        update-types: ["version-update:semver-major"]
+  - package-ecosystem: docker
+    directory: "/deployment/runtimes/java-25"
+    schedule:
+      interval: weekly
+    ignore:
+      - dependency-name: "eclipse-temurin"
+        update-types: ["version-update:semver-major"]
   - package-ecosystem: docker-compose
     # The "docker" ecosystem above reads Dockerfiles only, so the database, the LDAP
     # server, and the alpine helper that owns the data volumes went unwatched.
