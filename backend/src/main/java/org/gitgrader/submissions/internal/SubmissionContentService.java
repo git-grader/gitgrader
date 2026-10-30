@@ -62,6 +62,14 @@ public class SubmissionContentService {
 	/** How much of a file is inspected for a nul byte before it is called binary. */
 	private static final int BINARY_SNIFF_LIMIT = 8192;
 
+	/**
+	 * Largest blob {@link #readFile} loads into memory for display. A push already caps
+	 * single files at {@code git.max-file-size} (10 MB default), but the file explorer
+	 * renders whatever it is handed, so an oversized text file is shown as binary rather
+	 * than decoded into the heap.
+	 */
+	private static final long MAX_DISPLAY_BLOB_BYTES = 1024 * 1024;
+
 	private final SubmissionService submissions;
 
 	private final StorageProperties storage;
@@ -145,7 +153,8 @@ public class SubmissionContentService {
 	 * Returns the content of one file at the graded commit.
 	 * @param submissionId submission UUID
 	 * @param filePath path of the file within the repository, e.g. {@code src/main.js}
-	 * @return the content, or a binary marker when the file is not UTF-8 text
+	 * @return the content, or a binary marker when the file is not UTF-8 text or exceeds
+	 * the display size cap
 	 */
 	@SuppressWarnings("PMD.ExceptionAsFlowControl")
 	public SubmissionFileContent readFile(UUID submissionId, String filePath) {
@@ -170,6 +179,11 @@ public class SubmissionContentService {
 			}
 
 			ObjectLoader loader = repository.open(treeWalk.getObjectId(0), Constants.OBJ_BLOB);
+			if (loader.getSize() > MAX_DISPLAY_BLOB_BYTES) {
+				// Larger than anything worth rendering: hand back the same binary marker
+				// the explorer already shows, without loading the bytes into the heap.
+				return new SubmissionFileContent(filePath, null, true);
+			}
 			byte[] bytes = loader.getBytes();
 
 			String content = decodeAsText(bytes);
