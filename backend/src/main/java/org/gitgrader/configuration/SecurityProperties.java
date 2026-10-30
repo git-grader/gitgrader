@@ -226,7 +226,6 @@ public record SecurityProperties(
 	 * @param timeout idle session lifetime
 	 * @param cookieName name of the session cookie
 	 * @param secureCookie mark the cookie {@code Secure}; must stay true behind TLS
-	 * @param sameSite {@code SameSite} attribute of the session cookie
 	 */
 	public record Session(
 
@@ -234,9 +233,7 @@ public record SecurityProperties(
 
 			@DefaultValue("GITGRADER_SESSION") @NotBlank String cookieName,
 
-			@DefaultValue("true") boolean secureCookie,
-
-			@DefaultValue("Lax") @NotBlank String sameSite) {
+			@DefaultValue("true") boolean secureCookie) {
 	}
 
 }
