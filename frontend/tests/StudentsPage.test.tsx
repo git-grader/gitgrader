@@ -25,7 +25,7 @@ const grace = {
   status: "SELF_REGISTERED",
 };
 
-describe("StudentsPage", () => {
+describe("the students page", () => {
 
   it("loads every bounded page and filters the complete student list locally", async () => {
     const requestedPages: string[] = [];
