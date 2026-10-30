@@ -6,15 +6,6 @@ import { useTableSettings } from './tablePreferences';
 import { useState } from "react";
 import type { GridSortModel } from "@mui/x-data-grid";
 
-/**
- * The page size used when a list only needs the choices, not a pager.
- *
- * A filter dropdown has nowhere to put pagination, so it asks for a page large enough to
- * hold every realistic option. The server still caps what it returns, which is the point:
- * the request is explicit rather than silently relying on a default.
- */
-export const CHOICE_PAGE_SIZE = "200";
-
 interface ServerPagination {
   readonly paginationModel: { page: number; pageSize: number };
   readonly setPaginationModel: (model: {
