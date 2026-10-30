@@ -1,80 +1,73 @@
 // Copyright the GitGrader contributors.
 // SPDX-License-Identifier: Apache-2.0
 
-import { render, screen } from '@testing-library/react';
+import { screen } from '@testing-library/react';
+import { http, HttpResponse } from 'msw';
+import { Route, Routes } from 'react-router';
+import { beforeEach, expect, it } from 'vitest';
 import { PublicResultsOverviewPage } from '../src/pages/PublicResultsOverviewPage';
-import { QueryClientProvider } from '@tanstack/react-query';
-import { MemoryRouter, Route, Routes } from 'react-router';
-import { expect, it, vi } from 'vitest';
-import { createTestQueryClient, expectNoAxeViolations } from './harness';
+import { expectNoAxeViolations, renderWithProviders, server } from './harness';
 
-vi.mock('../src/api', async () => {
-  const actual = await vi.importActual<typeof import('../src/api')>('../src/api');
-  return {
-    ...actual,
-    api: {
-      ...actual.api,
-      getResultsOverview: vi.fn().mockResolvedValue({
-        studentDisplayName: 'Max Muster',
-        generatedAt: '2026-07-30T12:00:00Z',
-        courses: [
-          {
-            courseId: 'course-1',
-            courseName: 'Example Programming',
-            classes: [
-              {
-                classId: 'class-1',
-                className: 'Class A',
-                assignments: [
-                  {
-                    assignmentId: 'assignment-1',
-                    assignmentKey: 'assignment-01',
-                    title: 'String utilities',
-                    latest: {
-                      submissionId: 'submission-1',
-                      shortCommitSha: '454d5a6',
-                      receivedAt: '2026-07-30T12:00:00Z',
-                      late: false,
-                      submissionStatus: 'PASSED',
-                      gradingStatus: 'COMPLETED',
-                      testsPassed: 7,
-                      testsTotal: 10,
-                      scorePercent: 70.0,
-                      passed: true,
-                      resultUrl:
-                        'https://grader.example.org/results/overview/token123/submissions/submission-1'
-                    }
-                  },
-                  {
-                    assignmentId: 'assignment-2',
-                    assignmentKey: 'assignment-02',
-                    title: 'Collections',
-                    latest: null
-                  }
-                ]
+const OVERVIEW = {
+  studentDisplayName: 'Max Muster',
+  generatedAt: '2026-07-30T12:00:00Z',
+  courses: [
+    {
+      courseId: 'course-1',
+      courseName: 'Example Programming',
+      classes: [
+        {
+          classId: 'class-1',
+          className: 'Class A',
+          assignments: [
+            {
+              assignmentId: 'assignment-1',
+              assignmentKey: 'assignment-01',
+              title: 'String utilities',
+              latest: {
+                submissionId: 'submission-1',
+                shortCommitSha: '454d5a6',
+                receivedAt: '2026-07-30T12:00:00Z',
+                late: false,
+                submissionStatus: 'PASSED',
+                gradingStatus: 'COMPLETED',
+                testsPassed: 7,
+                testsTotal: 10,
+                scorePercent: 70.0,
+                passed: true,
+                resultUrl:
+                  'https://grader.example.org/results/overview/token123/submissions/submission-1'
               }
-            ]
-          }
-        ]
-      }),
-      getOverviewSubmission: vi.fn().mockResolvedValue({})
+            },
+            {
+              assignmentId: 'assignment-2',
+              assignmentKey: 'assignment-02',
+              title: 'Collections',
+              latest: null
+            }
+          ]
+        }
+      ]
     }
-  };
+  ]
+};
+
+beforeEach(() => {
+  server.use(
+    http.get('/api/v1/results/overview/:token', () => HttpResponse.json(OVERVIEW))
+  );
 });
 
 function renderPage() {
-  return render(
-    <QueryClientProvider client={createTestQueryClient()}>
-      <MemoryRouter initialEntries={['/results/overview/token123']}>
-        <Routes>
-          <Route path="/results/overview/:token" element={<PublicResultsOverviewPage />} />
-        </Routes>
-      </MemoryRouter>
-    </QueryClientProvider>
+  return renderWithProviders(
+    <Routes>
+      <Route path="/results/overview/:token" element={<PublicResultsOverviewPage />} />
+    </Routes>,
+    { route: '/results/overview/token123' }
   );
 }
 
-it('PublicResultsOverviewPage lists grouped attempts and links to scoped reports', async () => {
+it('lists grouped attempts and links to scoped reports', async () => {
   renderPage();
 
   await screen.findByText('Example Programming');
@@ -91,7 +84,7 @@ it('PublicResultsOverviewPage lists grouped attempts and links to scoped reports
   );
 });
 
-it('PublicResultsOverviewPage has no a11y violations', async () => {
+it('has no a11y violations', async () => {
   const { container } = renderPage();
   await screen.findByText('Example Programming');
   await expectNoAxeViolations(container);
