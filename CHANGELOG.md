@@ -78,6 +78,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Queue ceilings per student, per course and per instance.
 - `gitgrader.throttle` counter, tagged only with the limit and the decision, and
   a `RATE_LIMIT_TRIGGERED` audit record for every throttling decision.
+- Interactive sign-ins, rejected sign-ins and sign-outs by instructors and
+  administrators in the audit trail, as `LOGIN_SUCCEEDED`, `LOGIN_FAILED` and
+  `LOGOUT` records. Only the interactive form-login entry point records them: a
+  Basic-auth actuator scrape or a runner-API call authenticates a peer, not a
+  person, and must not crowd the trail.
 - Initial self-hostable GitGrader release: Git-over-SSH submission admission,
   assignment grading, instructor and student web interfaces, and PostgreSQL
   persistence.
@@ -159,10 +164,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   async client, so a client that believes it is verifying certificates accepts one issued
   for a different domain. This is the client the grading runner talks to the Docker daemon
   with.
-- Pin `httpcore5` and `httpcore5-h2` to 5.4.3 for CVE-2026-54399 and CVE-2026-54428
+- Pin `httpcore5` and `httpcore5-h2` to 5.4.4 for CVE-2026-54399 and CVE-2026-54428
   (7.5 each), which `httpclient5` still brought in at 5.4.2. A peer can exhaust memory
   with an HTTP/1.1 message carrying excessive headers, or with an oversized HPACK block
   sent before the HTTP/2 settings limit applies.
+- Pin Bouncy Castle to 1.86 for CVE-2026-8763 and CVE-2026-13506, which the SSH key
+  parsing and the result-token cryptography depend on. A crafted key or token input
+  reaches the vulnerable parser before any authentication happens, so the fix is a
+  version pin rather than a code change.
 - Refuse to start a production instance whose `app.public-url` is plain `http://`.
   Every result link is built from it and the link is the whole credential for a
   student's marks, printed into their terminal after each push, so the default left an
