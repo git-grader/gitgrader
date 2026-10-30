@@ -22,6 +22,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   worker held stayed claimed until its lease expired. The older job is now withdrawn and
   the newer submission is graded.
 
+### Changed
+
+- Remove the unused brand palette `frontend/src/assets/brand/colors.json`. It had no
+  importer and had already drifted from the values `theme.ts` ships (canvas, accent
+  contrast), so it read as a source of truth it was not. The applied identity lives in
+  `theme.ts` and the SVG artwork beside it.
+
 ## [0.1.0] - 2026-10-25
 
 ### Added
