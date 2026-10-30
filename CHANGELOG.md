@@ -14,6 +14,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   positive duration; a zero or absent value logs a warning and skips the purge.
   A purge failure is caught and logged rather than halting the scheduler.
 
+### Added
+
+- Instructors can now browse the files of a graded submission. The submission
+  view gains a file explorer that lists every directory and file the submission
+  contained, with lazy loading of directory contents to keep the initial page
+  fast even for deep or broad trees.
+
 ### Fixed
 
 - Queue shutdown no longer aborts when a student pushed again while their previous job was
