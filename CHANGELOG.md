@@ -35,6 +35,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   importer and had already drifted from the values `theme.ts` ships (canvas, accent
   contrast), so it read as a source of truth it was not. The applied identity lives in
   `theme.ts` and the SVG artwork beside it.
+- The submission file explorer loads blobs up to 1 MiB only; a larger file is shown
+  with the binary marker instead of having its whole content decoded into the heap
+  per request.
 
 ## [0.1.0] - 2026-10-25
 
