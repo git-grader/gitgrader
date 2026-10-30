@@ -267,7 +267,6 @@ security:
     timeout: ${SECURITY_SESSION_TIMEOUT:8h}
     cookie-name: ${SECURITY_SESSION_COOKIE_NAME:GITGRADER_SESSION}
     secure-cookie: ${SECURITY_SESSION_SECURE_COOKIE:true}
-    same-site: Lax
 
 # =============================================================================
 # Observability
