@@ -117,7 +117,12 @@ final class ShimmedRuntimeGuard {
 			return false;
 		}
 		String name = fileName.toString();
-		return name.endsWith(".js") || name.endsWith(".cjs") || name.endsWith(".mjs");
+		// The suites that ship with the runtimes: JavaScript (the Node runtimes), Python
+		// (the pytest suites) and Java (the JUnit suites). A suite in a language the
+		// runtimes do not speak would be refused as unusable anyway, so it makes no
+		// difference that its files are not scanned here.
+		return name.endsWith(".js") || name.endsWith(".cjs") || name.endsWith(".mjs") || name.endsWith(".py")
+				|| name.endsWith(".java");
 	}
 
 	private static boolean referencesShimClient(Path script) {
