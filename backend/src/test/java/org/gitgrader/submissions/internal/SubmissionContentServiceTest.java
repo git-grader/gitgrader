@@ -22,6 +22,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.attribute.PosixFilePermissions;
 import java.time.Instant;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -143,6 +144,21 @@ class SubmissionContentServiceTest {
 		byte[] png = { (byte) 0x89, 'P', 'N', 'G', 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0x00 };
 		String commit = seedRepository("course/assignment/binary", png);
 		givenSubmission("course/assignment/binary", commit);
+
+		SubmissionFileContent content = this.service.readFile(this.submissionId, "src/solution.js");
+
+		assertThat(content.binary()).isTrue();
+		assertThat(content.content()).isNull();
+	}
+
+	@Test
+	@DisplayName("reports a file beyond the display size cap as binary without reading it")
+	void reportsOversizedFileAsBinary() throws Exception {
+		// One byte above the cap, and valid UTF-8, so only the size can exclude it.
+		byte[] oversized = new byte[1024 * 1024 + 1];
+		Arrays.fill(oversized, (byte) 'a');
+		String commit = seedRepository("course/assignment/oversized", oversized);
+		givenSubmission("course/assignment/oversized", commit);
 
 		SubmissionFileContent content = this.service.readFile(this.submissionId, "src/solution.js");
 
