@@ -1,55 +1,40 @@
 // Copyright the GitGrader contributors.
 // SPDX-License-Identifier: Apache-2.0
 
-import { render, screen, waitFor, fireEvent } from '@testing-library/react';
-import { RegistrationPage } from '../src/pages/RegistrationPage';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { MemoryRouter } from 'react-router';
-import { beforeEach, expect, it, vi } from 'vitest';
+import { fireEvent, screen, waitFor } from '@testing-library/react';
+import { http, HttpResponse } from 'msw';
+import { beforeEach, expect, it } from 'vitest';
 import userEvent from '@testing-library/user-event';
-import { expectNoAxeViolations } from './harness';
-import * as api from '../src/api';
-import { ApiProblem } from '../src/api/client';
+import { RegistrationPage } from '../src/pages/RegistrationPage';
 import { MetaProvider } from '../src/components/MetaProvider';
+import { expectNoAxeViolations, meta, renderWithProviders, server } from './harness';
 
-vi.mock('../src/api', async () => {
-  const actual = await vi.importActual<typeof import('../src/api')>('../src/api');
-  return {
-    ...actual,
-    api: {
-      ...actual.api,
-      getAvailability: vi.fn(),
-      register: vi.fn(),
-      getMeta: vi.fn()
-    }
-  };
-});
+const AVAILABILITY = {
+  open: true,
+  courses: [{ courseKey: 'c1', name: 'Course 1', classes: [{ classKey: 'cl1', name: 'Class 1' }] }]
+};
 
-const availability = api.api.getAvailability as ReturnType<typeof vi.fn>;
-const register = api.api.register as ReturnType<typeof vi.fn>;
-const getMeta = api.api.getMeta as ReturnType<typeof vi.fn>;
+const REGISTRATION_RESULT = {
+  studentId: 's1', studentUsername: '001', fullName: 'A Student', status: 'SELF_REGISTERED',
+  keyFingerprint: 'SHA256:abc', repositories: []
+};
 
+// The test's own handler set: registration availability, the registration itself and the
+// meta the page's provider reads. A test that needs a different answer overrides one of
+// these rather than re-arming the API surface.
 beforeEach(() => {
-  getMeta.mockResolvedValue({ name: 'Test' });
-  availability.mockResolvedValue({
-    open: true,
-    courses: [{ courseKey: 'c1', name: 'Course 1', classes: [{ classKey: 'cl1', name: 'Class 1' }] }]
-  });
-  register.mockReset();
+  server.use(
+    http.get('/api/v1/meta', () => HttpResponse.json(meta())),
+    http.get('/api/v1/registration/availability', () => HttpResponse.json(AVAILABILITY)),
+    http.post('/api/v1/registration', () => HttpResponse.json(REGISTRATION_RESULT))
+  );
 });
 
-// A fresh client per test: a shared one keeps the first availability answer for every
-// later test, which quietly hides whatever the later test set up.
-function renderWithProviders(ui: React.ReactElement) {
-  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  return render(
-    <QueryClientProvider client={queryClient}>
-      <MemoryRouter>
-        <MetaProvider>
-          {ui}
-        </MetaProvider>
-      </MemoryRouter>
-    </QueryClientProvider>
+function renderPage() {
+  return renderWithProviders(
+    <MetaProvider>
+      <RegistrationPage />
+    </MetaProvider>
   );
 }
 
@@ -80,10 +65,18 @@ async function fillRegistration(courseName = 'Course 1', className: string | nul
   fireEvent.submit(form);
 }
 
-it('RegistrationPage blocks private key', async () => {
-  renderWithProviders(<RegistrationPage />);
+it('blocks a private key', async () => {
+  // The guard has two halves: the UI must warn, and nothing may reach the server. The
+  // handler counts, so the second assertion is that the count stays at zero.
+  let registrations = 0;
+  server.use(http.post('/api/v1/registration', () => {
+    registrations += 1;
+    return HttpResponse.json(REGISTRATION_RESULT);
+  }));
 
-  await screen.findByText(/Register for Test/i);
+  renderPage();
+
+  await screen.findByText(/Register for Test Instance/i);
 
   const keyInput = screen.getByLabelText(/SSH Public Key/i);
   fireEvent.change(keyInput, { target: { value: '-----BEGIN OPENSSH PRIVATE KEY-----' } });
@@ -97,12 +90,12 @@ it('RegistrationPage blocks private key', async () => {
   await waitFor(() => {
     expect(screen.getByText(/Private key detected/i)).toBeInTheDocument();
   });
-  expect(register).not.toHaveBeenCalled();
+  expect(registrations).toBe(0);
 });
 
-it('RegistrationPage has no a11y violations', async () => {
-  const { container } = renderWithProviders(<RegistrationPage />);
-  await screen.findByText(/Register for Test/i);
+it('has no a11y violations', async () => {
+  const { container } = renderPage();
+  await screen.findByText(/Register for Test Instance/i);
   await expectNoAxeViolations(container);
 });
 
@@ -111,15 +104,18 @@ it('RegistrationPage has no a11y violations', async () => {
  * The page showed `error.message`, which for a problem document is its title, so
  * "that student username is already registered" reached the student as "Bad Request".
  */
-it('RegistrationPage shows what the server actually objected to', async () => {
-  register.mockRejectedValue(
-    new ApiProblem('about:blank', 'Bad Request', 400, 'That student username is already registered', undefined, [
-      { field: 'studentUsername', message: 'already registered' }
-    ])
-  );
+it('shows what the server actually objected to', async () => {
+  server.use(http.post('/api/v1/registration', () =>
+    new HttpResponse(JSON.stringify({
+      type: 'about:blank',
+      title: 'Bad Request',
+      status: 400,
+      detail: 'That student username is already registered',
+      errors: [{ field: 'studentUsername', message: 'already registered' }]
+    }), { status: 400, headers: { 'content-type': 'application/problem+json' } })));
 
-  renderWithProviders(<RegistrationPage />);
-  await screen.findByText(/Register for Test/i);
+  renderPage();
+  await screen.findByText(/Register for Test Instance/i);
   await fillRegistration();
 
   expect(await screen.findByText('That student username is already registered')).toBeInTheDocument();
@@ -127,14 +123,16 @@ it('RegistrationPage shows what the server actually objected to', async () => {
   expect(screen.queryByText('Bad Request')).not.toBeInTheDocument();
 });
 
-it('RegistrationPage says something for a failure that is not a problem document', async () => {
-  register.mockRejectedValue(new Error('Failed to fetch'));
+it('says something for a failure that is not a problem document', async () => {
+  // A proxy answers with its own HTML or plain text, which carries no `detail` to show.
+  server.use(http.post('/api/v1/registration', () =>
+    new HttpResponse('Bad gateway', { status: 502, headers: { 'content-type': 'text/plain' } })));
 
-  renderWithProviders(<RegistrationPage />);
-  await screen.findByText(/Register for Test/i);
+  renderPage();
+  await screen.findByText(/Register for Test Instance/i);
   await fillRegistration();
 
-  expect(await screen.findByText('Failed to fetch')).toBeInTheDocument();
+  expect(await screen.findByText('API error: 502 Bad Gateway')).toBeInTheDocument();
 });
 
 /**
@@ -142,20 +140,23 @@ it('RegistrationPage says something for a failure that is not a problem document
  * without one. The form required a class from a dropdown that had nothing in it, so such
  * a course could not be registered for and nothing on screen said why.
  */
-it('RegistrationPage registers for a course that has no classes', async () => {
-  availability.mockResolvedValue({
-    open: true,
-    courses: [{ courseKey: 'solo', name: 'Class-less Course', classes: [] }]
-  });
-  register.mockResolvedValue({
-    studentId: 's1', studentUsername: '001', fullName: 'A Student', status: 'SELF_REGISTERED',
-    keyFingerprint: 'SHA256:abc', repositories: []
-  });
+it('registers for a course that has no classes', async () => {
+  let registered = false;
+  server.use(
+    http.get('/api/v1/registration/availability', () => HttpResponse.json({
+      open: true,
+      courses: [{ courseKey: 'solo', name: 'Class-less Course', classes: [] }]
+    })),
+    http.post('/api/v1/registration', () => {
+      registered = true;
+      return HttpResponse.json(REGISTRATION_RESULT);
+    })
+  );
 
-  renderWithProviders(<RegistrationPage />);
-  await screen.findByText(/Register for Test/i);
+  renderPage();
+  await screen.findByText(/Register for Test Instance/i);
   await fillRegistration('Class-less Course', null);
 
-  await waitFor(() => { expect(register).toHaveBeenCalled(); });
+  await waitFor(() => { expect(registered).toBe(true); });
   expect(screen.getByText(/not divided into classes/)).toBeInTheDocument();
 });
