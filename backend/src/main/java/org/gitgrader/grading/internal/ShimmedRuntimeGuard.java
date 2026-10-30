@@ -128,7 +128,11 @@ final class ShimmedRuntimeGuard {
 	private static boolean referencesShimClient(Path script) {
 		try {
 			String content = Files.readString(script, StandardCharsets.UTF_8);
-			String name = script.getFileName().toString();
+			Path fileName = script.getFileName();
+			if (fileName == null) {
+				return false;
+			}
+			String name = fileName.toString();
 			if (name.endsWith(".js") || name.endsWith(".cjs") || name.endsWith(".mjs")) {
 				return content.contains("createShimClient");
 			}

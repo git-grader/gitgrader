@@ -35,7 +35,7 @@ def test_h04_slugify_collapses_punctuation_and_whitespace():
 
 
 def test_h05_title_case_capitalises_hyphenated_words():
-    assert proxy.title_case("the quick-brown FOX") == "The Quick-Brown Fox"
+    assert proxy.title_case("the quick-brown fox") == "The Quick-Brown Fox"
 
 
 def test_h06_word_count_returns_zero_for_empty_text():

@@ -19,11 +19,17 @@ RUN apt-get update \
     && apt-get install --yes --no-install-recommends maven \
     && rm -rf /var/lib/apt/lists/*
 
-# The JUnit 5 API and Surefire are resolved into the default local repository
-# now, at build time, so `mvn -o` at grading time never dials out. The suite's
-# pom may not name anything else; anything beyond this set makes an offline run
+# The JUnit 5 API, Surefire and every lifecycle plugin the suite's build runs
+# are resolved into the shared local repository now, at build time, so `mvn -o`
+# at grading time never dials out. `dependency:go-offline` alone is not
+# enough: it skips the lifecycle-default plugins (resources et al.), whose
+# versions come from the super-POM and whose own dependencies are only
+# resolved when a build actually runs them. So the warmup runs a real
+# `mvn test` on a project shaped exactly like an operator suite: the same
+# pinned compiler and Surefire versions and one dummy JUnit test. A suite pom
+# may not name anything beyond this set; anything else makes an offline run
 # fail loudly rather than silently grading nothing.
-RUN mkdir -p /tmp/priming && cd /tmp/priming \
+RUN mkdir -p /tmp/priming/src/test/java && cd /tmp/priming \
     && printf '%s\n' \
         '<?xml version="1.0" encoding="UTF-8"?>' \
         '<project xmlns="http://maven.apache.org/POM/4.0.0">' \
@@ -33,6 +39,7 @@ RUN mkdir -p /tmp/priming && cd /tmp/priming \
         '  <version>1.0.0</version>' \
         '  <properties>' \
         '    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>' \
+        '    <maven.test.failure.ignore>true</maven.test.failure.ignore>' \
         '  </properties>' \
         '  <dependencies>' \
         '    <dependency>' \
@@ -63,19 +70,39 @@ RUN mkdir -p /tmp/priming && cd /tmp/priming \
         '    </plugins></build>' \
         '</project>' \
         > pom.xml \
-    && mvn --batch-mode --quiet dependency:go-offline \
+    && printf '%s\n' \
+        'import org.junit.jupiter.api.Test;' \
+        'class WarmupTest {' \
+        '    @Test' \
+        '    void passes() {' \
+        '    }' \
+        '}' \
+        > src/test/java/WarmupTest.java \
+    && mvn --batch-mode --quiet -Dmaven.repo.local=/opt/maven-repository test \
     && rm -rf /tmp/priming
+
+# Maven's local repository is primed into a shared, world-readable location
+# rather than root's home: the grading containers run as an unprivileged user
+# whose home does not exist, so the default ~/.m2 would be an empty offline
+# repository and every build would fail. MAVEN_OPTS bakes the redirection so
+# no command has to remember it.
+ENV MAVEN_OPTS="-Dmaven.repo.local=/opt/maven-repository"
 
 RUN mkdir /workspace && chown 65534:65534 /workspace
 
 # The shim is compiled at build time: the sandbox runs the server from baked
 # classes, the suite compiles its tests against the same baked classes, and
-# neither half ever needs a compiler flag it could get wrong.
+# neither half ever needs a compiler flag it could get wrong. The classes are
+# also installed into the primed local repository as a plain jar, so a hidden
+# suite's pom resolves the client like any other offline dependency.
 COPY java-shim/ /tmp/java-shim/
 RUN mkdir -p /opt/gitgrader-shim/classes /opt/gitgrader-shim/src \
     && cp /tmp/java-shim/*.java /opt/gitgrader-shim/src/ \
     && javac --release 27 -d /opt/gitgrader-shim/classes /opt/gitgrader-shim/src/*.java \
-    && rm -rf /tmp/java-shim
+    && rm -rf /tmp/java-shim \
+    && mkdir -p /opt/maven-repository/gitgrader/gitgrader-shim/1.0.0 \
+    && jar --create --file /opt/maven-repository/gitgrader/gitgrader-shim/1.0.0/gitgrader-shim-1.0.0.jar \
+        -C /opt/gitgrader-shim/classes gitgrader
 
 WORKDIR /workspace
 USER 65534:65534

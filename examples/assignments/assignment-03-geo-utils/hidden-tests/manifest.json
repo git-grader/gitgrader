@@ -1,0 +1,76 @@
+{
+  "suiteKey": "assignment-03-geo-utils",
+  "version": "1.0.0",
+  "tests": [
+    {
+      "id": "h01",
+      "name": "testH01DistanceIsZeroForTheSamePoint",
+      "category": "Distance - degenerate input",
+      "hint": "A point is distance zero from itself.",
+      "weight": 1
+    },
+    {
+      "id": "h02",
+      "name": "testH02DistanceFollowsPythagoras",
+      "category": "Distance - the 3-4-5 triangle",
+      "hint": "The squared distance is the sum of the squared coordinate differences.",
+      "weight": 1
+    },
+    {
+      "id": "h03",
+      "name": "testH03DistanceIsSymmetric",
+      "category": "Distance - symmetry",
+      "hint": "Swapping the endpoints must not change the distance.",
+      "weight": 1
+    },
+    {
+      "id": "h04",
+      "name": "testH04BearingIsZeroDueNorth",
+      "category": "Bearing - north",
+      "hint": "Due north is the zero of the compass.",
+      "weight": 1
+    },
+    {
+      "id": "h05",
+      "name": "testH05BearingIsNinetyDueEast",
+      "category": "Bearing - east",
+      "hint": "East is a quarter turn from north.",
+      "weight": 1
+    },
+    {
+      "id": "h06",
+      "name": "testH06BearingIsInTheHalfOpenCircle",
+      "category": "Bearing - range",
+      "hint": "Angles wrap; the compass does not end at 360.",
+      "weight": 1
+    },
+    {
+      "id": "h07",
+      "name": "testH07MidpointStaysOnTheSegment",
+      "category": "Midpoint - the segment's centre",
+      "hint": "The midpoint's coordinates are the means of the endpoints'.",
+      "weight": 1
+    },
+    {
+      "id": "h08",
+      "name": "testH08MidpointHalvesBothCoordinates",
+      "category": "Midpoint - both axes",
+      "hint": "The midpoint halves the coordinate difference on each axis.",
+      "weight": 1
+    },
+    {
+      "id": "h09",
+      "name": "testH09IsWithinRangeAcceptsInsideTheCircle",
+      "category": "Range check - inside",
+      "hint": "A point exactly on the circle's edge counts as within.",
+      "weight": 1
+    },
+    {
+      "id": "h10",
+      "name": "testH10IsWithinRangeRejectsBeyondTheCircle",
+      "category": "Range check - outside",
+      "hint": "Beyond the radius is out of range even by a little.",
+      "weight": 1
+    }
+  ]
+}

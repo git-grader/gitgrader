@@ -20,7 +20,36 @@ marks for work it never did.
 
 from __future__ import annotations
 
+import os
+
+from _pytest._io.terminalwriter import TerminalWriter
+
 import sys
+
+
+class _SilentTerminalReporter:
+    """A terminal reporter that prints nothing.
+
+    pytest internals (assertion explanations, the summary) reach for the
+    terminal reporter by name and dereference its ``_tw`` writer
+    unconditionally; this stand-in satisfies those lookups while keeping
+    stdout reserved for the TAP stream.
+    """
+
+    def __init__(self):
+        self._tw = TerminalWriter(_NullFile())
+
+
+class _NullFile:
+
+    def write(self, text):
+        return None
+
+    def flush(self):
+        return None
+
+    def isatty(self):
+        return False
 
 
 def pytest_addoption(parser):
@@ -72,13 +101,25 @@ class GitGraderTapReporter:
         # The terminal reporter's progress dots interleave with the TAP
         # stream on stdout, and a stray dot glued to an "ok" line corrupts
         # the report the backend reads; the TAP output is the whole report.
-        # The unregister happens here rather than in pytest_configure because
-        # the built-in terminal reporter registers itself during its own
-        # pytest_configure, which runs after this plugin's.
+        # The reporter is not unregistered: pytest's assertion-explanation
+        # machinery calls config.get_terminal_writer() while rendering a
+        # failure, and with the plugin gone that call asserts and crashes.
+        # A silent stand-in keeps the machinery happy and prints nothing.
         terminal = self.config.pluginmanager.getplugin("terminalreporter")
         if terminal is not None:
             self.config.pluginmanager.unregister(terminal)
+            self.config.pluginmanager.register(_SilentTerminalReporter(), "terminalreporter")
         print("TAP version 13", flush=True)
+
+    def pytest_cmdline_main(self, config):
+        # A later-registered plugin may have replaced the silent stand-in with
+        # a real terminal reporter; the last hook before main runs restores
+        # the stand-in so nothing writes progress dots over the TAP stream.
+        terminal = config.pluginmanager.getplugin("terminalreporter")
+        if terminal is not None and not isinstance(terminal, _SilentTerminalReporter):
+            config.pluginmanager.unregister(terminal)
+            config.pluginmanager.register(_SilentTerminalReporter(), "terminalreporter")
+        return None
 
     def pytest_runtest_logreport(self, report):
         name = _test_name(report)

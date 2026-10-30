@@ -21,6 +21,14 @@ INSERT INTO runtimes (id, runtime_key, display_name, image, tag, image_digest, i
 VALUES ('10000000-0000-4000-8000-000000000014', 'node-26', 'Node.js 26', 'node', '26-bookworm-slim', 'sha256:28147155d47dc31abe0a46e0d12b59b2fb3d0a2dcc5dc65fce76a074180b16fe', NULL, 'cd /opt/hidden-tests && jasmine --config=jasmine.json --reporter=./jasmine-tap-reporter.cjs', 'TAP', TRUE, 'node-ipc', now(), now())
 ON CONFLICT DO NOTHING;
 
+INSERT INTO runtimes (id, runtime_key, display_name, image, tag, image_digest, install_command, test_command, report_format, enabled, shim_kind, shim_command, created_at, updated_at)
+VALUES ('10000000-0000-4000-8000-000000000015', 'python-315', 'Python 3.15', 'python', '3.15-slim-bookworm', 'sha256:575f8bc12ec26542e0678bc6b60e385218248019d433157ec327264a78c3a853', NULL, 'cd /opt/hidden-tests && python -m pytest -p tap_reporter --gitgrader-tap -p no:cacheprovider -q', 'TAP', TRUE, 'node-ipc', 'python /opt/gitgrader-shim/server.py', now(), now())
+ON CONFLICT DO NOTHING;
+
+INSERT INTO runtimes (id, runtime_key, display_name, image, tag, image_digest, install_command, test_command, report_format, enabled, shim_kind, shim_command, created_at, updated_at)
+VALUES ('10000000-0000-4000-8000-000000000016', 'java-27', 'Java 27', 'bellsoft/liberica-openjdk-debian', '27', 'sha256:c8b4fe2c477ee36b7666c4a036c8b224cc265371a9992fbf69e356ca3002096f', NULL, 'cp -R /opt/hidden-tests /tmp/suite && cd /tmp/suite && mvn --offline --batch-mode --quiet test && cat target/surefire-reports/*.xml', 'JUNIT_XML', TRUE, 'node-ipc', 'javac -d /workspace/src /workspace/src/*.java && java -cp /opt/gitgrader-shim/classes gitgrader.ShimServer', now(), now())
+ON CONFLICT DO NOTHING;
+
 INSERT INTO project_templates (id, template_key, name, description, created_at, updated_at)
 VALUES ('10000000-0000-4000-8000-000000000004', 'assignment-01-string-utils', 'String utilities template', 'Student-visible starter project.', now(), now())
 ON CONFLICT DO NOTHING;
@@ -42,9 +50,9 @@ VALUES
   ('10000000-0000-4000-8000-000000000101', '10000000-0000-4000-8000-000000000001', 'assignment-01-string-utils', 'String utilities', 'Implement small text transformations.', 1, 'OPEN', TRUE, now() - interval '30 days', now() + interval '30 days', 'UTC', 100, 10, 70, FALSE, '10000000-0000-4000-8000-000000000005', '10000000-0000-4000-8000-000000000007', '10000000-0000-4000-8000-000000000003', 30, 268435456, 1.00, 128, FALSE, now(), now())
 ON CONFLICT DO NOTHING;
 
--- A sandbox container runs with no network, so the shimmed node runtimes have
--- nothing to install at grading time (Jasmine is baked into the image). The
--- update below also repairs databases that applied an older seed with
--- `npm ci --ignore-scripts`.
+-- A sandbox container runs with no network, so the shimmed runtimes have
+-- nothing to install at grading time (Jasmine, pytest, and the Maven+JUnit
+-- stack are baked into the images). The update below also repairs databases
+-- that applied an older seed with `npm ci --ignore-scripts`.
 UPDATE runtimes SET install_command = NULL, updated_at = now()
-WHERE runtime_key IN ('node-22', 'node-24', 'node-26');
+WHERE runtime_key IN ('node-22', 'node-24', 'node-26', 'python-315', 'java-27');
