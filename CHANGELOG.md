@@ -48,6 +48,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fair grading dispatch. A worker now claims at most one job per student and
   skips students who already occupy one, so a single student can no longer put
   an arbitrarily long queue in front of the rest of a course.
+- Node.js grading runtimes and Jasmine assignments. Three pinned runtimes
+  (`node-22`, `node-24`, `node-26`) grade zero-dependency ESM assignments with
+  Jasmine, provisioning a starter repository per student and reporting hidden
+  results as TAP through a custom reporter.
 - Newest-wins coalescing. Only the most recent unstarted submission for a
   student and assignment is graded; older queued work is marked `CANCELLED`.
   Every push is still recorded, so attempt history is unchanged.
@@ -79,6 +83,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   answered 409 for the one value it does not implement.
 - The runtime request record is named `NewRuntime`, matching `NewSubmission`. It shared a name with the JPA entity, which forced fully qualified
   names at every call site.
+- The admin Settings page shows the git commit a build was made from next to the
+  application version, so a deployment can be identified without shell access to it.
 - The course report is served by a fixed number of queries. It asked per student, then
   per student and assignment, then per graded submission - roughly 9,300 queries for a
   class of 300 - and materialised every test-result row to read a score it did not need.
