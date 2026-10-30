@@ -21,6 +21,12 @@ INSERT INTO runtimes (id, runtime_key, display_name, image, tag, image_digest, i
 VALUES ('10000000-0000-4000-8000-000000000014', 'node-26', 'Node.js 26', 'node', '26-bookworm-slim', 'sha256:28147155d47dc31abe0a46e0d12b59b2fb3d0a2dcc5dc65fce76a074180b16fe', NULL, 'cd /opt/hidden-tests && jasmine --config=jasmine.json --reporter=./jasmine-tap-reporter.cjs', 'TAP', TRUE, 'node-ipc', now(), now())
 ON CONFLICT DO NOTHING;
 
+-- The Python shim is started explicitly rather than through the runner's Node
+-- default command, so its runtime row names the interpreter that starts it.
+INSERT INTO runtimes (id, runtime_key, display_name, image, tag, image_digest, install_command, test_command, report_format, enabled, shim_kind, shim_command, created_at, updated_at)
+VALUES ('10000000-0000-4000-8000-000000000015', 'python-3.14', 'Python 3.14', 'python', '3.14-slim-bookworm', 'sha256:516b51cb9db2ef061e465c803e50f64361b82cefd91e525b889b967b83e83527', NULL, 'cd /opt/hidden-tests && python3 -m pytest -p no:cacheprovider --tap-stream -q', 'TAP', TRUE, 'python-ipc', 'python3 /opt/gitgrader-shim/server.py', now(), now())
+ON CONFLICT DO NOTHING;
+
 INSERT INTO project_templates (id, template_key, name, description, created_at, updated_at)
 VALUES ('10000000-0000-4000-8000-000000000004', 'assignment-01-string-utils', 'String utilities template', 'Student-visible starter project.', now(), now())
 ON CONFLICT DO NOTHING;

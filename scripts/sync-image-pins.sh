@@ -14,7 +14,7 @@ Usage: scripts/sync-image-pins.sh [--check|--fix]
 
 Several files carry a copy of an image pin that Dependabot updates somewhere else
 and cannot see: examples/seed-data.sql seeds the runtimes that the
-deployment/runtimes/node-*/Dockerfile files build, each runtime's README quotes
+deployment/runtimes/*-*/Dockerfile files build, each runtime's README quotes
 the digest it pins, and scripts/lib.sh names the helper image compose.yaml
 already pins.
 
@@ -93,7 +93,10 @@ sync_pin() {
   printf '%s moved from %s to %s in %s\n' "$label" "$have" "$want" "$mirror_file"
 }
 
-for dockerfile in deployment/runtimes/node-*/Dockerfile; do
+for dockerfile in deployment/runtimes/node-*/Dockerfile \
+  deployment/runtimes/python-*/Dockerfile \
+  deployment/runtimes/java-*/Dockerfile; do
+  [ -f "$dockerfile" ] || continue
   key=$(basename "$(dirname "$dockerfile")")
   sync_pin "The $key runtime digest" \
     "$dockerfile" 'sha256:[a-f0-9]+' \
