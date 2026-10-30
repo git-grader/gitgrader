@@ -36,11 +36,12 @@ import java.util.Base64;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
-import org.mockito.Mockito;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -71,10 +72,10 @@ class ResultTokenServiceTest {
 
 	@BeforeEach
 	void setUp() {
-		repository = Mockito.mock(ResultTokenRepository.class);
+		repository = mock(ResultTokenRepository.class);
 
 		ResultTokens tokens = new ResultTokens(256, Duration.ofDays(180), 8);
-		appProperties = Mockito.mock(AppProperties.class);
+		appProperties = mock(AppProperties.class);
 		when(appProperties.resultTokens()).thenReturn(tokens);
 
 		clock = Clock.fixed(Instant.parse("2026-01-01T10:00:00Z"), ZoneId.of("UTC"));
@@ -92,7 +93,7 @@ class ResultTokenServiceTest {
 		assertThat(token1).isNotEqualTo(token2);
 
 		ArgumentCaptor<ResultToken> captor = ArgumentCaptor.forClass(ResultToken.class);
-		verify(repository, Mockito.times(2)).save(captor.capture());
+		verify(repository, times(2)).save(captor.capture());
 
 		ResultToken saved = captor.getAllValues().get(0);
 		assertThat(saved.tokenHash()).isNotEqualTo(token1);

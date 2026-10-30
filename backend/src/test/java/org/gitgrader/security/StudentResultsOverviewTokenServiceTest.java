@@ -34,7 +34,6 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.mockito.InOrder;
-import org.mockito.Mockito;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.SimpleTransactionStatus;
@@ -43,6 +42,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.inOrder;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -78,8 +80,8 @@ class StudentResultsOverviewTokenServiceTest {
 
 	@BeforeEach
 	void setUp() {
-		this.repository = Mockito.mock(StudentResultsOverviewTokenRepository.class);
-		this.appProperties = Mockito.mock(AppProperties.class);
+		this.repository = mock(StudentResultsOverviewTokenRepository.class);
+		this.appProperties = mock(AppProperties.class);
 		when(this.appProperties.resultTokens()).thenReturn(new ResultTokens(256, Duration.ofDays(180), 8));
 		this.clock = Clock.fixed(Instant.parse("2026-01-01T10:00:00Z"), ZoneId.of("UTC"));
 		// Every mint attempt runs on its own transaction, so a rejected insert can be
@@ -87,7 +89,7 @@ class StudentResultsOverviewTokenServiceTest {
 		// makes the lost-race recovery possible, and what keeps the retire and the insert
 		// on one connection so the insert can see the retire. A transaction manager that
 		// simply hands back a status is enough: these tests assert on repository calls.
-		this.transactionManager = Mockito.mock(PlatformTransactionManager.class);
+		this.transactionManager = mock(PlatformTransactionManager.class);
 		when(this.transactionManager.getTransaction(any())).thenReturn(new SimpleTransactionStatus());
 		this.service = new StudentResultsOverviewTokenService(this.repository, this.appProperties, this.clock,
 				this.transactionManager);
@@ -131,7 +133,7 @@ class StudentResultsOverviewTokenServiceTest {
 		assertThat(previous.status()).isEqualTo(Status.REVOKED);
 		assertThat(first).isNotEqualTo("previous-token");
 		assertThat(second).isNotEqualTo(first);
-		verify(this.repository, Mockito.times(2)).saveAndFlush(any(StudentResultsOverviewToken.class));
+		verify(this.repository, times(2)).saveAndFlush(any(StudentResultsOverviewToken.class));
 	}
 
 	@Test
@@ -167,7 +169,7 @@ class StudentResultsOverviewTokenServiceTest {
 		// and
 		// inserting once more is what keeps one link per student without a 500.
 		assertThat(token).isNotBlank();
-		verify(this.repository, Mockito.times(2)).saveAndFlush(any(StudentResultsOverviewToken.class));
+		verify(this.repository, times(2)).saveAndFlush(any(StudentResultsOverviewToken.class));
 	}
 
 	@Test
@@ -179,7 +181,7 @@ class StudentResultsOverviewTokenServiceTest {
 
 		assertThatExceptionOfType(DataIntegrityViolationException.class)
 			.isThrownBy(() -> this.service.issueForStudent(STUDENT));
-		verify(this.repository, Mockito.times(3)).saveAndFlush(any(StudentResultsOverviewToken.class));
+		verify(this.repository, times(3)).saveAndFlush(any(StudentResultsOverviewToken.class));
 	}
 
 	@Test
@@ -195,8 +197,8 @@ class StudentResultsOverviewTokenServiceTest {
 		// PostgreSQL refuses every later statement in a transaction that failed, so the
 		// retry can only re-read if the failed attempt was rolled back first. One
 		// rollback for the rejected attempt and one commit for the one that won.
-		verify(this.transactionManager, Mockito.times(1)).rollback(any());
-		verify(this.transactionManager, Mockito.times(1)).commit(any());
+		verify(this.transactionManager, times(1)).rollback(any());
+		verify(this.transactionManager, times(1)).commit(any());
 	}
 
 	@Test
@@ -213,7 +215,7 @@ class StudentResultsOverviewTokenServiceTest {
 		// flush the insert would check uq_srot_one_active_per_student against the very
 		// row this attempt is retiring and be rejected without any race at all.
 		ArgumentCaptor<StudentResultsOverviewToken> captor = ArgumentCaptor.forClass(StudentResultsOverviewToken.class);
-		InOrder inOrder = Mockito.inOrder(this.repository);
+		InOrder inOrder = inOrder(this.repository);
 		inOrder.verify(this.repository).save(captor.capture());
 		inOrder.verify(this.repository).flush();
 		inOrder.verify(this.repository).saveAndFlush(any(StudentResultsOverviewToken.class));
