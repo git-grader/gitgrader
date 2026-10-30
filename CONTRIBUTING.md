@@ -56,6 +56,11 @@ enforce module boundaries. A module may depend only on packages declared in its
 `package-info.java`; do not fix a violation with a cross-module repository or
 service call — use the published application event/API boundary instead.
 
+The ArchUnit naming rule also requires every non-private `@Test`/`@ParameterizedTest`
+method and every non-private `@Nested` test class to carry a `@DisplayName`. The
+house style is a lowercase verb phrase reading as a claim about the subject, with
+no trailing period. A file that regresses this rule will fail the build.
+
 ## Rules that commonly surprise contributors
 
 The forbidden-apis configuration rejects:
