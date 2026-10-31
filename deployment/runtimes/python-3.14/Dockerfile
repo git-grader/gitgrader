@@ -4,7 +4,7 @@
 # /opt/hidden-tests and reaches the submission over the shim socket. The shared
 # Python shim is baked at /opt/gitgrader-shim, outside /workspace; never mount
 # the test suite inside the student tree.
-FROM python:3.14-slim-bookworm@sha256:516b51cb9db2ef061e465c803e50f64361b82cefd91e525b889b967b83e83527
+FROM python:3.15-slim-bookworm@sha256:4e03260adeeebafccd084f3584e6b84823aba5651cfb53ef8a078ed441ddf9cd
 
 # pytest and pytest-tap are baked into the runtime so read-only operator
 # test-suite mounts can execute pytest suites without installing dependencies
