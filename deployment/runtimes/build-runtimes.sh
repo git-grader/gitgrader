@@ -17,7 +17,8 @@ image_tag=${IMAGE_TAG:-local}
 for runtime_dir in "$script_dir"/*-*/; do
 	[ -d "$runtime_dir" ] || continue
 	[ -f "$runtime_dir/Dockerfile" ] || continue
-	key=${runtime_dir##*/}
+	key=${runtime_dir%/}
+	key=${key##*/}
 	case "$key" in
 	node-*)
 		runtime_type=node
