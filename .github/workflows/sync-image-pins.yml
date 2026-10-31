@@ -10,6 +10,7 @@ on:
       - deployment/runtimes/node-22/Dockerfile
       - deployment/runtimes/node-24/Dockerfile
       - deployment/runtimes/node-26/Dockerfile
+      - deployment/runtimes/python-3.14/Dockerfile
       - compose.yaml
 
 # Workflows that Dependabot triggers get a read-only token by default; this is what lets
