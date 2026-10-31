@@ -134,7 +134,7 @@
 
     <!-- Dependency versions not managed by the Spring Boot BOM. -->
     <spring-modulith.version>2.1.1</spring-modulith.version>
-    <springdoc.version>3.1.1</springdoc.version>
+    <springdoc.version>3.2.0</springdoc.version>
     <sshd.version>2.20.0</sshd.version>
     <taikai.version>2.2.0</taikai.version>
 
