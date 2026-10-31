@@ -136,6 +136,14 @@
     <spring-modulith.version>2.1.1</spring-modulith.version>
     <springdoc.version>3.1.1</springdoc.version>
     <sshd.version>2.20.0</sshd.version>
+    <!--
+      Ahead of springdoc, whose 3.1.x manages the webjar at 5.32.14. That ships
+      the swagger-ui-bundle.js that embeds DOMPurify 3.4.13, which the dependency
+      check flags as CVE-2026-116803 and CVE-2026-116804 (10.0 each), both fixed
+      only in DOMPurify 3.4.17. swagger-ui 5.34.1 is the first webjar whose
+      bundle builds against DOMPurify ^3.4.17. Drop this once springdoc's managed
+      webjar reaches 5.34.1 or newer. -->
+    <swagger-ui.version>5.34.1</swagger-ui.version>
     <taikai.version>2.2.0</taikai.version>
 
     <!-- Ahead of the version Spring Boot manages. 11.0.24 is the servlet container
@@ -217,6 +225,20 @@
         <groupId>org.bouncycastle</groupId>
         <artifactId>bcutil-jdk18on</artifactId>
         <version>${bouncycastle.version}</version>
+      </dependency>
+      <!--
+        Ahead of springdoc, whose 3.x manages the swagger-ui webjar at 5.32.14
+        through its own springdoc-openapi parent. CVE-2026-116803 and CVE-2026-116804
+        (10.0 each) sit in the DOMPurify 3.4.13 that swagger-ui-bundle.js embeds,
+        and both are fixed only in DOMPurify 3.4.17; swagger-ui 5.34.1 is the first
+        webjar built against it. The interactive OpenAPI docs page this serves is
+        the one place a student's or scanner's untrusted input is rendered client-side.
+        Drop this pin once springdoc manages 5.34.1 or newer.
+      -->
+      <dependency>
+        <groupId>org.webjars</groupId>
+        <artifactId>swagger-ui</artifactId>
+        <version>${swagger-ui.version}</version>
       </dependency>
     </dependencies>
   </dependencyManagement>
