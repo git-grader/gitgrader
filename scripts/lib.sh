@@ -16,7 +16,7 @@
 # registry that served it. Dependabot cannot see a value in a shell file, which is why the
 # digest check is a script rather than a bot.
 # shellcheck disable=SC2034  # read by the scripts that source this file
-ALPINE_IMAGE="alpine:3.24.2@sha256:294b683cb724975bec92580e1e685676bd4b50bda910ddb8c51d4cabeaec77e6"
+ALPINE_IMAGE="alpine:3.24.3@sha256:be2656061b536c1883c4034790e21d0a09c5aaaf51968b89368a3c0371ea2c9a"
 
 # Writes a value into .env, replacing an existing key in place and appending a new one.
 #
