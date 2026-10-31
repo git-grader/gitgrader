@@ -27,6 +27,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Pin the `swagger-ui` webjar to 5.34.1, ahead of springdoc, which manages 5.32.14.
+  That version's bundled DOMPurify 3.4.13 carried CVE-2026-116803 and CVE-2026-116804
+  (10.0 each); both are fixed only in 3.4.17, and 5.34.1 is the first webjar built
+  against it. The interactive OpenAPI docs page is the one place untrusted input is
+  rendered client-side, so the vulnerable jar was served by the shipped image.
 - Queue shutdown no longer aborts when a student pushed again while their previous job was
   held by a worker. Returning the held job collided with the newer pending job on the
   one-pending-per-assignment index and rolled back the whole requeue, so every job that
