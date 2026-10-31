@@ -24,7 +24,7 @@ ON CONFLICT DO NOTHING;
 -- The Python shim is started explicitly rather than through the runner's Node
 -- default command, so its runtime row names the interpreter that starts it.
 INSERT INTO runtimes (id, runtime_key, display_name, image, tag, image_digest, install_command, test_command, report_format, enabled, shim_kind, shim_command, created_at, updated_at)
-VALUES ('10000000-0000-4000-8000-000000000015', 'python-3.14', 'Python 3.14', 'python', '3.14-slim-bookworm', 'sha256:516b51cb9db2ef061e465c803e50f64361b82cefd91e525b889b967b83e83527', NULL, 'cd /opt/hidden-tests && python3 -m pytest -p no:cacheprovider --tap-stream -q', 'TAP', TRUE, 'python-ipc', 'python3 /opt/gitgrader-shim/server.py', now(), now())
+VALUES ('10000000-0000-4000-8000-000000000015', 'python-3.14', 'Python 3.14', 'python', '3.14-slim-bookworm', 'sha256:4e03260adeeebafccd084f3584e6b84823aba5651cfb53ef8a078ed441ddf9cd', NULL, 'cd /opt/hidden-tests && python3 -m pytest -p no:cacheprovider --tap-stream -q', 'TAP', TRUE, 'python-ipc', 'python3 /opt/gitgrader-shim/server.py', now(), now())
 ON CONFLICT DO NOTHING;
 
 INSERT INTO project_templates (id, template_key, name, description, created_at, updated_at)
