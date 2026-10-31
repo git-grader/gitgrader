@@ -16,6 +16,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- A Java 27 grading runtime (`java-27`) alongside the Node.js and Python ones. The
+  Temurin 27 JDK image bakes the shared Java grading shim and the JUnit console
+  launcher, so Java assignments run shimmed in two containers that share only a
+  Unix socket, and the runtime's own build runs the shim's self-test as the gate.
 - Instructors can now browse the files of a graded submission. The submission
   view gains a file explorer that lists every directory and file the submission
   contained, with lazy loading of directory contents to keep the initial page
