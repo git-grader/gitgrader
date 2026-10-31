@@ -59,10 +59,11 @@ for runtime_dir in "$script_dir"/*-*/; do
 		extra_info="pytestVersion: 8.4.2; pytest-tap: 3.5; tap.py: 3.2.1 (baked into the runtime image)"
 		;;
 	java)
-		display_name="Java 25"
+		major=${key#java-}
+		display_name="Java $major"
 		install_command='(none; junit-platform-console-standalone is baked in and the sandbox runs without network)'
 		test_command='cd /opt/hidden-tests && java -jar /opt/junit-platform-console-standalone.jar --details none --report-dir /tmp/tap-report --tap'
-		extra_info="eclipse-temurin 25.0.5+8; junit-platform-console-standalone 6.1.3 (baked into the runtime image)"
+		extra_info="eclipse-temurin ${major} (JDK version pinned in the runtime Dockerfile); junit-platform-console-standalone 6.1.3 (baked into the runtime image)"
 		;;
 	esac
 	printf '%s\n' "displayName: $display_name"
