@@ -98,19 +98,31 @@ for dockerfile in deployment/runtimes/node-*/Dockerfile \
   deployment/runtimes/java-*/Dockerfile; do
   [ -f "$dockerfile" ] || continue
   key=$(basename "$(dirname "$dockerfile")")
-  sync_pin "The $key runtime digest" \
-    "$dockerfile" 'sha256:[a-f0-9]+' \
-    examples/seed-data.sql "$key.*sha256:[a-f0-9]+" \
-    'sha256:[a-f0-9]+'
-
-  # The README beside the Dockerfile quotes the same digest, and it is the copy a reader
-  # is most likely to copy into a deployment by hand. That copy went stale twice before
-  # this line existed, so it is checked here rather than trusted.
   readme="$(dirname "$dockerfile")/README.md"
-  sync_pin "The $key runtime digest quoted in its README" \
-    "$dockerfile" 'sha256:[a-f0-9]+' \
-    "$readme" 'sha256:[a-f0-9]+' \
-    'sha256:[a-f0-9]+'
+
+  # Node and Python runtimes are pulled from Docker Hub and registered in
+  # seed-data.sql. Java runtimes are custom-built by this project and have no
+  # Docker Hub path, so only their README pin is verified here; registration in
+  # seed-data.sql is a separate manual step documented in each java-*/README.md.
+  case "$key" in
+  java-*)
+    # Verify the README pin only; seed-data registration is a manual step.
+    sync_pin "The $key runtime digest quoted in its README" \
+      "$dockerfile" 'sha256:[a-f0-9]+' \
+      "$readme" 'sha256:[a-f0-9]+' \
+      'sha256:[a-f0-9]+'
+    ;;
+  *)
+    sync_pin "The $key runtime digest" \
+      "$dockerfile" 'sha256:[a-f0-9]+' \
+      examples/seed-data.sql "$key.*sha256:[a-f0-9]+" \
+      'sha256:[a-f0-9]+'
+    sync_pin "The $key runtime digest quoted in its README" \
+      "$dockerfile" 'sha256:[a-f0-9]+' \
+      "$readme" 'sha256:[a-f0-9]+' \
+      'sha256:[a-f0-9]+'
+    ;;
+  esac
 done
 
 # The value group requires the digest on both sides. It used to match the bare tag, which

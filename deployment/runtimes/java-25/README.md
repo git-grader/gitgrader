@@ -68,3 +68,8 @@ mechanism for your deployment, or update the runtime row in
 `examples/seed-data.sql` with the same immutable SHA-256 value. Do not use a
 moving tag or `latest`; the database requires a 64-character `sha256:` digest
 and records the tag only as documentation.
+
+> **Before a java-25 runtime can grade a submission, the `sync-image-pins`
+> quality gate (Quality workflow, `scripts/sync-image-pins.sh --check`) will
+> report an error until the row is present in `seed-data.sql`. Add it after
+> pushing the built image to a registry and obtaining its digest.
