@@ -135,7 +135,7 @@
     <!-- Dependency versions not managed by the Spring Boot BOM. -->
     <spring-modulith.version>2.1.1</spring-modulith.version>
     <springdoc.version>3.1.1</springdoc.version>
-    <sshd.version>2.20.0</sshd.version>
+    <sshd.version>2.20.1</sshd.version>
     <!--
       Ahead of springdoc, whose 3.1.x manages the webjar at 5.32.14. That ships
       the swagger-ui-bundle.js that embeds DOMPurify 3.4.13, which the dependency
