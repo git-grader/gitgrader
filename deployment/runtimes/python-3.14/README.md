@@ -2,7 +2,7 @@
 
 This image runs zero-dependency Python assignments on Python 3.14. It pins the
 official multi-architecture `python:3.14-slim-bookworm` OCI index at
-`sha256:516b51cb9db2ef061e465c803e50f64361b82cefd91e525b889b967b83e83527`.
+`sha256:4e03260adeeebafccd084f3584e6b84823aba5651cfb53ef8a078ed441ddf9cd`.
 
 JVM assignments are covered by the sibling `java-25` runtime; the Node majors
 live in `node-22`, `node-24` and `node-26`. `pytest` 8.4.2 with `pytest-tap`
