@@ -48,6 +48,12 @@
     <frontend.directory>${project.basedir}/../frontend</frontend.directory>
     <git-commit-id-maven-plugin.version>10.0.1</git-commit-id-maven-plugin.version>
 
+    <!-- Ahead of docker-java 3.7.1, which still resolves 33.4.8-jre. CVE-2026-102554
+         (high) is an unthrottled memory allocation during deserialization; the image
+         scan of the published backend fails on it, and docker-java-core is the only
+         path to the jar. Fixed in 33.7.2; drop this once docker-java manages it. -->
+    <guava.version>33.7.2-jre</guava.version>
+
     <!-- Ahead of the version Spring Boot manages: 5.4.2 accepts an unbounded number of
          HTTP/1.1 headers (CVE-2026-54399) and an oversized HPACK block before the
          HTTP/2 settings limit applies (CVE-2026-54428), either of which exhausts
@@ -197,6 +203,17 @@
         <groupId>org.apache.httpcomponents.core5</groupId>
         <artifactId>httpcore5-h2</artifactId>
         <version>${httpcore5.version}</version>
+      </dependency>
+      <!--
+        Ahead of docker-java-core, which still resolves 33.4.8-jre. CVE-2026-102554
+        (high) is an unthrottled memory allocation during deserialization, and the
+        scan of the published image fails on it. Fixed in 33.7.2; drop this once
+        docker-java manages it.
+      -->
+      <dependency>
+        <groupId>com.google.guava</groupId>
+        <artifactId>guava</artifactId>
+        <version>${guava.version}</version>
       </dependency>
       <!--
         Ahead of sshd-git, which still resolves 1.84. CVE-2026-8763 (critical: a
