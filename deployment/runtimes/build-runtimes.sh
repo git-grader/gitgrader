@@ -50,19 +50,25 @@ for runtime_dir in "$script_dir"/*-*/; do
 		display_name="Node.js $major"
 		install_command='(none; Jasmine is baked in and the sandbox runs without network)'
 		test_command='cd /opt/hidden-tests && jasmine --config=jasmine.json --reporter=./jasmine-tap-reporter.cjs'
+		shim_kind='node-ipc'
+		shim_command=''
 		extra_info="jasmineVersion: 7.0.0 (baked into the runtime image)"
 		;;
 	python)
 		display_name="Python 3.14"
-		install_command='(none; pytest and pytest-tap are baked in and the sandbox runs without network)'
-		test_command='cd /opt/hidden-tests && python3 -m pytest -p no:cacheprovider --tap-stream -q'
-		extra_info="pytestVersion: 8.4.2; pytest-tap: 3.5; tap.py: 3.2.1 (baked into the runtime image)"
+		install_command='(none; pytest is baked in and the sandbox runs without network)'
+		test_command='cd /opt/hidden-tests && python3 /opt/gitgrader-shim/tap_runner.py'
+		shim_kind='python-ipc'
+		shim_command='python3 /opt/gitgrader-shim/server.py'
+		extra_info="pytestVersion: 8.4.2 (baked into the runtime image); hidden suites report TAP via /opt/gitgrader-shim/tap_runner.py"
 		;;
 	java)
 		major=${key#java-}
 		display_name="Java $major"
 		install_command='(none; junit-platform-console-standalone is baked in and the sandbox runs without network)'
-		test_command='cd /opt/hidden-tests && java -jar /opt/junit-platform-console-standalone.jar --details none --report-dir /tmp/tap-report --tap'
+		test_command='cd /opt/hidden-tests && javac -cp /opt/junit-platform-console-standalone.jar:/opt/gitgrader-shim -d /tmp/classes *.java && java -cp /tmp/classes:/opt/gitgrader-shim:/opt/junit-platform-console-standalone.jar TapRunner'
+		shim_kind='java-ipc'
+		shim_command='java -cp /opt/gitgrader-shim Server'
 		extra_info="eclipse-temurin ${major} (JDK version pinned in the runtime Dockerfile); junit-platform-console-standalone 6.1.3 (baked into the runtime image)"
 		;;
 	esac
@@ -72,6 +78,10 @@ for runtime_dir in "$script_dir"/*-*/; do
 	printf '%s\n' "installCommand: $install_command"
 	printf '%s\n' "testCommand: $test_command"
 	printf '%s\n' 'reportFormat: TAP'
+	printf '%s\n' "shimKind: $shim_kind"
+	if [ -n "$shim_command" ]; then
+		printf '%s\n' "shimCommand: $shim_command"
+	fi
 	printf '%s\n' "$extra_info"
 	printf '\n'
 done

@@ -7,8 +7,8 @@ official multi-architecture `python:3.14-slim-bookworm` OCI index at
 JVM assignments are covered by the sibling `java-25` runtime; the Node majors
 live in `node-22`, `node-24` and `node-26`. `pytest` 8.4.2 with `pytest-tap`
 3.5 is installed globally in the image for both student-visible and operator
-hidden suites; the hidden suite emits TAP through pytest's `--tap-stream`
-flag, described under Runner contract. The runtime bakes the shared Python
+hidden suites; the hidden suite emits TAP through the baked `tap_runner.py`,
+described under Runner contract. The runtime bakes the shared Python
 shim from `deployment/runtimes/python-shim/` into the image at
 `/opt/gitgrader-shim`.
 
@@ -48,20 +48,23 @@ By default no per-assignment configuration is needed: an explicit
 directly under `/workspace/src` and refuses to guess when the directory holds
 several. `SHIM_SOCKET` is set to the socket both containers share.
 
-T runs the hidden pytest suite over the same socket, and `--tap-stream` makes
-pytest emit TAP on its standard output:
+T runs the hidden pytest suite over the same socket through the baked
+`tap_runner.py`, which runs pytest in-process and prints one
+`ok N - <name>` / `not ok N - <name>` line per declared manifest test (pytest-tap's
+`--tap-stream` omits the `- ` separator the grading parser requires, so it is
+not used for grading):
 
 ```sh
-cd /opt/hidden-tests && python3 -m pytest -p no:cacheprovider --tap-stream -q
+cd /opt/hidden-tests && python3 /opt/gitgrader-shim/tap_runner.py
 ```
 
 T's suite imports `create_shim_client` from `/opt/gitgrader-shim/client.py`
-and awaits the sandbox's exports through it; a suite that never connects
+and calls the sandbox's exports through it; a suite that never connects
 cannot be graded in two containers, so a shimmed runtime refuses it as an
 infrastructure error. The Python runtime registers no `install_command`: the
 sandbox runs with no network and the assignments are zero-dependency, with
-pytest and pytest-tap baked into the image, so there is nothing to install at
-grading time. TAP is the report format registered in the runtime record.
+pytest baked into the image, so there is nothing to install at grading time.
+TAP is the report format registered in the runtime record.
 
 ## Register in GitGrader
 
