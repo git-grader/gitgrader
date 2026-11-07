@@ -20,6 +20,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Temurin 27 JDK image bakes the shared Java grading shim and the JUnit console
   launcher, so Java assignments run shimmed in two containers that share only a
   Unix socket, and the runtime's own build runs the shim's self-test as the gate.
+- Java and Python string-utils example assignments
+  (`examples/assignments/assignment-02-string-utils-java` and
+  `assignment-03-string-utils-python`) mirroring the Node one: same ten hidden
+  checks, complete and partial-70 reference solutions, and a template per
+  language. `examples/verify-example.sh` now grades all three languages through
+  the real two-container shimmed path and rejects anything but 10/10 and 7/10.
+- Real-Docker integration tests for the Java and Python runtimes
+  (`DockerGradingRunnerJavaIT`, `DockerGradingRunnerPythonIT`), which grade a
+  known solution through the actual runner against the locally built images and
+  skip when the images are absent, as in CI.
+- A baked TAP runner for Python hidden suites (`python-shim/tap_runner.py`). The
+  Python runtime's `test_command` now runs hidden suites through it, because
+  pytest-tap's `--tap-stream` emits `ok N <nodeid>` without the `- ` separator
+  the grading TAP parser requires. `pytest-tap`/`tap.py` are no longer installed
+  in the image.
 - Instructors can now browse the files of a graded submission. The submission
   view gains a file explorer that lists every directory and file the submission
   contained, with lazy loading of directory contents to keep the initial page
@@ -27,6 +42,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- The Java runtimes' hidden-suite command no longer relies on a `--tap` flag the
+  JUnit console launcher never had: the suite compiles against the baked console
+  jar and shim and runs the baked `TapRunner`, which emits `ok N - <name>` lines
+  and now exits non-zero when any test fails, like the Node and Python reporters.
+  The Java sandbox shim command is `java -cp /opt/gitgrader-shim Server` (the
+  compiled classes live in that directory; `java /opt/gitgrader-shim/Server`
+  cannot load a main class).
 - Pin the `swagger-ui` webjar to 5.34.1, ahead of springdoc, which manages 5.32.14.
   That version's bundled DOMPurify 3.4.13 carried CVE-2026-116803 and CVE-2026-116804
   (10.0 each); both are fixed only in 3.4.17, and 5.34.1 is the first webjar built
