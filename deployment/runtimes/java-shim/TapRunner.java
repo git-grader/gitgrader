@@ -47,6 +47,12 @@ public final class TapRunner {
 				.build());
 		reporter.finish();
 		System.out.flush();
+		// A failing submission must exit non-zero, like the Node and Python
+		// reporters do; the grading runner reads the TAP report from stdout
+		// either way and records the exit code alongside the score.
+		if (!reporter.allPassed()) {
+			System.exit(1);
+		}
 	}
 
 	/** Emits one TAP outcome line per executed test, then the plan and counts. */
@@ -88,6 +94,10 @@ public final class TapRunner {
 			for (String diagnostic : diagnostics) {
 				out.println("# " + diagnostic);
 			}
+		}
+
+		boolean allPassed() {
+			return count > 0 && pass == count;
 		}
 	}
 }

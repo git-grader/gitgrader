@@ -7,7 +7,7 @@ at `sha256:11fb95031e5720b9f6efc684658fde4f3d5a2318cced98602c882df0b328d22c`.
 The Python majors live under `python-*` and the Node majors under `node-*`.
 `junit-platform-console-standalone` 6.1.3 (JUnit 5 / Jupiter, verified by
 checksum) is baked into the image for both student-visible and operator hidden
-suites; the hidden suite emits TAP through the console launcher's `--tap`
+suites; the hidden suite emits TAP through the baked `TapRunner`
 flag, described under Runner contract. The runtime bakes the shared Java shim
 from `deployment/runtimes/java-shim/` into the image at `/opt/gitgrader-shim`.
 
@@ -37,7 +37,7 @@ capabilities, and PID/memory/CPU limits, and never sees the hidden sources.
 S compiles the submitted `.java` source in-process and runs the shim server:
 
 ```sh
-java /opt/gitgrader-shim/Server
+java -cp /opt/gitgrader-shim Server
 ```
 
 By default no per-assignment configuration is needed: an explicit
@@ -45,12 +45,12 @@ By default no per-assignment configuration is needed: an explicit
 file directly under `/workspace/src` and refuses to guess when the directory
 holds several. `SHIM_SOCKET` is set to the socket both containers share.
 
-T compiles the hidden JUnit suite against the baked console jar and runs it
-with `--tap`:
+T compiles the hidden JUnit suite against the baked console jar and the shim,
+then runs it through the baked `TapRunner`, which emits the TAP report (the
+console launcher itself has no `--tap` flag):
 
 ```sh
-cd /opt/hidden-tests && javac -cp /opt/junit-platform-console-standalone.jar -d /tmp/classes *.java
-java -jar /opt/junit-platform-console-standalone.jar --class-path /tmp/classes:/opt/junit-platform-console-standalone.jar --details none --tap
+cd /opt/hidden-tests && javac -cp /opt/junit-platform-console-standalone.jar:/opt/gitgrader-shim -d /tmp/classes *.java && java -cp /tmp/classes:/opt/gitgrader-shim:/opt/junit-platform-console-standalone.jar TapRunner
 ```
 
 T's suite uses `ShimClient` from `/opt/gitgrader-shim/ShimClient.class`.
