@@ -52,7 +52,7 @@
          (high) is an unthrottled memory allocation during deserialization; the image
          scan of the published backend fails on it, and docker-java-core is the only
          path to the jar. Fixed in 33.7.2; drop this once docker-java manages it. -->
-    <guava.version>33.7.2-jre</guava.version>
+    <guava.version>33.8.0-jre</guava.version>
 
     <!-- Ahead of the version Spring Boot manages: 5.4.2 accepts an unbounded number of
          HTTP/1.1 headers (CVE-2026-54399) and an oversized HPACK block before the
