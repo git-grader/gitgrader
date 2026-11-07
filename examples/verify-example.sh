@@ -9,26 +9,32 @@ set -eu
 root=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 # shellcheck disable=SC1007
 repo=$(CDPATH= cd -- "$root/.." && pwd)
-assignment="$root/assignments/assignment-01-string-utils"
-suite="$assignment/hidden-tests"
-manifest="$suite/manifest.json"
-shim="$repo/deployment/runtimes/node-shim"
 work=$(mktemp -d "${TMPDIR:-/tmp}/gitgrader-example.XXXXXX")
 
-# This proof intentionally exercises only the string-utils example. The WBE
-# assignment packages are separate course material and are never discovered or
-# included by this script.
-if [ "$(basename "$assignment")" != 'assignment-01-string-utils' ]; then
-	printf '%s\n' 'ERROR: example verification scope changed unexpectedly.' >&2
-	exit 1
-fi
+# This proof intentionally exercises only the string-utils examples in
+# assignments/. The WBE assignment packages are separate course material and are
+# never discovered or included by this script.
+node_assignment="$root/assignments/assignment-01-string-utils"
+java_assignment="$root/assignments/assignment-02-string-utils-java"
+python_assignment="$root/assignments/assignment-03-string-utils-python"
+for assignment in "$node_assignment" "$java_assignment" "$python_assignment"; do
+  if [ ! -d "$assignment/hidden-tests" ] || [ ! -d "$assignment/template" ]; then
+    printf '%s\n' "ERROR: example verification scope changed unexpectedly: $assignment" >&2
+    exit 1
+  fi
+done
 
-# Both halves run the locally built runtime image, which is the node-24 Dockerfile
-# with jasmine installed globally for the suite half to invoke. The stock
-# node:24-bookworm-slim base cannot stand in: it has no jasmine, so the suite
-# container would fail on a reporter that does not exist. Override NODE_IMAGE only
-# with an equivalent image that already carries it.
+node_shim="$repo/deployment/runtimes/node-shim"
+python_shim="$repo/deployment/runtimes/python-shim"
+
+# All three legs run the locally built runtime images. The stock upstream bases
+# cannot stand in: the node base has no jasmine, the python base has no pytest,
+# and the Java base has neither the compiled shim nor the JUnit console jar, so
+# each suite container would fail on tooling that does not exist. Override the
+# *_IMAGE variables only with equivalent images that already carry that tooling.
 node_image=${NODE_IMAGE:-gitgrader-node-24:local}
+python_image=${PYTHON_IMAGE:-gitgrader-python-3.14:local}
+java_image=${JAVA_IMAGE:-gitgrader-java-25:local}
 
 for tool in docker node awk diff mktemp; do
   command -v "$tool" >/dev/null 2>&1 || {
@@ -46,17 +52,20 @@ cleanup() {
 }
 trap cleanup EXIT HUP INT TERM
 
-# The image is built, not pulled, so this cannot fall back to a registry the way a
-# digest-pinned reference would. On a fresh clone the name carries no registry host
-# and `docker pull` fails without saying which command produces it.
-if ! docker image inspect "$node_image" >/dev/null 2>&1; then
-  printf '%s\n' "ERROR: runtime image $node_image is not present locally." >&2
-  printf '%s\n' "Build it with:  deployment/runtimes/build-runtimes.sh" >&2
-  exit 1
-fi
+# The images are built, not pulled, so this cannot fall back to a registry the way
+# a digest-pinned reference would. On a fresh clone the name carries no registry
+# host and `docker pull` fails without saying which command produces it.
+for image in "$node_image" "$python_image" "$java_image"; do
+  if ! docker image inspect "$image" >/dev/null 2>&1; then
+    printf '%s\n' "ERROR: runtime image $image is not present locally." >&2
+    printf '%s\n' "Build it with:  deployment/runtimes/build-runtimes.sh" >&2
+    exit 1
+  fi
+done
 
 verify_names() {
   report=$1
+  manifest=$2
   emitted="$work/emitted-names.txt"
   manifest_names="$work/manifest-names.txt"
 
@@ -69,45 +78,68 @@ verify_names() {
   fi
 }
 
+# run_suite <label> <image> <assignment> <solution-file> <solution-path-in-workspace>
+#           <expected-passed> <expected-failed> <server-command> <suite-command> <shim-source-or-empty>
+# The shim source is bind-mounted read-only at /opt/gitgrader-shim for the script
+# languages (node, python); the Java runtime uses the shim compiled into the image,
+# so its last argument is empty and no host shim is mounted.
 run_suite() {
   label=$1
-  solution=$2
-  expected_passed=$3
-  expected_failed=$4
+  image=$2
+  assignment=$3
+  solution=$4
+  solution_path=$5
+  expected_passed=$6
+  expected_failed=$7
+  server_command=$8
+  suite_command=$9
+  shim_source=${10:-}
+
   report="$work/$label.tap"
   socket="$work/$label.sock"
   sandbox="$work/$label.server"
+  workspace="$work/$label.workspace"
+  manifest="$assignment/hidden-tests/manifest.json"
 
   # Both containers share one socket directory; the sandbox creates the socket
   # there and the suite connects to it. The suite directory is mounted only into
   # the suite container: the sandbox container never sees the hidden sources, and
   # its root filesystem is read-only with /tmp as tmpfs, no network, no extra
   # capabilities, and no privilege escalation, mirroring the runner's sandbox.
-  mkdir -p "$socket" "$work/workspace"
+  mkdir -p "$socket" "$workspace"
   chmod 0777 "$socket"
-  cp -R "$assignment/template/." "$work/workspace/"
-  cp "$solution" "$work/workspace/src/string-utils.js"
-  chmod -R a+rX "$work/workspace"
+  cp -R "$assignment/template/." "$workspace/"
+  cp "$solution" "$workspace/$solution_path"
+  chmod -R a+rX "$workspace"
 
+  if [ -n "$shim_source" ]; then
+    # shellcheck disable=SC2086
+    shim_volume="--volume $shim_source:/opt/gitgrader-shim:ro"
+  else
+    shim_volume=''
+  fi
+
+  # shellcheck disable=SC2086
   docker run --detach --rm \
     --network none --cap-drop ALL --security-opt no-new-privileges \
     --read-only --tmpfs /tmp --user 65534:65534 --workdir /workspace \
-    --env SOLUTION_PATH=/workspace/src/string-utils.js \
+    --env SOLUTION_PATH="/workspace/$solution_path" \
     --env SHIM_SOCKET=/gitgrader-shim/runner.sock \
-    --volume "$work/workspace:/workspace" \
+    --volume "$workspace:/workspace" \
     --volume "$socket:/gitgrader-shim" \
-    --volume "$shim:/opt/gitgrader-shim:ro" \
-    --entrypoint /bin/sh "$node_image" -c 'node /opt/gitgrader-shim/server.js' > "$sandbox"
+    $shim_volume \
+    --entrypoint /bin/sh "$image" -c "$server_command" > "$sandbox"
 
+  # shellcheck disable=SC2086
   if docker run --rm \
     --network none --cap-drop ALL --security-opt no-new-privileges \
     --read-only --tmpfs /tmp --user 65534:65534 \
     --env SHIM_SOCKET=/gitgrader-shim/runner.sock \
     --env HIDDEN_TESTS=/opt/hidden-tests \
-    --volume "$suite:/opt/hidden-tests:ro" \
+    --volume "$assignment/hidden-tests:/opt/hidden-tests:ro" \
     --volume "$socket:/gitgrader-shim" \
-    --volume "$shim:/opt/gitgrader-shim:ro" \
-    --entrypoint /bin/sh "$node_image" -c 'cd /opt/hidden-tests && jasmine --config=jasmine.json --reporter=./jasmine-tap-reporter.cjs' > "$report" 2>&1; then
+    $shim_volume \
+    --entrypoint /bin/sh "$image" -c "$suite_command" > "$report" 2>&1; then
     status=0
   else
     status=$?
@@ -134,12 +166,37 @@ run_suite() {
     exit 1
   fi
 
-  verify_names "$report"
+  verify_names "$report" "$manifest"
   printf '%s\n' "$label: $passed passed / $failed failed / $total total (two containers, shared socket)"
 }
 
-run_suite complete "$assignment/reference-solution/complete/string-utils.js" 10 0
-run_suite partial-70 "$assignment/reference-solution/partial-70/string-utils.js" 7 3
+node_suite_command='cd /opt/hidden-tests && jasmine --config=jasmine.json --reporter=./jasmine-tap-reporter.cjs'
+node_server_command='node /opt/gitgrader-shim/server.js'
+python_suite_command='cd /opt/hidden-tests && python3 /opt/gitgrader-shim/tap_runner.py'
+python_server_command='python3 /opt/gitgrader-shim/server.py'
+java_suite_command='cd /opt/hidden-tests && javac -cp /opt/junit-platform-console-standalone.jar:/opt/gitgrader-shim -d /tmp/classes *.java && java -cp /tmp/classes:/opt/gitgrader-shim:/opt/junit-platform-console-standalone.jar TapRunner'
+java_server_command='java -cp /opt/gitgrader-shim Server'
+
+run_suite node-complete "$node_image" "$node_assignment" \
+  "$node_assignment/reference-solution/complete/string-utils.js" 'src/string-utils.js' 10 0 \
+  "$node_server_command" "$node_suite_command" "$node_shim"
+run_suite node-partial-70 "$node_image" "$node_assignment" \
+  "$node_assignment/reference-solution/partial-70/string-utils.js" 'src/string-utils.js' 7 3 \
+  "$node_server_command" "$node_suite_command" "$node_shim"
+
+run_suite java-complete "$java_image" "$java_assignment" \
+  "$java_assignment/reference-solution/complete/Solution.java" 'src/Solution.java' 10 0 \
+  "$java_server_command" "$java_suite_command" ''
+run_suite java-partial-70 "$java_image" "$java_assignment" \
+  "$java_assignment/reference-solution/partial-70/Solution.java" 'src/Solution.java' 7 3 \
+  "$java_server_command" "$java_suite_command" ''
+
+run_suite python-complete "$python_image" "$python_assignment" \
+  "$python_assignment/reference-solution/complete/solution.py" 'src/solution.py' 10 0 \
+  "$python_server_command" "$python_suite_command" "$python_shim"
+run_suite python-partial-70 "$python_image" "$python_assignment" \
+  "$python_assignment/reference-solution/partial-70/solution.py" 'src/solution.py' 7 3 \
+  "$python_server_command" "$python_suite_command" "$python_shim"
 
 score=$(awk 'BEGIN { printf "%.1f", 7 / 10 * 100 }')
 if [ "$score" != '70.0' ]; then
@@ -147,7 +204,7 @@ if [ "$score" != '70.0' ]; then
   exit 1
 fi
 
-printf '%s\n' "partial-70 score: $score% (7 / 10 * 100)"
+printf '%s\n' "partial-70 score: $score% (7 / 10 * 100) on every language"
 printf '%s\n' 'Manifest/TAP name join: exact match'
 printf '%s\n' 'Suite container did not expose /workspace; sandbox never mounted the hidden suite.'
-printf '%s\n' 'Example verification passed.'
+printf '%s\n' 'Example verification passed for node, java and python.'

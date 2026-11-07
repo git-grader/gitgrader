@@ -22,9 +22,11 @@ VALUES ('10000000-0000-4000-8000-000000000014', 'node-26', 'Node.js 26', 'node',
 ON CONFLICT DO NOTHING;
 
 -- The Python shim is started explicitly rather than through the runner's Node
--- default command, so its runtime row names the interpreter that starts it.
+-- default command, so its runtime row names the interpreter that starts it. The
+-- suite half reports TAP through the baked tap_runner.py (pytest-tap's
+-- --tap-stream omits the "- " separator the grading TAP parser requires).
 INSERT INTO runtimes (id, runtime_key, display_name, image, tag, image_digest, install_command, test_command, report_format, enabled, shim_kind, shim_command, created_at, updated_at)
-VALUES ('10000000-0000-4000-8000-000000000015', 'python-3.14', 'Python 3.14', 'python', '3.14-slim-bookworm', 'sha256:4e03260adeeebafccd084f3584e6b84823aba5651cfb53ef8a078ed441ddf9cd', NULL, 'cd /opt/hidden-tests && python3 -m pytest -p no:cacheprovider --tap-stream -q', 'TAP', TRUE, 'python-ipc', 'python3 /opt/gitgrader-shim/server.py', now(), now())
+VALUES ('10000000-0000-4000-8000-000000000015', 'python-3.14', 'Python 3.14', 'python', '3.14-slim-bookworm', 'sha256:4e03260adeeebafccd084f3584e6b84823aba5651cfb53ef8a078ed441ddf9cd', NULL, 'cd /opt/hidden-tests && python3 /opt/gitgrader-shim/tap_runner.py', 'TAP', TRUE, 'python-ipc', 'python3 /opt/gitgrader-shim/server.py', now(), now())
 ON CONFLICT DO NOTHING;
 
 INSERT INTO project_templates (id, template_key, name, description, created_at, updated_at)
@@ -54,3 +56,52 @@ ON CONFLICT DO NOTHING;
 -- `npm ci --ignore-scripts`.
 UPDATE runtimes SET install_command = NULL, updated_at = now()
 WHERE runtime_key IN ('node-22', 'node-24', 'node-26');
+
+-- The Java and Python string-utils examples mirror the Node one: same ten
+-- hidden checks, complete and partial-70 reference solutions. Content hashes
+-- are the SHA-256 metadata ContentHasher computes over the sorted relative
+-- paths and file bytes of the stored directory.
+INSERT INTO project_templates (id, template_key, name, description, created_at, updated_at)
+VALUES ('10000000-0000-4000-8000-000000000008', 'assignment-02-string-utils-java', 'String utilities template (Java)', 'Student-visible starter project for the Java string utilities.', now(), now())
+ON CONFLICT DO NOTHING;
+
+INSERT INTO template_versions (id, template_id, version_label, storage_path, content_hash, file_count, total_bytes, published_at, published_by, created_at)
+VALUES ('10000000-0000-4000-8000-000000000010', '10000000-0000-4000-8000-000000000008', '1.0.0', 'examples/assignments/assignment-02-string-utils-java/template', 'f359af5fb1abddddeed996d877f5c5b61b4480de970937d3cc5aebf9edcdf913', 4, 2438, now(), 'system', now())
+ON CONFLICT DO NOTHING;
+
+INSERT INTO test_suites (id, suite_key, name, description, created_at, updated_at)
+VALUES ('10000000-0000-4000-8000-000000000012', 'assignment-02-string-utils-java', 'String utilities checks (Java)', 'Operator-only checks for the Java string utilities sample.', now(), now())
+ON CONFLICT DO NOTHING;
+
+INSERT INTO test_suite_versions (id, suite_id, version_label, storage_path, content_hash, hidden_test_count, public_test_count, published_at, published_by, created_at)
+VALUES ('10000000-0000-4000-8000-000000000017', '10000000-0000-4000-8000-000000000012', '1.0.0', 'examples/assignments/assignment-02-string-utils-java/hidden-tests', 'c58ab11309ba7b30a3d37dd976b06128f35c1991a9d0bca6062f795fa8137f03', 10, 3, now(), 'system', now())
+ON CONFLICT DO NOTHING;
+
+INSERT INTO project_templates (id, template_key, name, description, created_at, updated_at)
+VALUES ('10000000-0000-4000-8000-000000000009', 'assignment-03-string-utils-python', 'String utilities template (Python)', 'Student-visible starter project for the Python string utilities.', now(), now())
+ON CONFLICT DO NOTHING;
+
+INSERT INTO template_versions (id, template_id, version_label, storage_path, content_hash, file_count, total_bytes, published_at, published_by, created_at)
+VALUES ('10000000-0000-4000-8000-000000000011', '10000000-0000-4000-8000-000000000009', '1.0.0', 'examples/assignments/assignment-03-string-utils-python/template', 'fb3f82f97eb7fc7c2d09c3c22f98dc97deba64f0bf078bb31eaf18ee8d2672aa', 4, 2188, now(), 'system', now())
+ON CONFLICT DO NOTHING;
+
+INSERT INTO test_suites (id, suite_key, name, description, created_at, updated_at)
+VALUES ('10000000-0000-4000-8000-000000000016', 'assignment-03-string-utils-python', 'String utilities checks (Python)', 'Operator-only checks for the Python string utilities sample.', now(), now())
+ON CONFLICT DO NOTHING;
+
+INSERT INTO test_suite_versions (id, suite_id, version_label, storage_path, content_hash, hidden_test_count, public_test_count, published_at, published_by, created_at)
+VALUES ('10000000-0000-4000-8000-000000000018', '10000000-0000-4000-8000-000000000016', '1.0.0', 'examples/assignments/assignment-03-string-utils-python/hidden-tests', '3271becd5518907c96ef78bf0367b082c8ac9ef96cbd3939f517d20d0c9c89d4', 10, 3, now(), 'system', now())
+ON CONFLICT DO NOTHING;
+
+INSERT INTO assignments (id, course_id, assignment_key, title, description, display_order, status, mandatory, opens_at, due_at, timezone, max_points, test_count, pass_threshold, allow_late, template_version_id, test_suite_version_id, runtime_id, timeout_seconds, memory_limit_bytes, cpu_limit, pid_limit, network_enabled, created_at, updated_at)
+VALUES
+  ('10000000-0000-4000-8000-000000000103', '10000000-0000-4000-8000-000000000001', 'assignment-03-string-utils-python', 'String utilities (Python)', 'Implement small text transformations in Python.', 3, 'OPEN', TRUE, now() - interval '30 days', now() + interval '30 days', 'UTC', 100, 10, 70, FALSE, '10000000-0000-4000-8000-000000000011', '10000000-0000-4000-8000-000000000018', '10000000-0000-4000-8000-000000000015', 30, 268435456, 1.00, 128, FALSE, now(), now())
+ON CONFLICT DO NOTHING;
+
+-- The Java assignment row is intentionally not seeded: assignments.runtime_id is
+-- NOT NULL and the java-25/java-27 runtime rows are registered manually once the
+-- built runtime image's registry digest is known (see
+-- deployment/runtimes/java-25/README.md). After registering a Java runtime, add:
+--   INSERT INTO assignments (id, course_id, assignment_key, title, description, display_order, status, mandatory, opens_at, due_at, timezone, max_points, test_count, pass_threshold, allow_late, template_version_id, test_suite_version_id, runtime_id, timeout_seconds, memory_limit_bytes, cpu_limit, pid_limit, network_enabled, created_at, updated_at)
+--   VALUES
+--     ('10000000-0000-4000-8000-000000000102', '10000000-0000-4000-8000-000000000001', 'assignment-02-string-utils-java', 'String utilities (Java)', 'Implement small text transformations in Java.', 2, 'OPEN', TRUE, now() - interval '30 days', now() + interval '30 days', 'UTC', 100, 10, 70, FALSE, '10000000-0000-4000-8000-000000000010', '10000000-0000-4000-8000-000000000017', '<java runtime id>', 30, 268435456, 1.00, 128, FALSE, now(), now());
