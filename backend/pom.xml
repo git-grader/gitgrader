@@ -31,7 +31,7 @@
     <bouncycastle.version>1.86</bouncycastle.version>
     <bucket4j.version>8.10.1</bucket4j.version>
     <checkstyle.skip>${skipQuality}</checkstyle.skip>
-    <checkstyle.version>14.3.0</checkstyle.version>
+    <checkstyle.version>14.4.0</checkstyle.version>
 
     <!-- Shared quality configuration lives at the repository root. -->
     <config.directory>${project.basedir}/../config</config.directory>
@@ -52,7 +52,7 @@
          (high) is an unthrottled memory allocation during deserialization; the image
          scan of the published backend fails on it, and docker-java-core is the only
          path to the jar. Fixed in 33.7.2; drop this once docker-java manages it. -->
-    <guava.version>33.7.2-jre</guava.version>
+    <guava.version>33.8.0-jre</guava.version>
 
     <!-- Ahead of the version Spring Boot manages: 5.4.2 accepts an unbounded number of
          HTTP/1.1 headers (CVE-2026-54399) and an oversized HPACK block before the
@@ -104,7 +104,7 @@
     <jgit.version>7.8.0.202609011348-r</jgit.version>
     <license-maven-plugin.version>5.1.2</license-maven-plugin.version>
     <maven-checkstyle-plugin.version>3.6.0</maven-checkstyle-plugin.version>
-    <maven-enforcer-plugin.version>3.6.3</maven-enforcer-plugin.version>
+    <maven-enforcer-plugin.version>3.7.0</maven-enforcer-plugin.version>
     <maven-pmd-plugin.version>3.28.0</maven-pmd-plugin.version>
     <maven.compiler.release>25</maven.compiler.release>
     <!-- At or above the floor jsdom 30 sets (^22.22.2 || ^24.15.0 || >=26.0.0);
@@ -113,7 +113,7 @@
     <node.version>v24.18.1</node.version>
     <npm.version>11.16.0</npm.version>
     <pmd.skip>${skipQuality}</pmd.skip>
-    <pmd.version>7.28.0</pmd.version>
+    <pmd.version>7.29.0</pmd.version>
     <poi.version>6.0.0</poi.version>
 
     <!-- Ahead of the version Spring Boot manages: 42.7.11 silently downgrades a
@@ -150,7 +150,7 @@
       bundle builds against DOMPurify ^3.4.17. Drop this once springdoc's managed
       webjar reaches 5.34.1 or newer. -->
     <swagger-ui.version>5.34.1</swagger-ui.version>
-    <taikai.version>2.2.0</taikai.version>
+    <taikai.version>2.8.0</taikai.version>
 
     <!-- Ahead of the version Spring Boot manages. 11.0.24 is the servlet container
          every request is served by, and the dependency check fails the build on it:
