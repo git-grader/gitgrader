@@ -112,7 +112,8 @@ class RepositoryRenamer {
 		try {
 			return AuditRecord.ActorType.valueOf(name);
 		}
-		catch (IllegalArgumentException | NullPointerException ex) {
+		catch (IllegalArgumentException ex) {
+			// An unknown actor kind must not fail the rename itself.
 			return AuditRecord.ActorType.SYSTEM;
 		}
 	}
