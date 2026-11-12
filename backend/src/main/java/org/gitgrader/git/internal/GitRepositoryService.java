@@ -234,6 +234,55 @@ public class GitRepositoryService {
 	}
 
 	/**
+	 * Moves a repository to a new path, on disk and in its row.
+	 *
+	 * <p>
+	 * Used when a student's username changes: the path's last segment is the username, so
+	 * both the bare directory and {@code repositories.repository_path} have to follow.
+	 * The move is a plain rename on the same volume, so it is atomic with respect to
+	 * other processes on the host; the row is updated after the directory, so a crash in
+	 * between leaves an adoptable directory (see {@link #provision}) rather than a row
+	 * without one.
+	 * @param record the repository to move
+	 * @param newRepositoryPath canonical path built by {@link #repositoryPathFor} with
+	 * the new username; validated there, so an unsafe segment is rejected before anything
+	 * moves
+	 * @return the updated record
+	 */
+	public RepositoryRecord rename(RepositoryRecord record, String newRepositoryPath) {
+		String normalised = normalise(newRepositoryPath);
+		Optional<RepositoryRecord> occupant = this.repositories.findByRepositoryPath(normalised);
+		if (occupant.isPresent() && !occupant.get().id().equals(record.id())) {
+			throw new IllegalStateException("Repository path already in use: " + normalised);
+		}
+		Path oldBare = bareDirectory(record);
+		Path newBare = StorageProperties.resolveInside(this.storage.repositories(), normalised + ".git");
+		try {
+			if (Files.isDirectory(oldBare)) {
+				Path newParent = newBare.getParent();
+				if (newParent == null) {
+					throw new IllegalStateException("Resolved repository path has no parent: " + newBare);
+				}
+				Files.createDirectories(newParent);
+				Files.move(oldBare, newBare);
+			}
+			else {
+				// A row without a directory is a known state (see provision): only the
+				// row
+				// follows the rename, and a later provision adopts the directory.
+				logger.warn("Repository {} has no directory at {}; renaming the row only", record.id(), oldBare);
+			}
+		}
+		catch (IOException ex) {
+			throw new IllegalStateException("Could not move repository " + oldBare + " to " + newBare, ex);
+		}
+		String oldPath = record.repositoryPath();
+		record.rename(normalised, this.clock);
+		logger.info("Renamed repository {} from {} to {}", record.id(), oldPath, normalised);
+		return this.repositories.save(record);
+	}
+
+	/**
 	 * Records that a push was accepted into a repository.
 	 * @param record the repository
 	 */

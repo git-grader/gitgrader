@@ -67,7 +67,18 @@ public interface StudentRegistry {
 	 */
 	StudentView anonymize(UUID studentId);
 
-	/** Updates the editable profile fields. */
-	StudentView update(UUID studentId, StudentUpdate update);
+	/**
+	 * Updates the editable profile fields.
+	 *
+	 * <p>
+	 * A username change is not just a row update: it publishes
+	 * {@link StudentUsernameChanged} so the {@code git} module can rename the student's
+	 * repository paths and bare directories to match.
+	 * @param studentId profile identifier
+	 * @param update new field values
+	 * @param actor editing actor
+	 * @return updated profile
+	 */
+	StudentView update(UUID studentId, StudentUpdate update, Actor actor);
 
 }
