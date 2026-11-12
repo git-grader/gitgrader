@@ -51,8 +51,14 @@ updates:
   schedule:
     interval: weekly
   ignore:
+  # Python's release identity is the minor (3.14 vs 3.15 are different
+  # releases, like Node majors), but semver reads 3.14 -> 3.15 as a *minor*
+  # bump, so excluding only semver-major let Dependabot move the 3.14 runtime
+  # onto a 3.15 base and sync-image-pins then propagated 3.15's digest into a
+  # row still labelled 3.14. Exclude minor too; patch-level digest refreshes
+  # still come through.
   - dependency-name: "python"
-    update-types: ["version-update:semver-major"]
+    update-types: ["version-update:semver-major", "version-update:semver-minor"]
 - package-ecosystem: docker
   directory: "/deployment/runtimes/java-25"
   schedule:

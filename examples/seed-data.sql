@@ -26,7 +26,7 @@ ON CONFLICT DO NOTHING;
 -- suite half reports TAP through the baked tap_runner.py (pytest-tap's
 -- --tap-stream omits the "- " separator the grading TAP parser requires).
 INSERT INTO runtimes (id, runtime_key, display_name, image, tag, image_digest, install_command, test_command, report_format, enabled, shim_kind, shim_command, created_at, updated_at)
-VALUES ('10000000-0000-4000-8000-000000000015', 'python-3.14', 'Python 3.14', 'python', '3.14-slim-bookworm', 'sha256:96599df822d0e1c6bb700014a05c7f3c8cabc6e0f7ff3c4f9f69cee033b4b5d9', NULL, 'cd /opt/hidden-tests && python3 /opt/gitgrader-shim/tap_runner.py', 'TAP', TRUE, 'python-ipc', 'python3 /opt/gitgrader-shim/server.py', now(), now())
+VALUES ('10000000-0000-4000-8000-000000000015', 'python-3.14', 'Python 3.14', 'python', '3.14-slim-bookworm', 'sha256:3fe1a0b6c2d6b2ebb572906cdabeca75aeb558c0c17db5ffefbcf8094871c32b', NULL, 'cd /opt/hidden-tests && python3 /opt/gitgrader-shim/tap_runner.py', 'TAP', TRUE, 'python-ipc', 'python3 /opt/gitgrader-shim/server.py', now(), now())
 ON CONFLICT DO NOTHING;
 
 INSERT INTO project_templates (id, template_key, name, description, created_at, updated_at)
