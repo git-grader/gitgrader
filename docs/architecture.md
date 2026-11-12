@@ -112,13 +112,16 @@ The diagram shows the shape; this table is the contract, and matches each
 | `api` | identity, sshkeys, reports, courses, assignments, submissions, grading, security |
 | `git` | identity, sshkeys, courses, assignments, templates, submissions, grading, security, registration |
 
-Two dependencies that would otherwise be cycles are carried by events instead.
+Three dependencies that would otherwise be cycles are carried by events instead.
 `submissions` publishes `SubmissionRecorded` and `grading` consumes it, so
 recording a push never waits for a grade. `registration` publishes
 `StudentRegistered` and `git` consumes it to create the student's repositories,
-so registering never waits for a dozen repositories to appear on disk. Spring
-Modulith persists both publications and replays anything outstanding at
-restart, so no broker is involved.
+so registering never waits for a dozen repositories to appear on disk.
+`identity` publishes `StudentUsernameChanged` and `git` consumes it to rename
+the student's repository rows and bare directories, so an instructor's profile
+correction cannot orphan the student's repositories. Spring Modulith persists
+all publications and replays anything outstanding at restart, so no broker is
+involved.
 
 ## How a submission becomes a result
 

@@ -52,7 +52,9 @@ public class RepositoryRecord {
 	@Column(name = "student_id", nullable = false, updatable = false)
 	private UUID studentId;
 
-	@Column(name = "repository_path", nullable = false, updatable = false)
+	// Not updatable=false on purpose: a student username change renames the path (see
+	// rename below). The column stays unique, so a collision is refused by the database.
+	@Column(name = "repository_path", nullable = false)
 	private String repositoryPath;
 
 	@Column(name = "template_version_id")
@@ -152,6 +154,20 @@ public class RepositoryRecord {
 		this.provisionedAt = Instant.now(clock);
 		this.status = RepositoryStatus.READY;
 		this.updatedAt = this.provisionedAt;
+	}
+
+	/**
+	 * Points the record at a new path after the owning student's username changed.
+	 *
+	 * <p>
+	 * Only the caller that also moves the bare directory on disk may use this, so that
+	 * the row and the volume never disagree about where the repository lives.
+	 * @param newRepositoryPath canonical path whose last segment is the new username
+	 * @param clock the application clock
+	 */
+	public void rename(String newRepositoryPath, Clock clock) {
+		this.repositoryPath = newRepositoryPath;
+		this.updatedAt = Instant.now(clock);
 	}
 
 	/**

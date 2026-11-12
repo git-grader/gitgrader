@@ -37,9 +37,11 @@ import org.gitgrader.identity.StudentRegistry;
 import org.gitgrader.identity.StudentSearch;
 import org.gitgrader.identity.StudentView;
 import org.gitgrader.identity.StudentUpdate;
+import org.gitgrader.identity.StudentUsernameChanged;
 import org.gitgrader.identity.domain.Instructor;
 import org.gitgrader.identity.domain.Student;
 import org.jspecify.annotations.Nullable;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
@@ -57,10 +59,14 @@ public class DefaultIdentityService implements StudentDirectory, StudentRegistry
 
 	private final Clock clock;
 
-	DefaultIdentityService(StudentRepository students, InstructorRepository instructors, Clock clock) {
+	private final ApplicationEventPublisher events;
+
+	DefaultIdentityService(StudentRepository students, InstructorRepository instructors, Clock clock,
+			ApplicationEventPublisher events) {
 		this.students = students;
 		this.instructors = instructors;
 		this.clock = clock;
+		this.events = events;
 	}
 
 	@Override
@@ -128,9 +134,27 @@ public class DefaultIdentityService implements StudentDirectory, StudentRegistry
 	}
 
 	@Override
-	public StudentView update(UUID studentId, StudentUpdate update) {
+	public StudentView update(UUID studentId, StudentUpdate update, Actor actor) {
 		Student student = requireStudent(studentId);
+		String oldUsername = student.studentUsername();
+		String newUsername = update.studentUsername();
+		if (!oldUsername.equals(newUsername)) {
+			// The username is part of every repository path, so the rename below must not
+			// collide with another profile's login name. The check is case-insensitive
+			// because logins are, even though the path lookup itself is case-sensitive.
+			this.students.findByStudentUsernameIgnoreCase(newUsername)
+				.filter((other) -> !other.id().equals(studentId))
+				.ifPresent((other) -> {
+					throw new IllegalStateException("Student username already in use: " + newUsername);
+				});
+		}
 		student.update(update, this.clock);
+		if (!oldUsername.equals(newUsername)) {
+			// Carried by an event rather than a direct call: identity may not depend on
+			// the git module, and the rename must not sit inside this request anyway.
+			this.events.publishEvent(new StudentUsernameChanged(studentId, oldUsername, newUsername,
+					actor.type().name(), actor.id(), actor.displayName()));
+		}
 		return student.toView();
 	}
 

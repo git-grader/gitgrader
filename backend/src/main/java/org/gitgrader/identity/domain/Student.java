@@ -19,6 +19,7 @@ package org.gitgrader.identity.domain;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.UUID;
+import java.util.regex.Pattern;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -41,6 +42,13 @@ import org.jspecify.annotations.Nullable;
 @Entity
 @Table(name = "students")
 public class Student {
+
+	/**
+	 * Usernames become the last segment of repository paths, so they may not contain a
+	 * separator, and {@code .} / {@code ..} are rejected outright because they denote a
+	 * directory that already exists.
+	 */
+	private static final Pattern SAFE_USERNAME = Pattern.compile("^(?!\\.\\.?$)[A-Za-z0-9._-]+$");
 
 	@Id
 	private UUID id;
@@ -236,6 +244,14 @@ public class Student {
 	}
 
 	/**
+	 * Returns the login name, which is also the last segment of every repository path.
+	 * @return the student username
+	 */
+	public String studentUsername() {
+		return this.studentUsername;
+	}
+
+	/**
 	 * Returns when personal fields were anonymized.
 	 * @return anonymization time, or null before anonymization
 	 */
@@ -252,8 +268,22 @@ public class Student {
 				this.status, this.classLabel, this.registeredAt);
 	}
 
-	/** Applies instructor-editable profile fields. */
+	/**
+	 * Applies instructor-editable profile fields.
+	 *
+	 * <p>
+	 * The username is constrained to a single safe path segment because it is
+	 * concatenated into every repository path ({@code course/assignment/username}); a
+	 * value carrying a separator would make the student's repositories denote another
+	 * directory.
+	 * @param update new field values
+	 * @param clock source of update time
+	 */
 	public void update(StudentUpdate update, Clock clock) {
+		if (!SAFE_USERNAME.matcher(update.studentUsername()).matches()) {
+			throw new IllegalArgumentException(
+					"Student username may only contain letters, digits, '.', '_' and '-', and must not be '.' or '..'");
+		}
 		Instant now = Instant.now(clock);
 		this.studentUsername = update.studentUsername();
 		this.firstName = update.firstName();

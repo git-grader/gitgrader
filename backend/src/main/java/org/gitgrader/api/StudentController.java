@@ -97,7 +97,8 @@ public class StudentController {
 
 	@PutMapping("/{id}")
 	public StudentView update(@PathVariable UUID id, @Valid @RequestBody StudentUpdate request) {
-		return this.registry.update(id, request);
+		Actor actor = this.actors.currentActor();
+		return this.registry.update(id, request, actor);
 	}
 
 	@GetMapping("/{id}/keys")

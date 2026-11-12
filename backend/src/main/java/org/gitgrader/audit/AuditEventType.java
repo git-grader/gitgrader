@@ -41,6 +41,12 @@ public enum AuditEventType {
 	/** A profile was anonymised in response to a data protection request. */
 	STUDENT_ANONYMIZED,
 
+	/**
+	 * An instructor corrected a student's username; the student's repository paths and
+	 * bare directories were renamed to match.
+	 */
+	STUDENT_USERNAME_CHANGED,
+
 	/** A public key was attached to a student. */
 	SSH_KEY_ADDED,
 

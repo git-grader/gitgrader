@@ -18,15 +18,21 @@ package org.gitgrader.identity;
 
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Pattern;
+import jakarta.validation.constraints.Size;
 
 /**
  * Editable instructor-owned fields of a student profile.
  *
- * @param studentUsername login name, which is also the student's identity for grading
+ * @param studentUsername login name, which is also the student's identity for grading and
+ * the last segment of every repository path, so it is constrained to one safe path
+ * segment (same rule as the registration form, plus the {@code .} / {@code ..} exclusion)
  * @param firstName given name
  * @param lastName family name
  * @param email contact address
  */
-public record StudentUpdate(@NotBlank String studentUsername, @NotBlank String firstName, @NotBlank String lastName,
-		@NotBlank @Email String email) {
+public record StudentUpdate(
+		@NotBlank @Size(max = 50) @Pattern(regexp = "^(?!\\.\\.?$)[A-Za-z0-9._-]+$",
+				message = "Only letters, digits, '.', '_' and '-' are allowed") String studentUsername,
+		@NotBlank String firstName, @NotBlank String lastName, @NotBlank @Email String email) {
 }
