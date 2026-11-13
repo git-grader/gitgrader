@@ -23,6 +23,7 @@ const meta = {
   publicUrl: 'http://localhost:8080',
   sshHost: 'localhost',
   sshPort: 2222,
+  sshUser: 'git',
   registrationEnabled: true,
   requireInstructorVerification: false,
   version: '0.1.0',

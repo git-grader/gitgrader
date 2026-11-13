@@ -39,6 +39,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   view gains a file explorer that lists every directory and file the submission
   contained, with lazy loading of directory contents to keep the initial page
   fast even for deep or broad trees.
+- The instructor workspace now shows the git clone URL for assignment repositories:
+  a Clone URL column on the assignments list (pattern with `<student>` as the
+  placeholder), a Student repositories section on the assignment detail page, the
+  full per-assignment clone command on the student detail page, and the repository
+  path plus clone URL on the submission detail page. Addresses are built from the
+  SSH host, port and user advertised by `/api/v1/meta` (which now also exposes
+  `sshUser`), so no fork has to patch a host into the UI; a non-default port is
+  spelled out in the clone command.
 
 ### Fixed
 

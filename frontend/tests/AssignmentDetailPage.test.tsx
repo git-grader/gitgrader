@@ -62,6 +62,12 @@ export const RUNTIMES = [
   runtime('rt2', 'python313', 'Python 3.13', false)
 ];
 
+export const COURSE = {
+  id: 'c1', courseKey: 'cs101', name: 'Course One', description: null, semester: null,
+  startsOn: null, endsOn: null, timezone: 'Europe/Zurich', status: 'ACTIVE',
+  registrationOpensAt: null, registrationClosesAt: null, registrationEnabled: true
+};
+
 function extension(overrides: Record<string, unknown> = {}) {
   return {
     id: 'ext1',
@@ -91,6 +97,7 @@ function stubCommon(assignment: Record<string, unknown> = DRAFT, extensions: Rec
   server.use(
     http.get('/api/v1/assignments/:id', () => HttpResponse.json(assignment)),
     http.get('/api/v1/assignments/:id/extensions', () => HttpResponse.json(extensions)),
+    http.get('/api/v1/courses/:id', () => HttpResponse.json(COURSE)),
     http.get('/api/v1/materials/published', () => HttpResponse.json(MATERIALS)),
     http.get('/api/v1/runtimes', () => HttpResponse.json(RUNTIMES))
   );
@@ -155,6 +162,7 @@ it('offers a retry rather than claiming the assignment is gone', async () => {
         : HttpResponse.json(DRAFT);
     }),
     http.get('/api/v1/assignments/:id/extensions', () => HttpResponse.json([])),
+    http.get('/api/v1/courses/:id', () => HttpResponse.json(COURSE)),
     http.get('/api/v1/materials/published', () => HttpResponse.json(MATERIALS)),
     http.get('/api/v1/runtimes', () => HttpResponse.json(RUNTIMES))
   );
@@ -169,6 +177,7 @@ it('reports that the material choices could not be loaded at all', async () => {
   server.use(
     http.get('/api/v1/assignments/:id', () => HttpResponse.json(DRAFT)),
     http.get('/api/v1/assignments/:id/extensions', () => HttpResponse.json([])),
+    http.get('/api/v1/courses/:id', () => HttpResponse.json(COURSE)),
     http.get('/api/v1/materials/published', () => problem(503, { title: 'Unavailable', detail: 'down' })),
     http.get('/api/v1/runtimes', () => HttpResponse.json(RUNTIMES))
   );
@@ -344,6 +353,19 @@ it('reports a failed extension load without hiding the grant form', async () => 
 
   expect(await screen.findByText('The extensions could not be loaded.')).toBeInTheDocument();
   expect(screen.getByRole('button', { name: 'Grant extension' })).toBeInTheDocument();
+});
+
+/**
+ * The clone URL is built from the course key and the deployment's SSH endpoint, both
+ * of which come from the server: the page must show the pattern with the student
+ * username as the only variable segment, not a hardcoded host or user.
+ */
+it('shows the student repository clone URL pattern', async () => {
+  stubCommon();
+  renderPage();
+
+  expect(await screen.findByRole('heading', { name: 'Student repositories' })).toBeInTheDocument();
+  expect(await screen.findByText('git@ssh.example.org:cs101/hw01/<student>.git')).toBeInTheDocument();
 });
 
 it('has no a11y violations', async () => {

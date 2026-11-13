@@ -5,12 +5,15 @@ import { useState } from 'react';
 import { Link, useLocation, useNavigate, useParams } from 'react-router';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Alert, Box, Button, Chip, CircularProgress, Divider, Paper, Stack, TextField, Typography } from '@mui/material';
-import { api } from '../api';
+import { api, getAllPages } from '../api';
 import { queryKeys } from '../api/queryKeys';
 import { QueryErrorNotice } from '../components/QueryErrorNotice';
 import { MutationErrorAlert, problemFieldErrors } from '../components/MutationErrorAlert';
 import { PageHeader } from '../components/PageHeader';
 import { StudentStatusChip } from '../components/StudentStatusChip';
+import { useMeta } from '../components/MetaProvider';
+import { cloneCommand, repositoryPath } from '../components/cloneUrl';
+import { CopyableCode } from '../components/CopyableCode';
 import type { ClassStudentReport, StudentUpdate } from '../api';
 
 function Coursework({ report, courseId, classId }: {
@@ -105,6 +108,18 @@ export function StudentDetailPage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const query = useQuery({ queryKey: queryKeys.students.detail(id), queryFn: () => api.getStudent(id), enabled: !!id });
+  const meta = useMeta();
+  // One repository exists per assignment for this student. The clone commands need
+  // every assignment key and the course key each assignment belongs to, so both
+  // bounded lists are loaded whole, the same way the assignments page loads them.
+  const assignmentsQuery = useQuery({
+    queryKey: queryKeys.assignments.list('', ''),
+    queryFn: () => getAllPages(api.getAssignments, {}, (assignment) => assignment.id)
+  });
+  const coursesQuery = useQuery({
+    queryKey: queryKeys.courses.choices,
+    queryFn: () => getAllPages(api.getCourses, {}, (course) => course.id)
+  });
   const courseworkQuery = useQuery({
     queryKey: queryKeys.classStudentReport(courseId, classId, id),
     queryFn: () => api.getClassStudentReport(courseId, classId, id),
@@ -161,6 +176,17 @@ export function StudentDetailPage() {
     email: student.email
   };
   const errors = problemFieldErrors(mutation.error);
+  const courseKeyById = new Map((coursesQuery.data ?? []).map((course) => [course.id, course.courseKey]));
+  // Assignments whose course is not in the list cannot get a correct address, so
+  // they are skipped rather than shown with a wrong course key.
+  const repositories = (assignmentsQuery.data ?? [])
+    .map((assignment) => {
+      const courseKey = courseKeyById.get(assignment.courseId);
+      return courseKey
+        ? { assignment, command: cloneCommand(meta, repositoryPath(courseKey, assignment.assignmentKey, student.studentUsername)) }
+        : null;
+    })
+    .filter((entry) => entry !== null);
 
   return (
     <Box sx={{ maxWidth: 720, width: '100%', minWidth: 0, display: 'flex', flexDirection: 'column', gap: 3 }}>
@@ -204,6 +230,29 @@ export function StudentDetailPage() {
             {resetOverviewMutation.isPending ? 'Resetting…' : 'Reset results link'}
           </Button>
         </Box>
+      </Paper>
+      <Paper component="section" aria-label="Repositories" variant="outlined" sx={{ p: { xs: 2, sm: 3 }, display: 'flex', flexDirection: 'column', gap: 2, overflowWrap: 'anywhere' }}>
+        <Typography variant="h6">Repositories</Typography>
+        <Typography variant="body2" color="text.secondary">
+          One repository per assignment, addressed {`<course-key>/<assignment-key>/`}{student.studentUsername}.git.
+          The student clones each one over SSH with their own registered key:
+        </Typography>
+        {assignmentsQuery.isLoading || coursesQuery.isLoading ? (
+          <Box sx={{ p: 2 }}><CircularProgress aria-label="Loading repositories" /></Box>
+        ) : assignmentsQuery.isError || coursesQuery.isError ? (
+          <QueryErrorNotice message="The repositories could not be loaded." onRetry={() => { void assignmentsQuery.refetch(); void coursesQuery.refetch(); }} />
+        ) : repositories.length === 0 ? (
+          <Typography variant="body2" color="text.secondary">No assignments exist yet, so no repositories have been provisioned.</Typography>
+        ) : (
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+            {repositories.map(({ assignment, command }) => (
+              <Box key={assignment.id} sx={{ display: 'flex', flexDirection: 'column', gap: 0.5, minWidth: 0 }}>
+                <Typography variant="subtitle2">{assignment.title}</Typography>
+                <CopyableCode text={command} />
+              </Box>
+            ))}
+          </Box>
+        )}
       </Paper>
       {courseId && classId && (
         courseworkQuery.isLoading ? (

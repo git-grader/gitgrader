@@ -13,6 +13,9 @@ import { SearchableChoice } from '../components/SearchableChoice';
 import { AssignmentReadiness } from '../components/AssignmentReadiness';
 import { DuplicateAssignment } from '../components/DuplicateAssignment';
 import { PageHeader } from '../components/PageHeader';
+import { useMeta } from '../components/MetaProvider';
+import { cloneUrl, repositoryPath } from '../components/cloneUrl';
+import { CopyableCode } from '../components/CopyableCode';
 import { numberInputValue, parseNumberInput } from '../components/numberInput';
 import { fromZonedInputValue, toZonedInputValue } from '../components/localDateTime';
 import type { AssignmentDefinition, AssignmentDetail } from '../api';
@@ -122,11 +125,20 @@ function ConfigurationForm({ assignment, materials, isDraft, pending, onSave }: 
 export function AssignmentDetailPage() {
   const { id } = useParams<{ id: string }>();
   const queryClient = useQueryClient();
+  const meta = useMeta();
 
   const { data: assignment, isLoading: assignmentLoading, isError: assignmentFailed, refetch: refetchAssignment } = useQuery({
     queryKey: queryKeys.assignments.detail(id ?? ''),
     queryFn: () => api.getAssignment(id ?? ''),
     enabled: !!id
+  });
+
+  // The clone URL pattern contains the course key, which the assignment row only
+  // references by id, so the course is fetched once for this page.
+  const courseQuery = useQuery({
+    queryKey: queryKeys.courses.detail(assignment?.courseId ?? ''),
+    queryFn: () => api.getCourse(assignment?.courseId ?? ''),
+    enabled: !!assignment
   });
 
   const materials = useAssignmentMaterials();
@@ -253,6 +265,25 @@ export function AssignmentDetailPage() {
         pending={updateMutation.isPending}
         onSave={(request) => updateMutation.mutate(request)}
       />
+
+      <Paper sx={{ p: 3, display: 'flex', flexDirection: 'column', gap: 2, overflowWrap: 'anywhere' }}>
+        <Typography variant="h6" component="h2">Student repositories</Typography>
+        <Typography variant="body2" color="text.secondary">
+          One bare repository is provisioned per student. Students clone it over SSH;
+          the address follows the same pattern for everyone, with the student username
+          as the last segment:
+        </Typography>
+        {courseQuery.isLoading ? (
+          <CircularProgress aria-label="Loading course" />
+        ) : courseQuery.isError || !courseQuery.data ? (
+          <QueryErrorNotice message="The course could not be loaded, so the repository address cannot be shown." onRetry={() => void courseQuery.refetch()} />
+        ) : (
+          <CopyableCode text={cloneUrl(meta, repositoryPath(courseQuery.data.courseKey, assignment.assignmentKey, '<student>'))} />
+        )}
+        <Typography variant="body2" color="text.secondary">
+          Replace <Box component="code" sx={{ fontFamily: 'monospace' }}>&lt;student&gt;</Box> with the student&apos;s username; the per-student command is listed on the student&apos;s detail page.
+        </Typography>
+      </Paper>
 
       <Paper sx={{ p: 3, display: 'flex', flexDirection: 'column', gap: 2 }}>
         <Typography variant="h6" component="h2">Deadline Extensions</Typography>

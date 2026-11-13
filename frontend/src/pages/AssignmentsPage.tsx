@@ -11,6 +11,8 @@ import { QueryErrorNotice } from '../components/QueryErrorNotice';
 import { MutationErrorAlert, problemFieldErrors } from '../components/MutationErrorAlert';
 import { SearchableChoice } from '../components/SearchableChoice';
 import { PageHeader } from '../components/PageHeader';
+import { useMeta } from '../components/MetaProvider';
+import { cloneUrl, repositoryPath } from '../components/cloneUrl';
 import { tablePageSx, tablePanelSx } from '../components/pageLayout';
 import { fromZonedInputValue } from '../components/localDateTime';
 import { numberInputValue, parseNumberInput } from '../components/numberInput';
@@ -41,6 +43,7 @@ const emptyForm = (): AssignmentForm => ({
 
 export function AssignmentsPage() {
   const queryClient = useQueryClient();
+  const meta = useMeta();
   const [searchParams, setSearchParams] = useSearchParams();
   const selectedCourseId = searchParams.get('courseId') ?? '';
   const selectedStatus = searchParams.get('status') ?? '';
@@ -160,8 +163,16 @@ export function AssignmentsPage() {
   const serverFieldErrors = problemFieldErrors(createMutation.error);
   const errorFor = (field: string) => fieldErrors[field] ?? serverFieldErrors[field];
 
+  // The clone URL needs the course key, but the rows only carry the course id. The
+  // choices query above already loads every course for the filter, so mapping them
+  // here costs no extra request.
+  const courseKeyById = useMemo(
+    () => new Map((courses ?? []).map((course) => [course.id, course.courseKey])),
+    [courses]
+  );
+
   const columnVisibilityModel = useNarrowColumns(
-    ['assignmentKey', 'title', 'status', 'dueAt'],
+    ['assignmentKey', 'title', 'status', 'dueAt', 'cloneUrl'],
     ['title', 'status']
   );
 
@@ -202,8 +213,28 @@ export function AssignmentsPage() {
       headerName: 'Due At',
       width: 200,
       valueGetter: (value: string | null | undefined) => (value ? new Date(value).toLocaleString() : '')
+    },
+    {
+      field: 'cloneUrl',
+      headerName: 'Clone URL',
+      flex: 1,
+      minWidth: 280,
+      sortable: false,
+      // One repository exists per student, so the row can only show the shared
+      // pattern: the student username is the one segment that varies. The full
+      // per-student command is on the student and assignment detail pages.
+      renderCell: (params: GridRenderCellParams<AssignmentDetail>) => {
+        const courseKey = courseKeyById.get(params.row.courseId);
+        if (!courseKey) return '—';
+        const url = cloneUrl(meta, repositoryPath(courseKey, params.row.assignmentKey, '<student>'));
+        return (
+          <Tooltip title={url}>
+            <Box component="code" sx={{ fontFamily: 'monospace', overflowWrap: 'anywhere' }}>{url}</Box>
+          </Tooltip>
+        );
+      }
     }
-  ], []);
+  ], [courseKeyById, meta]);
 
   return (
     <Box sx={tablePageSx}>

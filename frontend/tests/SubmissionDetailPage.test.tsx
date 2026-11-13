@@ -50,6 +50,11 @@ it('shows the submission the server returned', async () => {
   expect(screen.getByText(SUBMISSION.commitMessage)).toBeInTheDocument();
   expect(screen.getByText(SUBMISSION.signatureFingerprint)).toBeInTheDocument();
   expect(screen.getByText(SUBMISSION.runtimeImageDigest)).toBeInTheDocument();
+  // The repository the push came in on is shown as a path and as the clone URL built
+  // from it and the deployment's SSH endpoint, so the instructor can fetch the exact
+  // commit under review.
+  expect(screen.getByText('students/alice/hw1')).toBeInTheDocument();
+  expect(screen.getByText('git@ssh.example.org:students/alice/hw1.git')).toBeInTheDocument();
   // Nullish fields render as a dash rather than nothing, so a missing rejection reason
   // and an empty box do not look alike.
   expect(screen.getAllByText('—').length).toBeGreaterThan(0);

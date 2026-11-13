@@ -65,6 +65,10 @@ export const MetaSchema = z.object({
   publicUrl: z.string(),
   sshHost: z.string(),
   sshPort: z.number(),
+  // The fixed SSH user name of the deployment ("git" on the common forges). Clone
+  // URLs are built from this rather than hardcoding a user, so a deployment whose
+  // ssh-user differs still shows working commands.
+  sshUser: z.string(),
   registrationEnabled: z.boolean(),
   requireInstructorVerification: z.boolean(),
   version: z.string(),

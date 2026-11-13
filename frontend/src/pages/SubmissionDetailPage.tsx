@@ -11,9 +11,12 @@ import { queryKeys } from '../api/queryKeys';
 import { QueryErrorNotice } from '../components/QueryErrorNotice';
 import { PageHeader } from '../components/PageHeader';
 import { SubmissionStatusChip } from '../components/SubmissionStatusChip';
+import { useMeta } from '../components/MetaProvider';
+import { cloneUrl } from '../components/cloneUrl';
 
 export function SubmissionDetailPage() {
   const { id = '' } = useParams<{ id: string }>();
+  const meta = useMeta();
   const [searchParams] = useSearchParams();
   const classId = searchParams.get('classId') ?? '';
   const navigate = useNavigate();
@@ -47,6 +50,10 @@ export function SubmissionDetailPage() {
       <Divider />
       <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: 2 }}>
         {field('Student', submission.studentUsername ?? 'Unknown student')}{field('Commit', submission.commitSha)}{field('Reference', submission.gitRef)}{field('Received', new Date(submission.receivedAt).toLocaleString())}{field('Commit message', submission.commitMessage ?? '')}{field('Signature fingerprint', submission.signatureFingerprint ?? '')}{field('Effective due date', submission.effectiveDueAt ? new Date(submission.effectiveDueAt).toLocaleString() : '')}{field('Rejection reason', submission.rejectionReason ?? '')}{field('Runtime image', submission.runtimeImageDigest ?? '')}
+        {/* The repository path comes from the push, and the clone URL is built from it
+            and the deployment's SSH endpoint: this is where an instructor finds the
+            exact address the student's commit came in on. */}
+        {submission.repositoryPath ? <>{field('Repository', submission.repositoryPath)}{field('Clone URL', cloneUrl(meta, submission.repositoryPath))}</> : null}
       </Box>
     </Paper>
     <SubmissionGrading key={`${submission.id}:${classId}`} submission={submission} classId={classId} />

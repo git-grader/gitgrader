@@ -50,7 +50,7 @@ const classReport = {
 const meta = {
   name: 'GitGrader', organizationName: 'Test Organization', supportEmail: 'test@example.org',
   documentationUrl: 'https://example.org/docs', publicUrl: 'https://example.org',
-  sshHost: 'example.org', sshPort: 2222, registrationEnabled: true,
+  sshHost: 'example.org', sshPort: 2222, sshUser: 'git', registrationEnabled: true,
   requireInstructorVerification: false, version: 'test', buildCommit: 'test'
 };
 function paged(content, url, totalElements = content.length) {

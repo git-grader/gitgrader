@@ -30,7 +30,7 @@ import org.springframework.web.bind.annotation.RestController;
  * <p>
  * Public and unauthenticated on purpose: the registration page and the result page both
  * render before anyone has signed in, and both need the product name, the support address
- * and the SSH host to say anything useful.
+ * and the SSH endpoint to say anything useful.
  *
  * <p>
  * This endpoint is what makes the UI organization neutral. Nothing in the frontend
@@ -65,7 +65,8 @@ public class MetaController {
 	public MetaResponse meta() {
 		return new MetaResponse(this.app.name(), this.app.organizationName(), this.app.supportEmail(),
 				this.app.documentationUrl().toString(), this.app.baseUrl(), this.git.sshHost(), this.git.sshPort(),
-				this.app.registration().enabled(), this.app.registration().requireInstructorVerification(),
+				this.git.sshUser(), this.app.registration().enabled(),
+				this.app.registration().requireInstructorVerification(),
 				(this.buildProperties != null) ? this.buildProperties.getVersion() : "dev",
 				(this.buildGit != null && this.buildGit.getShortCommitId() != null) ? this.buildGit.getShortCommitId()
 						: "dev");
@@ -85,6 +86,7 @@ public class MetaController {
 	 * @param publicUrl externally reachable base URL
 	 * @param sshHost host students clone from
 	 * @param sshPort port students clone from
+	 * @param sshUser user name students clone as, fixed for the deployment
 	 * @param registrationEnabled whether the public registration form is open
 	 * @param requireInstructorVerification whether an unverified self-registration may
 	 * push
@@ -92,7 +94,7 @@ public class MetaController {
 	 * @param buildCommit short commit this build was made from
 	 */
 	public record MetaResponse(String name, String organizationName, String supportEmail, String documentationUrl,
-			String publicUrl, String sshHost, int sshPort, boolean registrationEnabled,
+			String publicUrl, String sshHost, int sshPort, String sshUser, boolean registrationEnabled,
 			boolean requireInstructorVerification, String version, String buildCommit) {
 	}
 

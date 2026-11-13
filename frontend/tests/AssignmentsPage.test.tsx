@@ -187,6 +187,26 @@ it('sorts assignments locally when an assignment column is selected', async () =
 });
 
 /**
+ * The clone URL is composed from the course key and the deployment's SSH endpoint from
+ * the meta endpoint, so the row shows the pattern with the student username as the only
+ * variable segment rather than a host hardcoded in the UI.
+ */
+it('shows the repository clone URL pattern for each assignment', async () => {
+  server.use(
+    http.get('/api/v1/courses', () => HttpResponse.json(page([COURSE]))),
+    http.get('/api/v1/assignments', () => HttpResponse.json(page([created()]))),
+    http.get('/api/v1/templates', () => HttpResponse.json(page([]))),
+    http.get('/api/v1/test-suites', () => HttpResponse.json(page([]))),
+    http.get('/api/v1/materials/published', () => HttpResponse.json({ templateVersions: [], suiteVersions: [] })),
+    http.get('/api/v1/runtimes', () => HttpResponse.json([]))
+  );
+
+  renderWithProviders(<AssignmentsPage />);
+
+  expect(await screen.findByText('git@ssh.example.org:cs101/hw1/<student>.git')).toBeInTheDocument();
+});
+
+/**
  * The dialog is mounted for the life of the page, so anything left in it after a failed
  * attempt was still there the next time it opened - including the error banner from a
  * request the instructor had already given up on.

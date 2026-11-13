@@ -29,6 +29,19 @@ authority for every route; hiding an administrator item does not grant access.
    links are student-facing and need no web login. Export reports when a snapshot is
    needed outside GitGrader.
 
+## Student repository addresses
+
+Every student gets one bare repository per assignment, stored under
+`<course-key>/<assignment-key>/<student-username>.git`, and the workspace shows the
+clone address wherever an instructor needs it. The Assignments list has a **Clone URL**
+column showing the shared pattern with `<student>` as the placeholder; the assignment
+detail page repeats that pattern under **Student repositories**; the student detail
+page lists the full `git clone` command for each assignment with the student's own
+username filled in; and the submission detail page shows the exact repository path and
+clone URL the graded commit arrived on. All addresses are built from the SSH endpoint
+and user advertised by `/api/v1/meta`, so deployments on a non-default port get a
+clone command that supplies the port explicitly.
+
 ## Data loading
 
 Courses, assignments, course choices, templates, and test suites are bounded

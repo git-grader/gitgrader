@@ -1,49 +1,13 @@
 // Copyright the GitGrader contributors.
 // SPDX-License-Identifier: Apache-2.0
 
-import { useState } from 'react';
 import { useLocation, Navigate } from 'react-router';
-import { Alert, Box, Typography, Paper, Button } from '@mui/material';
+import { Alert, Box, Typography, Paper } from '@mui/material';
 import { RegistrationResponseSchema } from '../api';
 import { useMeta } from '../components/MetaProvider';
 import { BrandMark } from '../components/BrandMark';
-
-/**
- * Copies one clone command, and admits it when it could not.
- *
- * The clipboard API does not exist on an insecure origin and can be refused on a secure
- * one, and both arrive here as a click that did nothing at all. This is the first page a
- * student sees and the clone URL is the one thing they came away with, so a button that
- * quietly fails sends them looking for a command they think they already have.
- */
-function CopyCloneCommand({ command }: { command: string }) {
-  const [outcome, setOutcome] = useState<'idle' | 'copied' | 'failed'>('idle');
-
-  const copy = async () => {
-    try {
-      await navigator.clipboard.writeText(command);
-      setOutcome('copied');
-    }
-    catch {
-      setOutcome('failed');
-    }
-  };
-
-  const label = outcome === 'copied' ? 'Copied' : outcome === 'failed' ? 'Copy it by hand' : 'Copy';
-  return (
-    <>
-      <Button size="small" onClick={() => void copy()}>
-        {label}
-      </Button>
-      {/* The announcement lives in its own region rather than on the button. A live
-          region that is also the focused control is announced inconsistently, and here
-          it is the only confirmation that the command was copied at all. */}
-      <Box component="span" role="status" sx={{ position: 'absolute', width: '1px', height: '1px', padding: 0, margin: '-1px', overflow: 'hidden', clip: 'rect(0 0 0 0)', whiteSpace: 'nowrap', border: 0 }}>
-        {outcome === 'copied' ? 'Clone command copied to the clipboard.' : outcome === 'failed' ? 'The clone command could not be copied. Select it and copy it by hand.' : ''}
-      </Box>
-    </>
-  );
-}
+import { cloneCommand } from '../components/cloneUrl';
+import { CopyableCode } from '../components/CopyableCode';
 
 export function RegistrationSuccessPage() {
   const meta = useMeta();
@@ -62,13 +26,10 @@ export function RegistrationSuccessPage() {
     state && typeof state === 'object' && 'courseKey' in state && typeof state.courseKey === 'string'
       ? state.courseKey
       : null;
-  // SCP-style Git URLs do not carry a port, so configure SSH for this clone when the
-  // advertised endpoint uses a non-default port.
-  const clonePrefix = meta.sshPort === 22
-    ? 'git clone'
-    : `git -c core.sshCommand="ssh -p ${meta.sshPort}" clone`;
-  const cloneCommand =
-    `${clonePrefix} git@${meta.sshHost}:${courseKey ?? '<course-key>'}/<assignment-key>/${result.studentUsername}.git`;
+  const command = cloneCommand(
+    meta,
+    `${courseKey ?? '<course-key>'}/<assignment-key>/${result.studentUsername}`
+  );
 
   return (
     <Box component="main" sx={{ minHeight: '100vh', p: { xs: 2, sm: 4 }, maxWidth: 760, width: '100%', mx: 'auto', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 1, bgcolor: 'background.default' }}>
@@ -98,27 +59,7 @@ export function RegistrationSuccessPage() {
         <Typography component="p" sx={{ mb: 1, overflowWrap: 'anywhere' }}>
           One repository is being prepared for each assignment. Clone the one you have been set with:
         </Typography>
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
-          <Box
-            component="code"
-            // A clone URL is longer than a phone is wide, and this is the first page a
-            // student sees after registering.
-            sx={{
-              bgcolor: 'action.hover',
-              px: 0.5,
-              py: 0.25,
-              borderRadius: 1,
-              fontFamily: 'monospace',
-              overflowWrap: 'anywhere',
-              minWidth: 0
-            }}
-          >
-            {cloneCommand}
-          </Box>
-          <CopyCloneCommand
-            command={cloneCommand}
-          />
-        </Box>
+        <CopyableCode text={command} />
         <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
           Your instructor publishes the assignment key for each piece of work.
         </Typography>

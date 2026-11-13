@@ -7,6 +7,8 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter } from 'react-router';
 import { axe } from 'vitest-axe';
 import { expect } from 'vitest';
+import { MetaContext } from '../src/components/MetaProvider';
+import type { Meta } from '../src/api';
 
 /**
  * One request layer for the tests that exercise a real page.
@@ -31,8 +33,16 @@ interface RenderOptions {
   readonly queryClient?: QueryClient;
   readonly route?: string;
   readonly state?: unknown;
+  readonly meta?: Meta;
 }
 
+/**
+ * Wraps renders the way App.tsx does: MetaProvider sits above every route, so pages
+ * that read the deployment identity through useMeta (clone URLs, the registration
+ * result) get the default test meta here without each test arranging a provider. The
+ * context is a plain value, so this adds no HTTP request; tests that exercise the
+ * meta endpoint itself still render MetaProvider explicitly and override this.
+ */
 export function renderWithProviders(ui: ReactElement, options: RenderOptions = {}) {
   const queryClient = options.queryClient ?? createTestQueryClient();
   const entry = options.state === undefined
@@ -43,7 +53,9 @@ export function renderWithProviders(ui: ReactElement, options: RenderOptions = {
     queryClient,
     ...render(
       <QueryClientProvider client={queryClient}>
-        <MemoryRouter initialEntries={[entry]}>{ui}</MemoryRouter>
+        <MetaContext.Provider value={options.meta ?? meta()}>
+          <MemoryRouter initialEntries={[entry]}>{ui}</MemoryRouter>
+        </MetaContext.Provider>
       </QueryClientProvider>
     )
   };
@@ -69,6 +81,7 @@ export function meta(overrides: Record<string, unknown> = {}) {
     publicUrl: 'https://example.org',
     sshHost: 'ssh.example.org',
     sshPort: 2222,
+    sshUser: 'git',
     registrationEnabled: true,
     requireInstructorVerification: false,
     version: '1.0.0',

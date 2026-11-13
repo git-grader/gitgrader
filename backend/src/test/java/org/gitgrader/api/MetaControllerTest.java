@@ -60,6 +60,7 @@ class MetaControllerTest {
 			.andExpect(jsonPath("$.organizationName").value("Example University"))
 			.andExpect(jsonPath("$.sshHost").value("grader.example.org"))
 			.andExpect(jsonPath("$.sshPort").value(2299))
+			.andExpect(jsonPath("$.sshUser").value("git"))
 			.andExpect(jsonPath("$.registrationEnabled").value(true))
 			.andExpect(jsonPath("$.requireInstructorVerification").value(false));
 	}
@@ -78,12 +79,13 @@ class MetaControllerTest {
 		// The same controller under different settings must answer differently. This is
 		// what proves the value is read from configuration rather than baked in.
 		MockMvc mockMvc = MockMvcBuilders
-			.standaloneSetup(controller("Second Instance", "Another Operator", "other.example.org", 22))
+			.standaloneSetup(controller("Second Instance", "Another Operator", "other.example.org", 22, "grader", null))
 			.build();
 
 		mockMvc.perform(get("/api/v1/meta"))
 			.andExpect(jsonPath("$.name").value("Second Instance"))
-			.andExpect(jsonPath("$.organizationName").value("Another Operator"));
+			.andExpect(jsonPath("$.organizationName").value("Another Operator"))
+			.andExpect(jsonPath("$.sshUser").value("grader"));
 	}
 
 	@Test
@@ -133,16 +135,21 @@ class MetaControllerTest {
 	}
 
 	private static MetaController controller(String name, String organization, String sshHost, int sshPort) {
-		return controller(name, organization, sshHost, sshPort, null);
+		return controller(name, organization, sshHost, sshPort, "git", null);
 	}
 
 	private static MetaController controller(String name, String organization, String sshHost, int sshPort,
 			org.springframework.boot.info.GitProperties buildGit) {
+		return controller(name, organization, sshHost, sshPort, "git", buildGit);
+	}
+
+	private static MetaController controller(String name, String organization, String sshHost, int sshPort,
+			String sshUser, org.springframework.boot.info.GitProperties buildGit) {
 		AppProperties app = new AppProperties(name, URI.create("https://" + sshHost), "support@example.org",
 				organization, URI.create("https://docs.example.org"), ZoneId.of("UTC"), "/data",
 				new AppProperties.Registration(true, false, 5),
 				new AppProperties.ResultTokens(256, Duration.ofDays(180), 8));
-		GitProperties git = new GitProperties(true, sshHost, sshPort, "0.0.0.0", sshPort, "git", "/data/hostkey.ser",
+		GitProperties git = new GitProperties(true, sshHost, sshPort, "0.0.0.0", sshPort, sshUser, "/data/hostkey.ser",
 				"/data/repositories", DataSize.ofMegabytes(50), DataSize.ofMegabytes(10), 2000, Set.of("ssh-ed25519"),
 				true, Duration.ofMinutes(10));
 		return new MetaController(app, git, null, buildGit);

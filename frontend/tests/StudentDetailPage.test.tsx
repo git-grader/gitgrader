@@ -7,7 +7,7 @@ import { fireEvent, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { Route, Routes } from 'react-router';
 import { StudentDetailPage } from '../src/pages/StudentDetailPage';
-import { renderWithProviders, server } from './harness';
+import { page, renderWithProviders, server } from './harness';
 
 
 const STUDENT = {
@@ -19,6 +19,20 @@ const STUDENT = {
   status: 'ACTIVE'
 };
 
+const COURSE = {
+  id: 'c1', courseKey: 'cs101', name: 'Course One', description: null, semester: null,
+  startsOn: null, endsOn: null, timezone: 'Europe/Zurich', status: 'ACTIVE',
+  registrationOpensAt: null, registrationClosesAt: null, registrationEnabled: true
+};
+
+const ASSIGNMENT = {
+  id: 'a1', courseId: 'c1', assignmentKey: 'hw1', title: 'Homework 1', description: null,
+  displayOrder: 10, status: 'OPEN', mandatory: true, opensAt: null, dueAt: null,
+  timezone: 'Europe/Zurich', maxPoints: 10, testCount: 0, passThreshold: 0, allowLate: false,
+  templateVersionId: null, testSuiteVersionId: null, runtimeId: null, timeoutSeconds: null,
+  memoryLimitBytes: null, cpuLimit: null, pidLimit: null, networkEnabled: false
+};
+
 function renderDetail(
   routes = [<Route key="d" path="/students/:id" element={<StudentDetailPage />} />],
   route = '/students/s1'
@@ -27,7 +41,13 @@ function renderDetail(
 }
 
 function stubStudent() {
-  server.use(http.get('/api/v1/students/s1', () => HttpResponse.json({ student: STUDENT, sshKeys: [] })));
+  server.use(
+    http.get('/api/v1/students/s1', () => HttpResponse.json({ student: STUDENT, sshKeys: [] })),
+    // The page lists one clone command per assignment, so it loads every assignment
+    // and every course key alongside the student.
+    http.get('/api/v1/assignments', () => HttpResponse.json(page([ASSIGNMENT]))),
+    http.get('/api/v1/courses', () => HttpResponse.json(page([COURSE])))
+  );
 }
 
 it('edits the loaded student', async () => {
@@ -134,6 +154,20 @@ it('shows read-only latest coursework while preserving best score and hiding hid
   expect(screen.getByRole('link', { name: 'Back to class' })).toHaveAttribute('href', '/courses/course-1/classes/class-1');
   expect(document.body.textContent).not.toMatch(/secret assertion|secret hint|internal message/i);
   expect(screen.queryByRole('textbox', { name: /grade/i })).not.toBeInTheDocument();
+});
+
+/**
+ * The per-student clone command is built from the course key, the assignment key, the
+ * student's username and the SSH endpoint from the meta endpoint. The advertised port is
+ * not the default, so the command spells it out in a one-off SSH command because
+ * SCP-style URLs cannot carry a port.
+ */
+it('lists the full clone command for each assignment repository', async () => {
+  stubStudent();
+  renderDetail();
+
+  expect(await screen.findByRole('heading', { name: 'Repositories' })).toBeInTheDocument();
+  expect(await screen.findByText('git -c core.sshCommand="ssh -p 2222" clone git@ssh.example.org:cs101/hw1/alice.git')).toBeInTheDocument();
 });
 
 it('distinguishes ungraded and infrastructure-error attempts from failed student tests', async () => {
