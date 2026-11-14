@@ -18,7 +18,7 @@ VALUES ('10000000-0000-4000-8000-000000000013', 'node-22', 'Node.js 22', 'node',
 ON CONFLICT DO NOTHING;
 
 INSERT INTO runtimes (id, runtime_key, display_name, image, tag, image_digest, install_command, test_command, report_format, enabled, shim_kind, created_at, updated_at)
-VALUES ('10000000-0000-4000-8000-000000000014', 'node-26', 'Node.js 26', 'node', '26-bookworm-slim', 'sha256:add5c17c14752c54d2f3d519ec46a3815684d41c33f198bcb09fb998f7dcbf68', NULL, 'cd /opt/hidden-tests && jasmine --config=jasmine.json --reporter=./jasmine-tap-reporter.cjs', 'TAP', TRUE, 'node-ipc', now(), now())
+VALUES ('10000000-0000-4000-8000-000000000014', 'node-26', 'Node.js 26', 'node', '26-bookworm-slim', 'sha256:5df79989ed685e09f0a98019db4cebfb22fb9df1a53c0161664a011f7ff6b0f1', NULL, 'cd /opt/hidden-tests && jasmine --config=jasmine.json --reporter=./jasmine-tap-reporter.cjs', 'TAP', TRUE, 'node-ipc', now(), now())
 ON CONFLICT DO NOTHING;
 
 -- The Python shim is started explicitly rather than through the runner's Node
