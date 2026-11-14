@@ -28,7 +28,7 @@
 
   <properties>
     <archunit.version>1.5.1</archunit.version>
-    <bouncycastle.version>1.86</bouncycastle.version>
+    <bouncycastle.version>1.87</bouncycastle.version>
     <bucket4j.version>8.10.1</bucket4j.version>
     <checkstyle.skip>${skipQuality}</checkstyle.skip>
     <checkstyle.version>14.4.0</checkstyle.version>
