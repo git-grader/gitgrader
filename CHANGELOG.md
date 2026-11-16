@@ -50,6 +50,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- A shimmed run whose workspace `src/` holds several modules (or none) with no
+  `SOLUTION_PATH` set is now refused before any container starts and is recorded
+  as an infrastructure error naming the files. Previously the sandbox exited at
+  once and the suite waited out its connect deadline on a socket that never
+  appeared, so the submission surfaced as a graded run full of connection errors
+  rather than a diagnosable infrastructure failure.
 - The Java runtimes' hidden-suite command no longer relies on a `--tap` flag the
   JUnit console launcher never had: the suite compiles against the baked console
   jar and shim and runs the baked `TapRunner`, which emits `ok N - <name>` lines
