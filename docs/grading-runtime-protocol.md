@@ -46,6 +46,12 @@ zero-dependency assignment needs no per-assignment configuration. The server
 refuses to guess (and asks for an explicit `SOLUTION_PATH`) when that directory
 holds several modules.
 
+The runner applies the same rule on the host before any container starts: a
+shimmed run whose `src/` holds several modules (or none) and whose
+`SOLUTION_PATH` names no existing file is refused as an infrastructure error
+that names the files, instead of starting a sandbox that exits at once and a
+suite that waits out its connect deadline on a socket that never appears.
+
 ## Messages
 
 A **request** has exactly `id`, `method` and `args`:

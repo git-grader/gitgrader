@@ -117,6 +117,16 @@ class DockerGradingRunner implements GradingRunner {
 		if (unusable.isPresent()) {
 			return new GradingResult(-1, "", "", this.clock.millis() - start, false, true, unusable.get());
 		}
+		Optional<String> ambiguous = ShimSolutionGuard.unusableSubmission(request);
+		if (ambiguous.isPresent()) {
+			// A submission the shim cannot choose a module for would start a sandbox
+			// that exits at once and a suite that waits out its connect deadline on a
+			// socket that never appears. Refusing here records an infrastructure error
+			// naming the files instead of a graded run full of connection errors.
+			logger.warn("Refusing a shimmed run before it starts: {} [correlationId={}]", ambiguous.get(),
+					request.correlationId());
+			return new GradingResult(-1, "", "", this.clock.millis() - start, false, true, ambiguous.get());
+		}
 		if (ShimmedGradingContainer.isShimmed(request)) {
 			return executeTwoContainer(request, start);
 		}

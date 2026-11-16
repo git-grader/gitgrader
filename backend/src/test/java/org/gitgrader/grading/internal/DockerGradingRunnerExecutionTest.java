@@ -17,6 +17,7 @@
 package org.gitgrader.grading.internal;
 
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Clock;
 import java.time.Duration;
@@ -56,6 +57,8 @@ import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -151,6 +154,61 @@ class DockerGradingRunnerExecutionTest {
 
 		assertThat(result.infrastructureFailure()).isTrue();
 		assertThat(result.failureDetail()).isEqualTo("the daemon cannot see the workspace");
+	}
+
+	@Test
+	@DisplayName("refuses a shimmed submission with several modules before creating any container")
+	void refusesShimmedRunWithSeveralModulesBeforeCreatingContainers() throws Exception {
+		// The shim would exit at once and the suite would wait out its connect deadline
+		// on a socket that never appears; the refusal names the files instead.
+		Path workspace = this.tempDir.resolve("workspace");
+		Path src = Files.createDirectories(workspace.resolve("src"));
+		Files.writeString(src.resolve("scripts.js"), "export const a = 1;\n");
+		Files.writeString(src.resolve("scripts-data.js"), "export const b = 2;\n");
+
+		GradingResult result = this.runner.execute(shimmedRequestOn(workspace, Map.of()));
+
+		assertThat(result.infrastructureFailure()).isTrue();
+		assertThat(result.timedOut()).isFalse();
+		assertThat(result.failureDetail()).contains("holds 2 modules")
+			.contains("scripts-data.js")
+			.contains("scripts.js");
+		verify(this.dockerClient, never()).createContainerCmd(anyString());
+	}
+
+	@Test
+	@DisplayName("starts both containers when the shimmed workspace holds exactly one module")
+	void startsShimmedRunWhenTheWorkspaceHoldsOneModule() throws Exception {
+		Path workspace = this.tempDir.resolve("workspace");
+		Files.writeString(Files.createDirectories(workspace.resolve("src")).resolve("scripts.js"),
+				"export const a = 1;\n");
+		stubTwoContainerLifecycle();
+		streamTwoContainerLogs("1..1\nok 1 - first\n", "");
+		completeTwoContainerWait(0);
+
+		GradingResult result = this.runner.execute(shimmedRequestOn(workspace, Map.of()));
+
+		assertThat(result.infrastructureFailure()).isFalse();
+		assertThat(result.exitCode()).isZero();
+		verify(this.dockerClient, times(2)).createContainerCmd(IMAGE);
+	}
+
+	@Test
+	@DisplayName("starts both containers when SOLUTION_PATH names an existing file among several modules")
+	void startsShimmedRunWhenSolutionPathIsExplicit() throws Exception {
+		Path workspace = this.tempDir.resolve("workspace");
+		Path src = Files.createDirectories(workspace.resolve("src"));
+		Files.writeString(src.resolve("scripts.js"), "export const a = 1;\n");
+		Files.writeString(src.resolve("main.js"), "export const main = 1;\n");
+		stubTwoContainerLifecycle();
+		streamTwoContainerLogs("1..1\nok 1 - first\n", "");
+		completeTwoContainerWait(0);
+
+		GradingResult result = this.runner
+			.execute(shimmedRequestOn(workspace, Map.of("SOLUTION_PATH", "/workspace/src/main.js")));
+
+		assertThat(result.infrastructureFailure()).isFalse();
+		verify(this.dockerClient, times(2)).createContainerCmd(IMAGE);
 	}
 
 	@Test
@@ -365,6 +423,18 @@ class DockerGradingRunnerExecutionTest {
 		return new GradingExecutionRequest(this.request.workspaceDirectory(), this.request.hiddenTestsDirectory(),
 				IMAGE, null, "npm test", Duration.ofMillis(timeoutMillis), 1024L * 1024 * 256, 1.5, 128, false,
 				1024 * 1024, "corr-1", Map.of(), "node-ipc", null);
+	}
+
+	/**
+	 * A shimmed request over the given workspace, with the environment the guard reads.
+	 * @param workspace the materialised submission
+	 * @param environment the sandbox environment, e.g. an explicit SOLUTION_PATH
+	 * @return the request the runner would grade
+	 */
+	private GradingExecutionRequest shimmedRequestOn(Path workspace, Map<String, String> environment) {
+		return new GradingExecutionRequest(workspace, this.request.hiddenTestsDirectory(), IMAGE, null, "npm test",
+				Duration.ofSeconds(30), 1024L * 1024 * 256, 1.5, 128, false, 1024 * 1024, "corr-1", environment,
+				"node-ipc", null);
 	}
 
 	/**
