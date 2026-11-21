@@ -2,7 +2,7 @@
 
 This image runs zero-dependency Node ESM assignments on Node 22. It pins the
 official multi-architecture `node:22-bookworm-slim` OCI index at
-`sha256:5ec23b7c622b00547753bc6ffd78085dd868a68aeb41c8e0a1418f033e13d96d`.
+`sha256:e9f565d32859f0cbfb52125eafe8be39390f24dac302dc3cdf566e8ba3ab21ee`.
 
 Sibling runtimes cover the other supported majors: `node-24` and `node-26`.
 Jasmine `7.0.0` is installed globally in the image for both student-visible
