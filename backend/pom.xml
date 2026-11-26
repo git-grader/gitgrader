@@ -402,6 +402,13 @@
       <artifactId>spring-boot-starter-test</artifactId>
       <scope>test</scope>
     </dependency>
+    <!-- springdoc 3.2.1 no longer brings Jackson 2's Java-time module through its
+         starter, but the Jackson 2 mapper used in tests still registers it. -->
+    <dependency>
+      <groupId>com.fasterxml.jackson.datatype</groupId>
+      <artifactId>jackson-datatype-jsr310</artifactId>
+      <scope>test</scope>
+    </dependency>
     <dependency>
       <!--
         Boot 4.x split test auto-configuration into per-technology modules, so
