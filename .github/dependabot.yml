@@ -4,6 +4,15 @@ updates:
   directory: "/"
   schedule:
     interval: weekly
+  ignore:
+      # 5.5 reintroduced CVE-2026-54399 and CVE-2026-54428 (7.5 each) in the
+      # HTTP/1.1 and HTTP/2 parsers. Dependabot proposed it on 2026-11-21 and
+      # every Quality run against that bump failed until the pin went back to
+      # 5.4.4. Ignore only the bad release; a patched 5.5.x still arrives.
+  - dependency-name: "org.apache.httpcomponents.core5:httpcore5"
+    versions: ["5.5"]
+  - dependency-name: "org.apache.httpcomponents.core5:httpcore5-h2"
+    versions: ["5.5"]
 - package-ecosystem: npm
   directory: "/frontend"
   schedule:
