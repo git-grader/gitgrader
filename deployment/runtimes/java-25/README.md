@@ -2,7 +2,7 @@
 
 This image runs Java assignments compiled and executed on a Temurin 25 JDK. It
 pins the official multi-architecture `eclipse-temurin:25-jdk-noble` OCI index
-at `sha256:95e350ad1eb738f943e141640f7e3d797e483359a3b33c3864255bfd1ad71f8a`.
+at `sha256:4ddc1a8bdaf283421df5487411aff10b797ccf1e06a339041005114c8f489b5c`.
 
 The Python majors live under `python-*` and the Node majors under `node-*`.
 `junit-platform-console-standalone` 6.1.3 (JUnit 5 / Jupiter, verified by
